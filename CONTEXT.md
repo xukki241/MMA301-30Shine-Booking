@@ -1,4 +1,6 @@
-# 30Shine Booking
+# Phụ lục A — Thuật ngữ miền (30Shine Booking)
+
+> Dùng trong báo cáo và khi code. Chỉ ghi khái niệm nghiệp vụ. Bản mô tả đề tài đầy đủ: `docs/00-muc-luc-bao-cao.md`.
 
 Ứng dụng đặt lịch cắt tóc theo chi nhánh cho Customer, có chọn Stylist. Đặt lịch giữ chỗ trước; thanh toán mô phỏng (MoMo/VNPay) sau khi hoàn thành dịch vụ. Dự án độc lập với LMS Classroom; cùng pattern kỹ thuật (Expo + Core API + một Auth Service) nhưng docs/repo tách riêng.
 
