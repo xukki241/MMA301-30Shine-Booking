@@ -15,6 +15,7 @@ Bộ tài liệu đóng hai vai trò: **báo cáo nộp đồ án** và **hướ
 | 4 | [04-cong-nghe.md](./04-cong-nghe.md) | Stack và ADR |
 | 5 | [05-phan-cong-nhom.md](./05-phan-cong-nhom.md) | Phân công 5 thành viên |
 | 6 | [06-huong-dan-phat-trien.md](./06-huong-dan-phat-trien.md) | Chạy dự án, API khung, onboarding |
+| 7 | [07-backlog-tracking.md](./07-backlog-tracking.md) | Backlog Kanban đồng bộ Notion |
 | Phụ lục A | [../CONTEXT.md](../CONTEXT.md) | Thuật ngữ miền |
 | Phụ lục B | [../SCOPE.md](../SCOPE.md) | Phạm vi MVP |
 | Phụ lục C | [./adr/](./adr/) | Architecture Decision Records |
