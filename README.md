@@ -1,34 +1,44 @@
-﻿# 30Shine Booking
+﻿# MMA301 — 30Shine Booking
 
-Greenfield app đặt lịch cắt tóc — MMA301.
+**Báo cáo & tài liệu phát triển** cho đề tài ứng dụng đặt lịch cắt tóc (tham chiếu 30Shine).
 
-## Notion
-- Hub: https://app.notion.com/p/3d41a3267e3e8167aba3ef159c164a65
+| | |
+|--|--|
+| **GitHub** | https://github.com/xukki241/MMA301-30Shine-Booking |
+| **Notion** | https://app.notion.com/p/3d41a3267e3e8167aba3ef159c164a65 |
+| **Môn** | Lập trình ứng dụng di động bằng React Native |
 
-## Stack
-- `apps/mobile` — Expo (Customer + Stylist)
-- `apps/admin-web` — Shop Admin (Branch/Service/Stylist/Work Shift)
-- `services/auth-service` — Express Auth
-- `services/core-api` — Booking + Payment mô phỏng
+## Đọc tài liệu bắt đầu từ đây
 
-## Luồng MVP
-Branch → Service → Stylist → Slot → `booked`
-→ Stylist `completed` → Customer MoMo/VNPay mô phỏng → `paid`
+👉 **[docs/00-muc-luc-bao-cao.md](./docs/00-muc-luc-bao-cao.md)** — mục lục báo cáo (Chương 1–6 + phụ lục).
 
-Shop Admin sở hữu Work Shift. Auth tách service; Core API một process.
+## Phạm vi MVP (một dòng)
 
-## Phân công
-| Thành viên | Việc chính |
-|---|---|
-| Nguyễn Xuân Kiên | Auth, anti double-book, status machine, review |
-| Nguyễn Anh Tú | Core API book + slot + complete |
-| Nguyễn Quốc Hưng | Payment mô phỏng + màn pay |
-| Nguyễn Quang Lộc | Mobile book wizard + my appointments |
-| Ngô Quang Huy | Admin CRUD + Stylist lịch hôm nay |
+Branch → Service → Stylist → Slot → `booked` → Stylist `completed` → Customer pay mô phỏng → `paid`  
+(Shop Admin xếp Work Shift; Auth tách; Core API một process.)
 
-## Chạy (sau khi implement)
+## Cấu trúc mã nguồn
+
+```text
+apps/mobile              # Customer + Stylist (Expo)
+apps/admin-web           # Shop Admin
+services/auth-service    # :4101
+services/core-api        # :4102
+docs/                    # Báo cáo chuẩn
+CONTEXT.md
+```
+
+## Chạy nhanh
+
 ```bash
 cd services/auth-service && npm i && npm run dev
 cd services/core-api && npm i && npm run dev
-cd apps/mobile && npm i && npx expo start
 ```
+
+Chi tiết: [docs/06-huong-dan-phat-trien.md](./docs/06-huong-dan-phat-trien.md).
+
+## Nhóm
+
+Nguyễn Xuân Kiên · Nguyễn Anh Tú · Nguyễn Quốc Hưng · Nguyễn Quang Lộc · Ngô Quang Huy  
+
+Phân công: [docs/05-phan-cong-nhom.md](./docs/05-phan-cong-nhom.md).
