@@ -1,8 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 const { authenticate } = require("./middleware/auth");
+const { bookingRoutes } = require("./booking/routes");
 
-function createApp(secret) {
+function createApp(secret, bookingRepository) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
@@ -13,6 +14,7 @@ function createApp(secret) {
     res.set("Cache-Control", "no-store");
     res.json({ user: req.auth });
   });
+  app.use("/appointments", authenticate(secret), bookingRoutes(bookingRepository));
   app.use((err, _req, res, _next) => {
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Invalid JSON body" });
     if (err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: "Invalid request" });
