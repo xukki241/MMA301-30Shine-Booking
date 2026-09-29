@@ -38,7 +38,7 @@ Git bỏ qua cùng với `node_modules/` và `.expo/`.
 
 1. Mở app: thấy màn chọn Customer / Stylist.
 2. Chọn Customer: mở Trang chủ; bấm "Xem khung lịch hẹn" hoặc tab Lịch hẹn.
-3. Lần đầu mở Lịch hẹn: thấy loading ngắn rồi thông báo danh sách rỗng.
+3. Mở Lịch hẹn: thấy lịch mẫu, thử hủy lịch `booked` và kiểm tra trạng thái `cancelled`.
 4. Bấm "Đổi vai trò", chọn Stylist: mở Hôm nay, thấy loading rồi empty state.
 5. Chuyển qua tab Hồ sơ và trở lại Hôm nay.
 6. Đổi giao diện sáng/tối trong cài đặt Android: màu nền/chữ cập nhật theo hệ thống.
@@ -53,8 +53,17 @@ Role guard ở đây chỉ phục vụ điều hướng stub; không phải xác
 - Stylist: `/(stylist)/today`, `/(stylist)/profile`.
 
 Mỗi nhóm route có guard theo role. Nút **Đổi vai trò** xóa role demo và quay về
-màn đầu. Các danh sách hiện dùng loading/empty state mẫu để các task nghiệp vụ
-sau có thể thay bằng REST API.
+màn đầu. Lịch hẹn Customer dùng data source demo của SHINE-11; danh sách Stylist
+vẫn dùng loading/empty state mẫu.
+
+## SHINE-11: Lịch của tôi / hủy
+
+Customer xem lịch mẫu với bốn trạng thái. Chỉ lịch `booked` có thể hủy sau bước
+xác nhận. Chạy `npm run test:appointments` để kiểm tra quy tắc hủy. Data source
+nằm trong `src/appointments/` để có thể thay bằng REST adapter sau này. Dữ liệu
+chỉ nằm trong bộ nhớ: khởi động lại app sẽ tạo lại lịch mẫu; không gửi request
+hủy tới server. `origin/develop` chưa có API lấy lịch theo Customer hoặc auth
+mobile. Booking demo SHINE-10 trên branch riêng không lưu vào danh sách này.
 
 ## Lỗi thường gặp
 
