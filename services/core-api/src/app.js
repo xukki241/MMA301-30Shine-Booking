@@ -8,10 +8,21 @@ const { createStylistController } = require("./controllers/stylist.controller");
 const { createBranchRouter } = require("./routes/branch.routes");
 const { createServiceRouter } = require("./routes/service.routes");
 const { createStylistRouter } = require("./routes/stylist.routes");
+const { bookingRoutes } = require("./booking/routes");
 
-function createApp(options) {
-  const opts = typeof options === "string" ? { secret: options } : options || {};
+function createApp(optionsOrSecret, extraBookingRepository) {
+  let opts = {};
+  if (typeof optionsOrSecret === "string") {
+    opts = { secret: optionsOrSecret, bookingRepository: extraBookingRepository };
+  } else if (optionsOrSecret && typeof optionsOrSecret === "object") {
+    opts = { ...optionsOrSecret };
+    if (extraBookingRepository) {
+      opts.bookingRepository = extraBookingRepository;
+    }
+  }
+
   const { secret } = opts;
+  const bookingRepository = opts.bookingRepository;
 
   let models = opts.models;
   if (!models && opts.connection) {
@@ -61,6 +72,9 @@ function createApp(options) {
     app.use("/stylists", createStylistRouter({ stylistController, secret }));
   }
 
+  // Booking routes (SHINE-03 / develop)
+  app.use("/appointments", authenticate(secret), bookingRoutes(bookingRepository));
+
   // Central error handler with Vietnamese messages
   app.use((err, _req, res, _next) => {
     if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Dữ liệu JSON không hợp lệ" });
@@ -68,7 +82,7 @@ function createApp(options) {
     if (err.name === "CastError") return res.status(400).json({ error: "Định dạng ID không hợp lệ" });
     if (err.name === "ValidationError") return res.status(400).json({ error: err.message });
     if (err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: "Yêu cầu không hợp lệ" });
-    return res.status(500).json({ error: "Lỗi máy chủ nội bộ" });
+    return res.status(500).json({ error: "Internal server error" });
   });
 
   return app;

@@ -83,6 +83,7 @@ export function PrimaryButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
       onPress={onPress}
       style={({ pressed }) => [
