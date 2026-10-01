@@ -1,5 +1,37 @@
 # Mobile Expo — Customer + Stylist
 
+## SHINE-10: Customer Booking Wizard
+
+Chọn **Customer** ở màn đầu, rồi bấm **Đặt lịch** tại Trang chủ để mở
+`/(customer)/book`. Wizard đi theo thứ tự **Branch → Service → Stylist → ngày/Time Slot
+→ xem lại → xác nhận**. Quay lại một bước giữ lựa chọn trước đó; đổi Branch sẽ xóa
+các lựa chọn phụ thuộc, đổi Service xóa Stylist/Slot, đổi Stylist hoặc ngày xóa Slot.
+Không thể tiếp tục hay xác nhận nếu thiếu lựa chọn bắt buộc.
+
+**Data mode hiện tại: demo adapter local.** Trên `develop` hiện chỉ có Core API
+`/health` và `/auth/me`; chưa có Catalog, Time Slot hoặc Book API. Dataset demo
+nằm trong `src/booking/demo-adapter.ts`, tách khỏi UI, gồm hai Branch, nhiều
+Service/Stylist và slot thay đổi theo Stylist/ngày. Chủ nhật không có slot;
+slot trong quá khứ bị lọc. Xác nhận trả về kết quả demo có trạng thái `booked`
+nhưng **không gọi server, không giữ chỗ thật và không lưu vào “Lịch của tôi”**.
+Demo không mô phỏng thuật toán Work Shift hoặc chống double-book của backend.
+
+`src/booking/types.ts` định nghĩa `BookingWizardDataSource`. Khi SHINE-05
+(Catalog), SHINE-06 (Work Shift/Time Slot) và SHINE-07 (Book API) có mặt trên
+`develop`, thay `demoBookingAdapter` trong màn book bằng REST adapter khớp
+contract thực tế. Khi nối REST, cấu hình base URL bằng `EXPO_PUBLIC_CORE_API_URL`
+phù hợp emulator/thiết bị; không dùng `localhost` cố định. SHINE-10 hiện chưa
+dùng biến URL này vì chưa có REST adapter. Auth/JWT mobile còn chờ phần tích hợp
+riêng; không gửi booking thật bằng role demo.
+
+### Checklist Android cho SHINE-10
+
+1. Mở Customer → Trang chủ → Đặt lịch; chọn Branch, Service, Stylist, ngày và slot, xem lại rồi xác nhận. Kiểm tra kết quả ghi rõ **demo** và `booked`.
+2. Ở bước slot, bấm Quay lại: Stylist đã chọn vẫn còn. Đổi Branch và kiểm tra Service/Stylist/Slot được xóa; đổi Service hoặc Stylist thì Slot được xóa.
+3. Chọn một ngày Chủ nhật: thấy trạng thái không có slot và có thể chọn ngày khác. Ngày hiện tại chỉ hiển thị slot còn ở tương lai.
+4. Ở trang xem lại, thử nhấn xác nhận hai lần nhanh: chỉ một lần gửi từ UI. Nếu slot hết hạn trước khi xác nhận, lỗi hiển thị inline và có thể quay lại chọn slot khác.
+5. Kiểm tra theme sáng/tối, nhãn accessibility cho lựa chọn/nút, màn Android nhỏ cuộn đến được CTA. Tab Trang chủ/Lịch hẹn và role guard vẫn hoạt động.
+
 Ứng dụng mobile Android của 30Shine Booking. SHINE-01 cung cấp shell và điều
 hướng theo hai vai trò mobile; đăng nhập/JWT sẽ được nối ở SHINE-25.
 
