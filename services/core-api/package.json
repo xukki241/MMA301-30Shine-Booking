@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@shine/core-api",
   "version": "0.1.0",
   "private": true,
@@ -6,11 +6,12 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
-    "test": "node --test test/auth.test.js"
+    "test": "node --env-file-if-exists=.env --test test/*.test.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.10.3"
   }
 }
