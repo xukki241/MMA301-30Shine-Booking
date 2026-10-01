@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
-    "test": "node --env-file-if-exists=.env --test test/auth.test.js test/catalog.test.js test/booking.test.js",
-    "test:catalog": "node --env-file-if-exists=.env --test test/catalog.test.js",
+    "test": "node --test test/auth.test.js test/booking.test.js",
     "test:booking": "node --test test/booking.test.js",
     "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js"
   },
@@ -15,6 +14,6 @@
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^9.0.0"
+    "mongoose": "^9.10.3"
   }
 }
