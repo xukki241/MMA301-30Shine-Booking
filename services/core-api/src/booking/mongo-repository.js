@@ -54,6 +54,50 @@ function createBookingRepository(Calendar) {
       return calendar ? plain(calendar.appointments[0]) : null;
     },
 
+    /**
+     * Return all booked/completed appointments for a stylist on a given date.
+     * Used by work-shift service to compute available time slots.
+     * @param {string} stylistId - lowercase hex ObjectId string
+     * @param {string} date - "YYYY-MM-DD" local date
+     */
+    async getActiveAppointmentsForStylistDate(stylistId, date) {
+      // We filter by date range: midnight to end of day in UTC.
+      // The date param is a local date string; to be safe we query a full UTC day ± 1 day
+      // so we don't miss appointments due to timezone differences.
+      const dayStart = new Date(`${date}T00:00:00.000Z`);
+      dayStart.setUTCDate(dayStart.getUTCDate() - 1); // start from day-1 in UTC
+      const dayEnd = new Date(`${date}T00:00:00.000Z`);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + 2); // up to day+2 in UTC
+
+      const calendar = await Calendar.findOne(
+        { _id: new mongoose.Types.ObjectId(stylistId) },
+        {
+          appointments: {
+            $filter: {
+              input: "$appointments",
+              as: "appt",
+              cond: {
+                $and: [
+                  { $in: ["$$appt.status", ACTIVE_STATUSES.filter((s) => s !== "paid")] },
+                  { $lt: ["$$appt.startTime", dayEnd] },
+                  { $gt: ["$$appt.endTime", dayStart] },
+                ],
+              },
+            },
+          },
+        }
+      ).lean().exec();
+
+      if (!calendar || !calendar.appointments) return [];
+      return calendar.appointments.map((a) => ({
+        id: String(a._id),
+        stylistId,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        status: a.status,
+      }));
+    },
+
     async transition(id, action, actor) {
       const rule = ACTIONS[action];
       if (!rule || actor.role !== rule.role) throw new BookingError(403, "Action not permitted");

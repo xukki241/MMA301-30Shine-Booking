@@ -4,18 +4,27 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { formatSlot, upcomingDates } from "@/booking/dates";
 import { demoBookingAdapter } from "@/booking/demo-adapter";
+import { coreApiBookingAdapter } from "@/booking/core-api-adapter";
 import { type BookingStep, useBookingOptions } from "@/booking/use-booking-options";
 import { type AppointmentResult, type BookingDraft, type Branch, type Service, type Stylist, type TimeSlot, isCompleteBookingDraft } from "@/booking/types";
 import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgress } from "@/components/booking-wizard";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { USE_DEMO_ADAPTER } from "@/constants/config";
+
+const activeAdapter = USE_DEMO_ADAPTER ? demoBookingAdapter : coreApiBookingAdapter;
 
 const steps = [
   { title: "Chọn chi nhánh", description: "Chọn nơi bạn muốn đến cắt tóc." },
   { title: "Chọn dịch vụ", description: "Xem dịch vụ tại chi nhánh đã chọn." },
   { title: "Chọn Stylist", description: "Chọn Stylist phù hợp với dịch vụ." },
-  { title: "Chọn ngày và khung giờ", description: "Khung giờ demo thay đổi theo Stylist và ngày." },
+  {
+    title: "Chọn ngày và khung giờ",
+    description: USE_DEMO_ADAPTER
+      ? "Khung giờ demo thay đổi theo Stylist và ngày."
+      : "Khung giờ tính từ Work Shift thực tế, trừ lịch đã đặt.",
+  },
   { title: "Xem lại lịch đặt", description: "Kiểm tra lựa chọn trước khi xác nhận." }
 ] as const;
 
@@ -30,7 +39,7 @@ export default function CustomerBookingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const submitLock = useRef(false);
-  const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, demoBookingAdapter);
+  const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, activeAdapter);
 
   function selectBranch(branch: Branch) {
     setDraft((current) => current.branch?.id === branch.id
@@ -74,7 +83,7 @@ export default function CustomerBookingScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const appointment = await demoBookingAdapter.confirmBooking(draft);
+      const appointment = await activeAdapter.confirmBooking(draft);
       setResult(appointment);
     } catch (cause) {
       setSubmitError(cause instanceof Error ? cause.message : "Không thể xác nhận lúc này. Vui lòng thử lại.");
@@ -106,13 +115,15 @@ export default function CustomerBookingScreen() {
   }
 
   return (
-    <Screen key={step} eyebrow="Customer · Đặt lịch demo" title={steps[step].title} description={steps[step].description}>
+    <Screen key={step} eyebrow={USE_DEMO_ADAPTER ? "Customer · Đặt lịch demo" : "Customer · Đặt lịch"} title={steps[step].title} description={steps[step].description}>
       <WizardProgress step={step} />
-      <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
-        <Text style={[styles.noticeText, { color: theme.textMuted }]}>
-          Chế độ demo local: chưa có Catalog, Time Slot và Book API trên develop. Xác nhận ở đây không giữ chỗ thật.
-        </Text>
-      </View>
+      {USE_DEMO_ADAPTER ? (
+        <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
+          <Text style={[styles.noticeText, { color: theme.textMuted }]}>
+            Chế độ demo local: chưa kết nối Core API. Xác nhận ở đây không giữ chỗ thật.
+          </Text>
+        </View>
+      ) : null}
 
       {step === 0 ? (
         loading ? <LoadingState label="Đang tải chi nhánh..." /> : error ? <InlineError message={error} onRetry={retry} /> :
