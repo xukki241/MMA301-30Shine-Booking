@@ -1,8 +1,8 @@
 const { Router } = require("express");
-const { BookingError } = require("./rules");
+const { BookingError, validateBooking } = require("./rules");
 const { createBookingService } = require("./service");
 
-function bookingRoutes(repository) {
+function bookingRoutes(repository, workShiftRepository) {
   const router = Router();
   const service = repository ? createBookingService(repository) : null;
   router.use((_req, res, next) => {
@@ -17,6 +17,8 @@ function bookingRoutes(repository) {
     }
   };
   router.post("/", handle(async (req, res) => {
+    if (req.auth.role !== "customer") throw new BookingError(403, "Only customers can book");
+    if (workShiftRepository) await workShiftRepository.validateBooking(validateBooking(req.body || {}));
     const appointment = await service.book(req.auth, req.body);
     res.status(201).json({ appointment });
   }));

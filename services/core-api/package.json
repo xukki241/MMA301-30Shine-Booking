@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
-    "test": "node --test test/auth.test.js test/booking.test.js",
+    "test": "node --test test/auth.test.js test/booking.test.js test/work-shifts.test.js",
     "test:booking": "node --test test/booking.test.js",
-    "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js"
+    "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js",
+    "test:work-shifts:integration": "node --env-file-if-exists=.env --test test/work-shifts.integration.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

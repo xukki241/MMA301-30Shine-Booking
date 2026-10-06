@@ -1,4 +1,4 @@
-function createBranchController({ Branch, Service, StylistProfile }) {
+function createBranchController({ Branch, Service, StylistProfile, WorkShift }) {
   return {
     async create(req, res, next) {
       try {
@@ -92,6 +92,9 @@ function createBranchController({ Branch, Service, StylistProfile }) {
 
     async remove(req, res, next) {
       try {
+        if (WorkShift && await WorkShift.exists({ branchId: req.params.id })) {
+          return res.status(409).json({ error: "Delete Work Shifts for this branch before deleting the branch" });
+        }
         const branch = await Branch.findByIdAndDelete(req.params.id);
         if (!branch) {
           return res.status(404).json({ error: "Không tìm thấy chi nhánh" });

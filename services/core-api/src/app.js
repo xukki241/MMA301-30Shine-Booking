@@ -9,6 +9,9 @@ const { createBranchRouter } = require("./routes/branch.routes");
 const { createServiceRouter } = require("./routes/service.routes");
 const { createStylistRouter } = require("./routes/stylist.routes");
 const { bookingRoutes } = require("./booking/routes");
+const { createBookingRepository } = require("./booking/mongo-repository");
+const { createWorkShiftRepository } = require("./work-shifts/repository");
+const { createWorkShiftRouter, createTimeSlotRouter } = require("./routes/work-shift.routes");
 
 function createApp(optionsOrSecret, extraBookingRepository) {
   let opts = {};
@@ -22,12 +25,15 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   }
 
   const { secret } = opts;
-  const bookingRepository = opts.bookingRepository;
+  let bookingRepository = opts.bookingRepository;
+  let workShiftRepository = opts.workShiftRepository;
 
   let models = opts.models;
   if (!models && opts.connection) {
     models = createModels(opts.connection);
   }
+  if (models?.Calendar && !bookingRepository) bookingRepository = createBookingRepository(models.Calendar);
+  if (models?.WorkShift && !workShiftRepository && models.Calendar) workShiftRepository = createWorkShiftRepository(models);
 
   const app = express();
   app.disable("x-powered-by");
@@ -73,7 +79,11 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   }
 
   // Booking routes (SHINE-03 / develop)
-  app.use("/appointments", authenticate(secret), bookingRoutes(bookingRepository));
+  app.use("/appointments", authenticate(secret), bookingRoutes(bookingRepository, workShiftRepository));
+  if (workShiftRepository) {
+    app.use("/work-shifts", createWorkShiftRouter({ repository: workShiftRepository, secret }));
+    app.use("/time-slots", createTimeSlotRouter({ repository: workShiftRepository }));
+  }
 
   // Central error handler with Vietnamese messages
   app.use((err, _req, res, _next) => {

@@ -9,10 +9,11 @@ Node.js LTS, Git, Android emulator/thiết bị, (tuỳ chọn) MongoDB/MySQL.
 ```bash
 cd services/auth-service && npm i && npm run dev   # :4101
 cd services/core-api && npm i && npm run dev       # :4102
-cd apps/mobile && npm i && npx expo start          # sau khi create-expo-app
+cd apps/mobile && npm ci && npx expo start
+cd apps/admin-web && npm ci && npm run dev         # :5173
 ```
 
-Admin web: triển khai sau tại `apps/admin-web` (Vite/React).
+Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo README riêng. Mobile `.env`: cấu hình `EXPO_PUBLIC_AUTH_API_URL` và `EXPO_PUBLIC_CORE_API_URL`; Android Emulator dùng `10.0.2.2`, thiết bị thật dùng IP LAN của máy backend.
 
 ## 6.3. API khung
 
@@ -21,8 +22,8 @@ Admin web: triển khai sau tại `apps/admin-web` (Vite/React).
 | Method | Path | Mô tả |
 |--------|------|--------|
 | GET | `/health` | Health |
-| POST | `/auth/register` | TODO |
-| POST | `/auth/login` | TODO |
+| POST | `/auth/register` | Tạo tài khoản theo role |
+| POST | `/auth/login` | Đăng nhập, trả JWT |
 
 ### Core (`:4102`)
 
@@ -30,7 +31,8 @@ Admin web: triển khai sau tại `apps/admin-web` (Vite/React).
 |------|------------|--------|
 | Health | `GET /health` | |
 | Catalog | `/branches`, `/services`, `/stylists` | CRUD / list |
-| Shifts | `/work-shifts` | Chỉ Shop Admin ghi |
+| Shifts | `/work-shifts` | CRUD ca; chỉ Shop Admin ghi |
+| Slots | `GET /time-slots` | Slot theo Work Shift và duration Service |
 | Booking | `/appointments`, `/appointments/:id/complete` | Đặt / hoàn thành |
 | Pay | `/appointments/:id/payments` | Mock MoMo/VNPay |
 

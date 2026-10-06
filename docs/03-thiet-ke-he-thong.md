@@ -79,3 +79,7 @@ Branch
 | Shop Admin | CRUD Branch/Service/Stylist/Shift | Huy (admin-web) |
 | Hạ tầng | Auth, chống trùng, status machine | Kiên |
 | API book/slot/complete | — | Tú |
+
+### Shop Admin và slot mobile (triển khai)
+
+Admin Web tại `apps/admin-web` gọi Auth Service để đăng nhập role `shop_admin` và Core API để CRUD Branch/Service/Stylist assignment, xếp Work Shift theo ngày. Core API lưu ngày nghiệp vụ địa phương cùng các instant `startAt`/`endAt` ISO có timezone. `GET /time-slots` chia ca theo `durationMinutes` của Service, bỏ slot đã bị Appointment active chiếm. Mobile dùng `userId` stylist nhất quán từ danh mục đến Work Shift, slot và booking.

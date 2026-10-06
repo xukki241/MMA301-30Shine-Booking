@@ -37,6 +37,14 @@ cd services/core-api && npm i && npm run dev
 
 Chi tiết: [docs/06-huong-dan-phat-trien.md](./docs/06-huong-dan-phat-trien.md).
 
+Shop Admin setup and current Work Shift/API contracts: [docs/08-admin-web.md](./docs/08-admin-web.md).
+
+## Shop Admin và Work Shift
+
+Admin Web chạy ở `apps/admin-web` (Vite, mặc định `http://localhost:5173`); cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` trong `apps/admin-web/.env`. Cần chạy Auth Service (`:4101`) và Core API (`:4102`) cùng MongoDB trước.
+
+Shop Admin quản lý Branch/Service/Stylist và Work Shift ngày cụ thể. Core API sinh slot theo duration dịch vụ tại `GET /time-slots`; mobile dùng catalog/slot thật và đăng nhập Customer trước khi đặt lịch. Chi tiết ở [apps/admin-web/README.md](./apps/admin-web/README.md) và [services/core-api/README.md](./services/core-api/README.md).
+
 ## Nhóm
 
 Nguyễn Xuân Kiên · Nguyễn Anh Tú · Nguyễn Quốc Hưng · Nguyễn Quang Lộc · Ngô Quang Huy  
