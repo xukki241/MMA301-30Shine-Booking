@@ -49,9 +49,9 @@ export default function CustomerAppointmentsScreen() {
 
   return (
     <Screen
-      eyebrow="Customer"
+      eyebrow="Customer · Demo"
       title="Lịch hẹn của tôi"
-      description="Theo dõi trạng thái booked, completed, paid hoặc cancelled tại đây."
+      description="Theo dõi lịch hẹn và hủy lịch đang ở trạng thái đã đặt."
     >
       {!result ? (
         <LoadingState label="Đang tải lịch hẹn..." />
@@ -82,3 +82,12 @@ export default function CustomerAppointmentsScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  notice: { borderRadius: 12, padding: 12 },
+  heading: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  status: { fontSize: 14, fontWeight: "700" },
+  actionText: { fontSize: 15, fontWeight: "700", paddingVertical: 10 },
+  confirmation: { gap: 8, marginTop: 6 },
+  actions: { flexDirection: "row", justifyContent: "space-between", gap: 20 }
+});

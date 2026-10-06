@@ -19,6 +19,11 @@ export default function CustomerHomeScreen() {
         <CardTitle>Đặt lịch theo 4 bước</CardTitle>
         <CardText>Branch → Service → Stylist → Time Slot</CardText>
         <PrimaryButton
+          label="Đặt lịch"
+          accessibilityHint="Mở wizard chọn chi nhánh, dịch vụ, Stylist và khung giờ"
+          onPress={() => router.push("/(customer)/book")}
+        />
+        <PrimaryButton
           label="Xem khung lịch hẹn"
           accessibilityHint="Mở danh sách lịch hẹn Customer"
           onPress={() => router.push("/(customer)/appointments")}

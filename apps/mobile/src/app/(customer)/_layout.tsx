@@ -30,6 +30,10 @@ export default function CustomerLayout() {
         options={{ title: "Customer", tabBarLabel: "Trang chủ" }}
       />
       <Tabs.Screen
+        name="book"
+        options={{ title: "Đặt lịch", href: null }}
+      />
+      <Tabs.Screen
         name="appointments"
         options={{ title: "Lịch hẹn", tabBarLabel: "Lịch hẹn" }}
       />
