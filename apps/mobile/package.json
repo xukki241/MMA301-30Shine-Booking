@@ -8,8 +8,10 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "test": "node --test test/offline.test.mjs test/appointments.test.mjs test/stylist.test.mjs",
     "test:offline": "node --test test/offline.test.mjs",
     "test:appointments": "node --test test/appointments.test.mjs",
+    "test:stylist": "node --test test/stylist.test.mjs",
     "typecheck": "tsc --noEmit",
     "export:android": "expo export --platform android"
   },

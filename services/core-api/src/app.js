@@ -9,6 +9,7 @@ const { createBranchRouter } = require("./routes/branch.routes");
 const { createServiceRouter } = require("./routes/service.routes");
 const { createStylistRouter } = require("./routes/stylist.routes");
 const { bookingRoutes } = require("./booking/routes");
+const { createBookingRepository } = require("./booking/mongo-repository");
 const { createWorkShiftRepository } = require("./work-shift/mongo-repository");
 const { createWorkShiftService } = require("./work-shift/service");
 const { createWorkShiftRouter, createTimeSlotsRouter } = require("./work-shift/routes");
@@ -26,11 +27,15 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   }
 
   const { secret } = opts;
-  const bookingRepository = opts.bookingRepository;
+  let bookingRepository = opts.bookingRepository;
 
   let models = opts.models;
   if (!models && opts.connection) {
     models = createModels(opts.connection);
+  }
+
+  if (!bookingRepository && models && models.Calendar) {
+    bookingRepository = createBookingRepository(models.Calendar);
   }
 
   const app = express();

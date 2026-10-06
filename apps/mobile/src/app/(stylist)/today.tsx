@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
@@ -14,6 +14,7 @@ import {
 export default function StylistTodayScreen() {
   const theme = useAppTheme();
   const [token, setToken] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [email, setEmail] = useState("stylist@30shine.vn");
   const [password, setPassword] = useState("Password123!");
   const [loggingIn, setLoggingIn] = useState(false);
@@ -22,11 +23,13 @@ export default function StylistTodayScreen() {
   const [appointments, setAppointments] = useState<StylistAppointmentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   const fetchAppointments = useCallback(async (authToken: string) => {
     setLoading(true);
     setError(null);
+    setActionError(null);
     try {
       const data = await getStylistTodayAppointments(authToken);
       setAppointments(data);
@@ -49,6 +52,7 @@ export default function StylistTodayScreen() {
     try {
       const result = await loginStylist(email, password);
       setToken(result.token);
+      setUserEmail(result.user?.email || email);
     } catch (cause) {
       setLoginError(cause instanceof Error ? cause.message : "Đăng nhập thất bại.");
     } finally {
@@ -56,16 +60,25 @@ export default function StylistTodayScreen() {
     }
   }
 
+  function handleLogout() {
+    setToken(null);
+    setUserEmail(null);
+    setAppointments([]);
+    setError(null);
+    setActionError(null);
+  }
+
   async function handleComplete(appointmentId: string) {
     if (!token) return;
     setCompletingId(appointmentId);
+    setActionError(null);
     try {
       const updated = await completeStylistAppointment(token, appointmentId);
       setAppointments((prev) =>
         prev.map((item) => (item.id === updated.id ? { ...item, status: updated.status } : item))
       );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Không thể đánh dấu hoàn thành.");
+      setActionError(cause instanceof Error ? cause.message : "Không thể đánh dấu hoàn thành.");
     } finally {
       setCompletingId(null);
     }
@@ -128,6 +141,23 @@ export default function StylistTodayScreen() {
       title="Lịch phục vụ hôm nay"
       description="Xem các lịch hẹn đã đặt và bấm Hoàn thành sau khi phục vụ xong."
     >
+      <View style={styles.topControlRow}>
+        <View style={styles.userBadge}>
+          <Text style={styles.onlineDot}>●</Text>
+          <Text style={styles.userEmailText}>{userEmail || "Stylist"}</Text>
+        </View>
+        <View style={styles.btnRow}>
+          <Pressable style={styles.iconBtn} onPress={() => { void fetchAppointments(token); }}>
+            <Text style={styles.iconBtnText}>🔄 Làm mới</Text>
+          </Pressable>
+          <Pressable style={[styles.iconBtn, styles.logoutBtn]} onPress={handleLogout}>
+            <Text style={[styles.iconBtnText, styles.logoutBtnText]}>Đăng xuất</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {actionError ? <InlineError message={actionError} /> : null}
+
       {loading ? (
         <LoadingState label="Đang tải lịch hôm nay..." />
       ) : error ? (
@@ -214,6 +244,53 @@ const styles = StyleSheet.create({
   loginBtn: {
     marginTop: 14,
   },
+  topControlRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  userBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  onlineDot: {
+    color: "#16A34A",
+    fontSize: 12,
+  },
+  userEmailText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  btnRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  iconBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  iconBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  logoutBtn: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  logoutBtnText: {
+    color: "#DC2626",
+  },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -243,4 +320,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
+
 
