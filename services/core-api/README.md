@@ -171,3 +171,36 @@ Invoke-WebRequest -Method Post -Uri http://localhost:4102/appointments -Headers 
 Để tái hiện **concurrent** tự động, chạy `npm run test:booking:integration`.
 Bài test “concurrent same-slot HTTP requests” dùng Promise.all gọi hai HTTP server
 trên cùng Mongo collection và assert một 201 + một 409, lặp với stylist mới năm lần.
+
+## Tài liệu test API backend (Scalar API Reference)
+
+Trang tài liệu có sidebar theo các task backend đang có endpoint để test:
+SHINE-02, SHINE-03/07, SHINE-05, SHINE-06 và SHINE-08. Các task Mobile,
+Admin Web và tài liệu dự án không xuất hiện trong API Reference.
+
+### 1. Xem tài liệu khi Core API đang chạy
+Khởi động Core API:
+```bash
+npm run dev
+# hoặc npm start
+```
+Truy cập qua trình duyệt:
+- **Giao diện Scalar Docs:** `http://localhost:4102/docs` (hoặc cổng cấu hình trong `PORT`)
+- **Raw OpenAPI JSON Spec:** `http://localhost:4102/openapi.json`
+
+### 2. Xem tài liệu độc lập (Không cần MongoDB)
+Nếu chưa bật MongoDB hoặc chỉ muốn tra cứu tài liệu nhanh:
+```bash
+npm run docs
+```
+- Mở: `http://localhost:4001/docs`
+
+### 3. Thử nghiệm gọi API trực tiếp (Interactive Playground)
+1. Bật Auth Service ở `http://localhost:4101` và Core API ở `http://localhost:4102`.
+2. Đăng nhập qua nhóm **SHINE-02** (`POST http://localhost:4101/auth/login`) để lấy `accessToken`.
+3. Mở giao diện Scalar (`/docs`), bấm nút **Test Request** hoặc **Authorize**.
+4. Chọn scheme **bearerAuth**, dán chuỗi JWT token vào.
+5. Mở task backend cần kiểm tra trong sidebar và gửi request trực tiếp.
+
+Hai endpoint đăng ký/đăng nhập được cấu hình gọi đúng Auth Service `:4101`.
+Các endpoint còn lại gọi Core API `:4102`.

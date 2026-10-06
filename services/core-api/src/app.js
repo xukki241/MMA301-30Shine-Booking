@@ -12,6 +12,7 @@ const { bookingRoutes } = require("./booking/routes");
 const { createWorkShiftRepository } = require("./work-shift/mongo-repository");
 const { createWorkShiftService } = require("./work-shift/service");
 const { createWorkShiftRouter, createTimeSlotsRouter } = require("./work-shift/routes");
+const { createDocsRouter } = require("./docs/routes");
 
 function createApp(optionsOrSecret, extraBookingRepository) {
   let opts = {};
@@ -38,6 +39,9 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   app.use(express.json({ limit: "16kb" }));
 
   app.get("/health", (_req, res) => res.json({ ok: true, service: "core-api" }));
+
+  // Scalar API Reference documentation (/docs & /openapi.json)
+  app.use(createDocsRouter());
 
   // Minimal protected endpoint proving Auth Service -> Core API JWT verification
   app.get("/auth/me", authenticate(secret), (req, res) => {
