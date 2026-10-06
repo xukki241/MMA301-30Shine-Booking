@@ -3,19 +3,32 @@ import { useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { formatSlot, upcomingDates } from "@/booking/dates";
+<<<<<<< HEAD
 import { createHttpBookingAdapter, loginCustomer } from "@/booking/http-adapter";
+=======
+import { demoBookingAdapter } from "@/booking/demo-adapter";
+import { coreApiBookingAdapter } from "@/booking/core-api-adapter";
+>>>>>>> origin/develop
 import { type BookingStep, useBookingOptions } from "@/booking/use-booking-options";
 import { type AppointmentResult, type BookingDraft, type Branch, type Service, type Stylist, type TimeSlot, isCompleteBookingDraft } from "@/booking/types";
 import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgress } from "@/components/booking-wizard";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { USE_DEMO_ADAPTER } from "@/constants/config";
+
+const activeAdapter = USE_DEMO_ADAPTER ? demoBookingAdapter : coreApiBookingAdapter;
 
 const steps = [
   { title: "Chọn chi nhánh", description: "Chọn nơi bạn muốn đến cắt tóc." },
   { title: "Chọn dịch vụ", description: "Xem dịch vụ tại chi nhánh đã chọn." },
   { title: "Chọn Stylist", description: "Chọn Stylist phù hợp với dịch vụ." },
-  { title: "Chọn ngày và khung giờ", description: "Khung giờ demo thay đổi theo Stylist và ngày." },
+  {
+    title: "Chọn ngày và khung giờ",
+    description: USE_DEMO_ADAPTER
+      ? "Khung giờ demo thay đổi theo Stylist và ngày."
+      : "Khung giờ tính từ Work Shift thực tế, trừ lịch đã đặt.",
+  },
   { title: "Xem lại lịch đặt", description: "Kiểm tra lựa chọn trước khi xác nhận." }
 ] as const;
 
@@ -33,9 +46,13 @@ export default function CustomerBookingScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const submitLock = useRef(false);
+<<<<<<< HEAD
   const tokenRef = useRef<string | null>(null);
   const bookingAdapter = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
   const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, bookingAdapter);
+=======
+  const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, activeAdapter);
+>>>>>>> origin/develop
 
   function selectBranch(branch: Branch) {
     setDraft((current) => current.branch?.id === branch.id
@@ -79,12 +96,16 @@ export default function CustomerBookingScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
+<<<<<<< HEAD
       if (!tokenRef.current) {
         const token = await loginCustomer(email, password);
         tokenRef.current = token;
         setCustomerToken(token);
       }
       const appointment = await bookingAdapter.confirmBooking(draft);
+=======
+      const appointment = await activeAdapter.confirmBooking(draft);
+>>>>>>> origin/develop
       setResult(appointment);
     } catch (cause) {
       setSubmitError(cause instanceof Error ? cause.message : "Không thể xác nhận lúc này. Vui lòng thử lại.");
@@ -116,6 +137,7 @@ export default function CustomerBookingScreen() {
   }
 
   return (
+<<<<<<< HEAD
     <Screen key={step} eyebrow="Customer · Đặt lịch" title={steps[step].title} description={steps[step].description}>
       <WizardProgress step={step} />
       <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
@@ -123,6 +145,17 @@ export default function CustomerBookingScreen() {
           Khung giờ hiển thị theo ca làm đã được chi nhánh xếp. Lịch chỉ được giữ sau khi bạn xác nhận.
         </Text>
       </View>
+=======
+    <Screen key={step} eyebrow={USE_DEMO_ADAPTER ? "Customer · Đặt lịch demo" : "Customer · Đặt lịch"} title={steps[step].title} description={steps[step].description}>
+      <WizardProgress step={step} />
+      {USE_DEMO_ADAPTER ? (
+        <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
+          <Text style={[styles.noticeText, { color: theme.textMuted }]}>
+            Chế độ demo local: chưa kết nối Core API. Xác nhận ở đây không giữ chỗ thật.
+          </Text>
+        </View>
+      ) : null}
+>>>>>>> origin/develop
 
       {step === 0 ? (
         loading ? <LoadingState label="Đang tải chi nhánh..." /> : error ? <InlineError message={error} onRetry={retry} /> :

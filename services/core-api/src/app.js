@@ -9,9 +9,15 @@ const { createBranchRouter } = require("./routes/branch.routes");
 const { createServiceRouter } = require("./routes/service.routes");
 const { createStylistRouter } = require("./routes/stylist.routes");
 const { bookingRoutes } = require("./booking/routes");
+<<<<<<< HEAD
 const { createBookingRepository } = require("./booking/mongo-repository");
 const { createWorkShiftRepository } = require("./work-shifts/repository");
 const { createWorkShiftRouter, createTimeSlotRouter } = require("./routes/work-shift.routes");
+=======
+const { createWorkShiftRepository } = require("./work-shift/mongo-repository");
+const { createWorkShiftService } = require("./work-shift/service");
+const { createWorkShiftRouter, createTimeSlotsRouter } = require("./work-shift/routes");
+>>>>>>> origin/develop
 
 function createApp(optionsOrSecret, extraBookingRepository) {
   let opts = {};
@@ -83,6 +89,25 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   if (workShiftRepository) {
     app.use("/work-shifts", createWorkShiftRouter({ repository: workShiftRepository, secret }));
     app.use("/time-slots", createTimeSlotRouter({ repository: workShiftRepository }));
+  }
+
+  // Work Shift + Time Slots routes (SHINE-06)
+  // Allow opts.workShiftRepository/serviceModel overrides for tests.
+  let workShiftRepository = opts.workShiftRepository || null;
+  let workShiftServiceModel = opts.workShiftServiceModel || (models && models.Service) || null;
+
+  if (!workShiftRepository && models && models.WorkShift) {
+    workShiftRepository = createWorkShiftRepository(models.WorkShift);
+  }
+
+  if (workShiftRepository && bookingRepository && workShiftServiceModel) {
+    const workShiftService = createWorkShiftService(
+      workShiftRepository,
+      bookingRepository,
+      workShiftServiceModel
+    );
+    app.use("/work-shifts", createWorkShiftRouter({ workShiftService, authenticate, secret }));
+    app.use("/time-slots", createTimeSlotsRouter({ workShiftService, authenticate, secret }));
   }
 
   // Central error handler with Vietnamese messages
