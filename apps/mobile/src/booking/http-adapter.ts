@@ -42,6 +42,44 @@ export async function loginCustomer(email: string, password: string) {
   return result.accessToken;
 }
 
+export async function loginStylist(email: string, password: string) {
+  const result = await request<{ accessToken: string; user: { id: string; email: string; role: string } }>(
+    authApi,
+    "/auth/login",
+    undefined,
+    { method: "POST", body: JSON.stringify({ email, password }), headers: { "Content-Type": "application/json" } },
+  );
+  if (result.user?.role !== "stylist") throw new Error("Tài khoản này không có quyền Stylist.");
+  return { token: result.accessToken, user: result.user };
+}
+
+export interface StylistAppointmentItem {
+  id: string;
+  customerId: string;
+  stylistId: string;
+  startTime: string;
+  endTime: string;
+  status: "booked" | "completed" | "paid" | "cancelled";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getStylistTodayAppointments(token: string, date?: string): Promise<StylistAppointmentItem[]> {
+  const path = date ? `/appointments?date=${encodeURIComponent(date)}` : "/appointments";
+  const data = await request<{ appointments: StylistAppointmentItem[] }>(coreApi, path, token);
+  return data.appointments || [];
+}
+
+export async function completeStylistAppointment(token: string, appointmentId: string): Promise<StylistAppointmentItem> {
+  const data = await request<{ appointment: StylistAppointmentItem }>(
+    coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/complete`,
+    token,
+    { method: "POST" },
+  );
+  return data.appointment;
+}
+
 export function createHttpBookingAdapter(getToken: () => string | null): BookingWizardDataSource {
   return {
     async listBranches(): Promise<Branch[]> {

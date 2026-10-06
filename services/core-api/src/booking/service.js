@@ -24,6 +24,10 @@ function createBookingService(repository) {
       if (!updated) throw new BookingError(400, "Appointment state changed; reload and retry");
       return updated;
     },
+    async listStylistAppointments(actor, date) {
+      if (actor.role !== "stylist") throw new BookingError(403, "Only stylists can access stylist appointments");
+      return repository.listByStylist ? repository.listByStylist(actor.userId, date) : [];
+    },
   };
 }
 module.exports = { createBookingService };

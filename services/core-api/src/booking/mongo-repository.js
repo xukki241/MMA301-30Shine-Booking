@@ -54,6 +54,21 @@ function createBookingRepository(Calendar) {
       return calendar ? plain(calendar.appointments[0]) : null;
     },
 
+    async listByStylist(stylistId, date) {
+      if (!mongoose.Types.ObjectId.isValid(stylistId)) return [];
+      const calendar = await Calendar.findById(stylistId).lean().exec();
+      if (!calendar || !calendar.appointments) return [];
+      let list = calendar.appointments.map(plain);
+      if (date) {
+        list = list.filter((a) => {
+          const d = new Date(a.startTime);
+          const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          return localDate === date;
+        });
+      }
+      return list;
+    },
+
     /**
      * Return all booked/completed appointments for a stylist on a given date.
      * Used by work-shift service to compute available time slots.
