@@ -1,69 +1,51 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Pressable, Text } from "react-native";
 
-import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
-import type { AppointmentStatus, CustomerAppointment } from "@/appointments/types";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { type AppointmentSummary, isAppointmentSummary } from "@/offline/appointments";
+import { useConnectivity } from "@/offline/network-provider";
+import { type ReadResult, readCachedList } from "@/offline/read-cache";
 
-const statusLabels: Record<AppointmentStatus, string> = {
+const cacheKey = "shine:demo:customer-appointments:v1";
+const statusLabels: Record<AppointmentSummary["status"], string> = {
   booked: "Đã đặt",
   completed: "Đã hoàn thành",
   paid: "Đã thanh toán",
   cancelled: "Đã hủy"
 };
 
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "Chưa có thời gian";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Chưa có thời gian";
+// develop has no customer appointment listing endpoint yet.
+async function listAppointmentsOnDevelop(): Promise<AppointmentSummary[]> {
+  return [];
+}
+
+function formattedTime(value: string): string {
   return new Intl.DateTimeFormat("vi-VN", {
     day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
-  }).format(date);
+  }).format(new Date(value));
 }
 
 export default function CustomerAppointmentsScreen() {
   const theme = useAppTheme();
-  const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const cancelLock = useRef(false);
+  const connectivity = useConnectivity();
+  const [result, setResult] = useState<ReadResult<AppointmentSummary> | null>(null);
+  const [revision, setRevision] = useState(0);
 
   useFocusEffect(useCallback(() => {
     let active = true;
-    setConfirmingId(null);
-    setActionError(null);
-    setLoading(true);
-    setLoadError(null);
-    void demoAppointmentDataSource.list()
-      .then((items) => { if (active) setAppointments(items); })
-      .catch(() => { if (active) setLoadError("Không thể tải lịch hẹn. Vui lòng thử lại."); })
-      .finally(() => { if (active) setLoading(false); });
+    setResult(null);
+    void readCachedList(connectivity, cacheKey, AsyncStorage, isAppointmentSummary, listAppointmentsOnDevelop)
+      .then((next) => { if (active) setResult(next); });
     return () => { active = false; };
-  }, [reloadKey]));
+  }, [connectivity, revision]));
 
-  async function cancelAppointment(id: string) {
-    if (cancelLock.current || confirmingId !== id) return;
-    cancelLock.current = true;
-    setCancellingId(id);
-    setActionError(null);
-    try {
-      const updated = await demoAppointmentDataSource.cancel(id);
-      setAppointments((current) => current.map((item) => item.id === id ? updated : item));
-      setConfirmingId(null);
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "Không thể hủy lịch hẹn. Vui lòng thử lại.");
-    } finally {
-      cancelLock.current = false;
-      setCancellingId(null);
-    }
-  }
+  const offlineMessage = connectivity === "unknown"
+    ? "Chưa xác định kết nối. Không có dữ liệu đã lưu để hiển thị."
+    : "Không có dữ liệu đã lưu để hiển thị khi ngoại tuyến.";
 
   return (
     <Screen
@@ -71,62 +53,32 @@ export default function CustomerAppointmentsScreen() {
       title="Lịch hẹn của tôi"
       description="Theo dõi lịch hẹn và hủy lịch đang ở trạng thái đã đặt."
     >
-      <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
-        <Text style={{ color: theme.textMuted }}>
-          Đây là lịch mẫu trên thiết bị. Thao tác hủy chưa gửi lên server và sẽ mất khi khởi động lại ứng dụng.
-        </Text>
-      </View>
-
-      {loading ? <LoadingState label="Đang tải lịch hẹn..." /> : loadError ? (
-        <Card>
-          <CardTitle>Không thể tải lịch hẹn</CardTitle>
-          <CardText>{loadError}</CardText>
-          <Pressable accessibilityRole="button" onPress={() => setReloadKey((current) => current + 1)}>
-            <Text style={[styles.actionText, { color: theme.brand }]}>Thử lại</Text>
+      {!result ? (
+        <LoadingState label="Đang tải lịch hẹn..." />
+      ) : result.kind === "error" ? (
+        <>
+          <EmptyState icon="⚠️" title="Không tải được lịch hẹn" description="Vui lòng kiểm tra kết nối và thử lại." />
+          <Pressable accessibilityRole="button" onPress={() => setRevision((value) => value + 1)}>
+            <Text style={{ color: theme.brand, fontWeight: "700" }}>Thử lại</Text>
           </Pressable>
-        </Card>
-      ) : appointments.length === 0 ? (
-        <EmptyState icon="📭" title="Chưa có lịch hẹn" description="Lịch hẹn của bạn sẽ xuất hiện tại đây." />
-      ) : appointments.map((appointment) => (
-        <Card key={appointment.id}>
-          <View style={styles.heading}>
-            <CardTitle>{appointment.serviceName || "Dịch vụ chưa xác định"}</CardTitle>
-            <Text style={[styles.status, { color: appointment.status === "cancelled" ? theme.textMuted : theme.brand }]}>
-              {statusLabels[appointment.status] ?? "Chưa rõ trạng thái"}
-            </Text>
-          </View>
-          <CardText>{formatDateTime(appointment.startTime)}</CardText>
-          <CardText>Chi nhánh: {appointment.branchName || "Chưa xác định"}</CardText>
-          <CardText>Stylist: {appointment.stylistName || "Chưa xác định"}</CardText>
-          <CardText>Mã lịch: {appointment.id}</CardText>
-
-          {appointment.status === "booked" && confirmingId !== appointment.id ? (
-            <Pressable
-              accessibilityRole="button"
-              disabled={cancellingId !== null}
-              onPress={() => { setActionError(null); setConfirmingId(appointment.id); }}
-            >
-              <Text style={[styles.actionText, { color: theme.danger }]}>Hủy lịch hẹn</Text>
-            </Pressable>
-          ) : null}
-
-          {appointment.status === "booked" && confirmingId === appointment.id ? (
-            <View style={styles.confirmation}>
-              <Text style={{ color: theme.text }}>Bạn có chắc muốn hủy lịch hẹn này?</Text>
-              {actionError ? <Text accessibilityLiveRegion="polite" style={{ color: theme.danger }}>{actionError}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable accessibilityRole="button" disabled={cancellingId !== null} onPress={() => { setConfirmingId(null); setActionError(null); }}>
-                  <Text style={[styles.actionText, { color: theme.textMuted }]}>Giữ lịch</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" disabled={cancellingId !== null} onPress={() => { void cancelAppointment(appointment.id); }}>
-                  {cancellingId === appointment.id ? <ActivityIndicator color={theme.danger} /> :
-                    <Text style={[styles.actionText, { color: theme.danger }]}>Xác nhận hủy</Text>}
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-        </Card>
-      ))}
+        </>
+      ) : result.kind === "offline-empty" || result.items.length === 0 ? (
+        <EmptyState
+          icon="📭"
+          title={result.kind === "offline-empty" || result.kind === "cached" ? "Chưa có lịch hẹn đã lưu" : "Chưa có lịch hẹn"}
+          description={result.kind === "offline-empty" || result.kind === "cached"
+            ? offlineMessage
+            : "Danh sách sẽ hiển thị sau khi API đặt lịch được kết nối."}
+        />
+      ) : (
+        result.items.map((item) => (
+          <Card key={item.id}>
+            <CardTitle>{formattedTime(item.startTime)}</CardTitle>
+            <CardText>Trạng thái: {statusLabels[item.status]}</CardText>
+            <CardText>Mã lịch: {item.id}</CardText>
+          </Card>
+        ))
+      )}
     </Screen>
   );
 }
