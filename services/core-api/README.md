@@ -1,5 +1,29 @@
 # Core API — booking, shifts, appointments, payment mock
 
+## Catalog, Work Shift và Time Slot
+
+Core API phục vụ Admin Web tại `apps/admin-web` và luồng đặt lịch mobile. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `shop_admin`.
+
+### Work Shift
+
+Work Shift là một khoảng làm việc trong một ngày lịch, gắn với `branchId` và **Stylist userId** (khớp `_id` trong `stylist_calendars`). `date` là `YYYY-MM-DD` theo ngày tại địa phương; `startAt` và `endAt` phải là ISO 8601 có timezone và cùng ngày lịch. Ví dụ:
+
+```json
+{"branchId":"507f1f77bcf86cd799439011","stylistId":"507f1f77bcf86cd799439012","date":"2030-10-20","startAt":"2030-10-20T09:00:00+07:00","endAt":"2030-10-20T12:00:00+07:00"}
+```
+
+| Method | Path | Quyền | Nội dung |
+|---|---|---|---|
+| GET | `/work-shifts?branchId=&stylistId=&date=` | Public | Liệt kê ca, các bộ lọc đều tùy chọn |
+| POST | `/work-shifts` | Shop Admin | Tạo ca; trùng ca của cùng stylist trả 409 |
+| PUT | `/work-shifts/:id` | Shop Admin | Cập nhật đầy đủ branchId, stylistId, date, startAt, endAt |
+| DELETE | `/work-shifts/:id` | Shop Admin | Xóa nếu không có Appointment active trong ca |
+| GET | `/time-slots?branchId=&serviceId=&stylistId=&date=` | Public | Slot tương lai theo ca và thời lượng dịch vụ |
+
+Slot có cùng độ dài `Service.durationMinutes`; API loại slot giao với Appointment `booked`, `completed`, `paid`. `POST /appointments` khi Work Shift đã bật cần gửi `branchId`, `serviceId`, `stylistId`, `startTime`, `endTime`; Core xác thực service/duration/ca trước khi ghi lịch. Appointment trùng thời gian vẫn được chặn atomically bởi calendar repository.
+
+Sửa ca chỉ được phép nếu mọi Appointment active đang nằm trong khoảng thời gian mới; hủy ca hoặc đổi stylist có lịch liên quan trả 409. Database lưu thời gian dưới dạng instant UTC; `date` giữ ngày nghiệp vụ tại địa phương để truy vấn lịch.
+
 ## SHINE-02: xác minh JWT
 
 Node.js 24 LTS, CommonJS + Express. Từ root repo:
@@ -44,22 +68,20 @@ hết hạn, nbf trong tương lai, sai thuật toán/role/claims và public hea
 
 ### Phạm vi và dependencies
 
-Checkout hiện chưa có SHINE-06 (Work Shift/Time Slot) hoặc SHINE-07.
-API dưới đây chỉ là booking tối thiểu để gắn logic anti double-book và status machine.
-Chưa kiểm tra stylist có tồn tại/được gán chi nhánh, dịch vụ, duration hoặc nằm trong ca;
-các kiểm tra đó chờ SHINE-06/07 và phải gọi cùng booking service/repository này.
+Core API triển khai Catalog, Work Shift/Time Slot và booking. Khi Work Shift được cấu hình,
+POST /appointments xác thực stylist/branch/service assignment, Service duration và ca làm
+trước khi ghi lịch. Overlap appointment vẫn được chặn atomically trong stylist calendar.
 Pay là mock chuyển trạng thái, không thu tiền và không tạo payment gateway/refund.
 
 Core dùng Mongoose cùng major version với Auth Service.
 Đặt MONGODB_URI trỏ đến database **Core** (ví dụ shine_core) trong .env.
-Có URI: server đợi kết nối/index trước khi listen; Mongo lỗi thì startup fail.
-Không có URI: /health và /auth/me vẫn chạy, /appointments trả 503 sau bước JWT.
+Server đợi kết nối Mongo và tạo index trước khi listen; Mongo lỗi thì startup fail.
 Không có repository in-memory cho server.
 
 ### Model và chống double-book atomic
 
 Collection `stylist_calendars`: mỗi document có `_id = stylistId`.
-Mỗi phần tử `appointments` có `_id, customerId, stylistId, startTime, endTime, status,
+Mỗi phần tử `appointments` có `_id, customerId, stylistId, branchId, serviceId, startTime, endTime, status,
 createdAt, updatedAt`. Trạng thái chỉ gồm booked/completed/paid/cancelled.
 Khoảng giờ phải có startTime < endTime.
 
@@ -88,12 +110,13 @@ Mọi endpoint yêu cầu header `Authorization: Bearer <accessToken>`, dùng mi
 
 | Method | Endpoint | Input/quyền | Kết quả |
 |---|---|---|---|
-| POST | /appointments | customer; stylistId, startTime, endTime | 201 + appointment booked; overlap 409 |
+| POST | /appointments | customer; branchId, serviceId, stylistId, startTime, endTime khi Work Shift bật | 201 + appointment booked; outside shift/service hoặc overlap 409 |
 | POST | /appointments/:id/complete | stylist được gán; body rỗng | 200 + completed |
 | POST | /appointments/:id/cancel | customer sở hữu; body rỗng | 200 + cancelled |
 | POST | /appointments/:id/pay | customer sở hữu; body rỗng | 200 + paid mock |
 
-Book không nhận customerId/status từ client; lấy customerId từ JWT.
+Book không nhận customerId/status từ client; lấy customerId từ JWT. Branch/service/stylist ID và
+thời gian phải thuộc dữ liệu hiện hành; khi Work Shift bật, duration phải bằng Service duration.
 Datetime dùng ISO 8601 có timezone, ví dụ 2030-10-20T10:00:00Z hoặc 2030-10-20T17:00:00+07:00.
 ID là Mongo ObjectId dạng 24 ký tự hex. Field thừa bị từ chối.
 Sai input/id/state: 400. Token thiếu/sai: 401. Sai role/owner: 403.
@@ -139,9 +162,10 @@ npm test
 npm run test:booking
 # Cấu hình TEST_MONGODB_URI trong .env trỏ Mongo test thật:
 npm run test:booking:integration
+npm run test:work-shifts:integration
 ```
 
-- npm test: cả SHINE-02 auth middleware và SHINE-03.
+- npm test: SHINE-02 auth middleware, SHINE-03 booking và Work Shift contract.
 - test:booking: unit/service/HTTP với repository double và schema validation offline.
   Pass ở đây **không chứng minh** atomic concurrency Mongo.
 - test:booking:integration: hai kết nối Mongo, hai app instance, nhiều cặp POST đồng thời;
@@ -150,6 +174,8 @@ npm run test:booking:integration
 - Integration tạo collection `shine03_test_<random>`, chỉ drop collection test đó khi xong.
   Không drop database hoặc collection hiện có. Dùng Mongo test riêng.
 - Repo là JavaScript, chưa có script lint/build/typecheck backend.
+- `test:work-shifts:integration` tạo các collection `test_*_<random>` trong database test,
+  kiểm tra HTTP tạo ca → GET slot → Customer booking với Mongo thật; chỉ dọn các collection này.
 
 ### Tái hiện 409 bằng HTTP
 

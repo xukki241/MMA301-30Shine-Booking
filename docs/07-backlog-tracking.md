@@ -18,3 +18,5 @@ Nguồn sự thật: Notion [Project Tracking — MVP](https://app.notion.com/p/
 | SHINE-12 | Huy | Medium | Admin-web CRUD + Work Shift |
 | SHINE-13 | Huy | Dễ | Stylist lịch hôm nay |
 | SHINE-14 | Kiên | Khó | E2E book→complete→pay |
+
+SHINE-12 admin-web CRUD/Work Shift và phần Work Shift/Time Slot của SHINE-06 đã được triển khai; xem [docs/08-admin-web.md](./08-admin-web.md) để biết hiện trạng và cách chạy. Mobile Booking Wizard dùng catalog/slot thật và tạo booking có Customer JWT; lịch hẹn Customer, lịch Stylist và payment tiếp tục thuộc các backlog tương ứng.

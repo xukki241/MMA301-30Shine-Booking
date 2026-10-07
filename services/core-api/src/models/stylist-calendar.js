@@ -5,6 +5,8 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
   const appointment = new mongoose.Schema({
     customerId: { type: mongoose.Schema.Types.ObjectId, required: true },
     stylistId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    branchId: { type: mongoose.Schema.Types.ObjectId },
+    serviceId: { type: mongoose.Schema.Types.ObjectId },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     status: { type: String, enum: STATUSES, default: "booked", required: true },

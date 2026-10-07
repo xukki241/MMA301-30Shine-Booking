@@ -24,6 +24,8 @@ async function start() {
       models.Branch.init(),
       models.Service.init(),
       models.StylistProfile.init(),
+      models.Calendar.init(),
+      models.WorkShift.init(),
     ]);
 
     const app = createApp({ secret: config.secret, models });

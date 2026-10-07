@@ -41,7 +41,7 @@ export type CompleteBookingDraft = {
 export type AppointmentResult = {
   id: string;
   status: "booked";
-  mode: "demo";
+  mode: "demo" | "api";
   booking: CompleteBookingDraft;
 };
 

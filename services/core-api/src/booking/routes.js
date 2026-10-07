@@ -1,8 +1,8 @@
 const { Router } = require("express");
-const { BookingError } = require("./rules");
+const { BookingError, validateBooking } = require("./rules");
 const { createBookingService } = require("./service");
 
-function bookingRoutes(repository) {
+function bookingRoutes(repository, workShiftRepository) {
   const router = Router();
   const service = repository ? createBookingService(repository) : null;
   router.use((_req, res, next) => {
@@ -16,7 +16,19 @@ function bookingRoutes(repository) {
       return next(error);
     }
   };
+  router.get("/", handle(async (req, res) => {
+    if (req.auth.role !== "stylist") throw new BookingError(403, "Only stylists can list appointments");
+    const today = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const date = String(req.query.date || today());
+    const appointments = await service.listStylistAppointments(req.auth, date);
+    res.json({ appointments });
+  }));
   router.post("/", handle(async (req, res) => {
+    if (req.auth.role !== "customer") throw new BookingError(403, "Only customers can book");
+    if (workShiftRepository) await workShiftRepository.validateBooking(validateBooking(req.body || {}));
     const appointment = await service.book(req.auth, req.body);
     res.status(201).json({ appointment });
   }));

@@ -34,7 +34,7 @@ function parseTime(value) {
 
 function validateBooking(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((k) => !["stylistId", "startTime", "endTime"].includes(k))) {
+      Object.keys(body).some((k) => !["stylistId", "startTime", "endTime", "branchId", "serviceId"].includes(k))) {
     throw new BookingError(400, "Expected stylistId, startTime and endTime");
   }
   const startTime = parseTime(body.startTime);
@@ -42,7 +42,26 @@ function validateBooking(body) {
   if (!isId(body.stylistId) || !startTime || !endTime || startTime >= endTime) {
     throw new BookingError(400, "Invalid stylistId or time interval");
   }
-  return { stylistId: body.stylistId.toLowerCase(), startTime, endTime };
+  if ((typeof body.branchId === "undefined") !== (typeof body.serviceId === "undefined") ||
+      (typeof body.branchId !== "undefined" && (!isId(body.branchId) || !isId(body.serviceId)))) {
+    throw new BookingError(400, "branchId and serviceId must be supplied together as ObjectIds");
+  }
+  return {
+    stylistId: body.stylistId.toLowerCase(), startTime, endTime,
+    ...(body.branchId ? { branchId: body.branchId.toLowerCase(), serviceId: body.serviceId.toLowerCase() } : {}),
+  };
 }
 
-module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, validateBooking };
+function validateDayRange(query) {
+  if (!query || typeof query !== "object") {
+    throw new BookingError(400, "from/to must be ISO 8601 with timezone, from < to, max 48h");
+  }
+  const from = parseTime(query.from);
+  const to = parseTime(query.to);
+  if (!from || !to || from >= to || to.getTime() - from.getTime() > 48 * 3600e3) {
+    throw new BookingError(400, "from/to must be ISO 8601 with timezone, from < to, max 48h");
+  }
+  return { from, to };
+}
+
+module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validateDayRange };

@@ -7,12 +7,15 @@
     "dev": "node --env-file-if-exists=.env --watch src/index.js",
     "start": "node --env-file-if-exists=.env src/index.js",
     "docs": "node src/docs/serve.js",
-    "test": "node --test test/auth.test.js test/booking.test.js test/catalog.test.js test/work-shift.test.js test/docs.test.js",
+    "test": "node --test test/auth.test.js test/booking.test.js test/catalog.test.js test/work-shift.test.js test/work-shifts.test.js test/stylist-appointments.test.js test/docs.test.js",
     "test:catalog": "node --test test/catalog.test.js",
     "test:booking": "node --test test/booking.test.js",
     "test:work-shift": "node --test test/work-shift.test.js",
+    "test:work-shifts": "node --test test/work-shifts.test.js",
     "test:docs": "node --test test/docs.test.js",
-    "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js"
+    "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js",
+    "test:work-shifts:integration": "node --env-file-if-exists=.env --test test/work-shifts.integration.js"
+
   },
   "dependencies": {
     "@scalar/express-api-reference": "^0.10.26",

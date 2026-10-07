@@ -1,19 +1,15 @@
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { formatSlot, upcomingDates } from "@/booking/dates";
-import { demoBookingAdapter } from "@/booking/demo-adapter";
-import { coreApiBookingAdapter } from "@/booking/core-api-adapter";
+import { createHttpBookingAdapter, loginCustomer } from "@/booking/http-adapter";
 import { type BookingStep, useBookingOptions } from "@/booking/use-booking-options";
 import { type AppointmentResult, type BookingDraft, type Branch, type Service, type Stylist, type TimeSlot, isCompleteBookingDraft } from "@/booking/types";
 import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgress } from "@/components/booking-wizard";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
-import { USE_DEMO_ADAPTER } from "@/constants/config";
-
-const activeAdapter = USE_DEMO_ADAPTER ? demoBookingAdapter : coreApiBookingAdapter;
 
 const steps = [
   { title: "Chọn chi nhánh", description: "Chọn nơi bạn muốn đến cắt tóc." },
@@ -21,9 +17,7 @@ const steps = [
   { title: "Chọn Stylist", description: "Chọn Stylist phù hợp với dịch vụ." },
   {
     title: "Chọn ngày và khung giờ",
-    description: USE_DEMO_ADAPTER
-      ? "Khung giờ demo thay đổi theo Stylist và ngày."
-      : "Khung giờ tính từ Work Shift thực tế, trừ lịch đã đặt.",
+    description: "Khung giờ tính từ Work Shift thực tế, trừ lịch đã đặt.",
   },
   { title: "Xem lại lịch đặt", description: "Kiểm tra lựa chọn trước khi xác nhận." }
 ] as const;
@@ -38,8 +32,13 @@ export default function CustomerBookingScreen() {
   const [result, setResult] = useState<AppointmentResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [customerToken, setCustomerToken] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const submitLock = useRef(false);
-  const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, activeAdapter);
+  const tokenRef = useRef<string | null>(null);
+  const bookingAdapter = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
+  const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, bookingAdapter);
 
   function selectBranch(branch: Branch) {
     setDraft((current) => current.branch?.id === branch.id
@@ -83,7 +82,12 @@ export default function CustomerBookingScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const appointment = await activeAdapter.confirmBooking(draft);
+      if (!tokenRef.current) {
+        const token = await loginCustomer(email, password);
+        tokenRef.current = token;
+        setCustomerToken(token);
+      }
+      const appointment = await bookingAdapter.confirmBooking(draft);
       setResult(appointment);
     } catch (cause) {
       setSubmitError(cause instanceof Error ? cause.message : "Không thể xác nhận lúc này. Vui lòng thử lại.");
@@ -102,11 +106,11 @@ export default function CustomerBookingScreen() {
 
   if (result) {
     return (
-      <Screen key="success" eyebrow="SHINE-10 · Demo" title="Đã xác nhận mô phỏng" description="Appointment có trạng thái booked trong bản demo local.">
+      <Screen key="success" eyebrow="SHINE-10 · Booking" title="Đã xác nhận lịch hẹn" description="Lịch hẹn đã được lưu trên hệ thống.">
         <Card>
           <CardTitle>Trạng thái: booked</CardTitle>
-          <CardText>Mã demo: {result.id}</CardText>
-          <CardText>Đây không phải lịch hẹn đã được giữ trên server. Bản demo không lưu vào “Lịch của tôi”.</CardText>
+          <CardText>Mã lịch hẹn: {result.id}</CardText>
+          <CardText>Lịch hẹn đã được ghi nhận. Vui lòng đến đúng giờ tại chi nhánh đã chọn.</CardText>
         </Card>
         <BookingSummary booking={result.booking} />
         <WizardAction label="Về trang chủ" onPress={() => router.replace("/(customer)/home")} />
@@ -115,15 +119,13 @@ export default function CustomerBookingScreen() {
   }
 
   return (
-    <Screen key={step} eyebrow={USE_DEMO_ADAPTER ? "Customer · Đặt lịch demo" : "Customer · Đặt lịch"} title={steps[step].title} description={steps[step].description}>
+    <Screen key={step} eyebrow="Customer · Đặt lịch" title={steps[step].title} description={steps[step].description}>
       <WizardProgress step={step} />
-      {USE_DEMO_ADAPTER ? (
-        <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
-          <Text style={[styles.noticeText, { color: theme.textMuted }]}>
-            Chế độ demo local: chưa kết nối Core API. Xác nhận ở đây không giữ chỗ thật.
-          </Text>
-        </View>
-      ) : null}
+      <View style={[styles.notice, { backgroundColor: theme.surfaceMuted }]}>
+        <Text style={[styles.noticeText, { color: theme.textMuted }]}>
+          Khung giờ hiển thị theo ca làm đã được chi nhánh xếp. Lịch chỉ được giữ sau khi bạn xác nhận.
+        </Text>
+      </View>
 
       {step === 0 ? (
         loading ? <LoadingState label="Đang tải chi nhánh..." /> : error ? <InlineError message={error} onRetry={retry} /> :
@@ -168,6 +170,14 @@ export default function CustomerBookingScreen() {
       {step === 4 && isCompleteBookingDraft(draft) ? (
         <>
           <BookingSummary booking={draft} />
+          {!customerToken ? (
+            <Card>
+              <CardTitle>Đăng nhập để xác nhận</CardTitle>
+              <CardText>Dùng tài khoản Customer để lưu lịch hẹn của bạn.</CardText>
+              <TextInput accessibilityLabel="Email Customer" autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
+              <TextInput accessibilityLabel="Mật khẩu Customer" autoComplete="current-password" placeholder="Mật khẩu" secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
+            </Card>
+          ) : <Card><CardText>Đã đăng nhập Customer. Sẵn sàng xác nhận lịch hẹn.</CardText></Card>}
           {submitError ? <InlineError message={submitError} /> : null}
         </>
       ) : null}
@@ -195,5 +205,6 @@ const styles = StyleSheet.create({
   dates: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   dateItem: { width: "48%" },
   actions: { flexDirection: "row", gap: 10, marginTop: 8 },
-  actionItem: { flex: 1 }
+  actionItem: { flex: 1 },
+  input: { borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 }
 });

@@ -1,6 +1,6 @@
 const { isValidObjectId } = require("../middleware/validation");
 
-function createStylistController({ Branch, StylistProfile }) {
+function createStylistController({ Branch, StylistProfile, WorkShift }) {
   return {
     async assignToBranch(req, res, next) {
       try {
@@ -93,10 +93,21 @@ function createStylistController({ Branch, StylistProfile }) {
           if (!branch) {
             return res.status(404).json({ error: "Không tìm thấy chi nhánh" });
           }
+          const current = await StylistProfile.findById(req.params.id);
+          if (!current) return res.status(404).json({ error: "Không tìm thấy stylist" });
+          if (String(current.branchId) !== String(branchId) && WorkShift && await WorkShift.exists({ stylistId: current.userId })) {
+            return res.status(409).json({ error: "Delete this stylist's Work Shifts before changing branch assignment" });
+          }
           updateData.branchId = branchId;
         }
 
         if (typeof isActive === "boolean") {
+          if (!isActive && WorkShift) {
+            const current = await StylistProfile.findById(req.params.id);
+            if (current && await WorkShift.exists({ stylistId: current.userId })) {
+              return res.status(409).json({ error: "Delete this stylist's Work Shifts before deactivating the assignment" });
+            }
+          }
           updateData.isActive = isActive;
         }
 
@@ -122,6 +133,12 @@ function createStylistController({ Branch, StylistProfile }) {
 
     async remove(req, res, next) {
       try {
+        if (WorkShift) {
+          const current = await StylistProfile.findById(req.params.id);
+          if (current && await WorkShift.exists({ stylistId: current.userId })) {
+            return res.status(409).json({ error: "Delete this stylist's Work Shifts before removing the branch assignment" });
+          }
+        }
         const stylist = await StylistProfile.findByIdAndDelete(req.params.id);
         if (!stylist) {
           return res.status(404).json({ error: "Không tìm thấy stylist" });
