@@ -83,11 +83,3 @@ export default function CustomerAppointmentsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  notice: { borderRadius: 12, padding: 12 },
-  heading: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  status: { fontSize: 14, fontWeight: "700" },
-  actionText: { fontSize: 15, fontWeight: "700", paddingVertical: 10 },
-  confirmation: { gap: 8, marginTop: 6 },
-  actions: { flexDirection: "row", justifyContent: "space-between", gap: 20 }
-});
