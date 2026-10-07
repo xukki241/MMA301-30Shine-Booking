@@ -10,6 +10,7 @@ import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgre
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/providers/auth-provider";
 
 const steps = [
   { title: "Chọn chi nhánh", description: "Chọn nơi bạn muốn đến cắt tóc." },
@@ -26,6 +27,7 @@ const initialDraft: BookingDraft = { branch: null, service: null, stylist: null,
 
 export default function CustomerBookingScreen() {
   const theme = useAppTheme();
+  const { token: authToken, login } = useAuth();
   const dates = useMemo(() => upcomingDates(), []);
   const [step, setStep] = useState<BookingStep>(0);
   const [draft, setDraft] = useState<BookingDraft>(initialDraft);
@@ -33,10 +35,11 @@ export default function CustomerBookingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customerToken, setCustomerToken] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("customer@30shine.vn");
+  const [password, setPassword] = useState("Password123!");
   const submitLock = useRef(false);
-  const tokenRef = useRef<string | null>(null);
+  const tokenRef = useRef<string | null>(authToken);
+  tokenRef.current = authToken || customerToken;
   const bookingAdapter = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
   const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, bookingAdapter);
 
@@ -170,7 +173,7 @@ export default function CustomerBookingScreen() {
       {step === 4 && isCompleteBookingDraft(draft) ? (
         <>
           <BookingSummary booking={draft} />
-          {!customerToken ? (
+          {!tokenRef.current ? (
             <Card>
               <CardTitle>Đăng nhập để xác nhận</CardTitle>
               <CardText>Dùng tài khoản Customer để lưu lịch hẹn của bạn.</CardText>

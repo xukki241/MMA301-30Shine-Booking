@@ -13,5 +13,8 @@
 export const CORE_API_URL =
   process.env.EXPO_PUBLIC_CORE_API_URL ?? "http://10.0.2.2:4102";
 
+export const AUTH_SERVICE_URL =
+  process.env.EXPO_PUBLIC_AUTH_API_URL ?? "http://10.0.2.2:4101";
+
 export const USE_DEMO_ADAPTER =
   process.env.EXPO_PUBLIC_USE_DEMO_ADAPTER !== "false";

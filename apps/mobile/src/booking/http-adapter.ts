@@ -80,6 +80,43 @@ export async function completeStylistAppointment(token: string, appointmentId: s
   return data.appointment;
 }
 
+export interface CustomerAppointmentItem {
+  id: string;
+  customerId: string;
+  stylistId: string;
+  startTime: string;
+  endTime?: string;
+  status: "booked" | "completed" | "paid" | "cancelled";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function getCustomerAppointments(token: string, customerId?: string): Promise<CustomerAppointmentItem[]> {
+  const path = customerId ? `/appointments?customerId=${encodeURIComponent(customerId)}` : "/appointments/customer";
+  const data = await request<{ appointments: CustomerAppointmentItem[] }>(coreApi, path, token);
+  return data.appointments || [];
+}
+
+export async function cancelCustomerAppointment(token: string, appointmentId: string): Promise<CustomerAppointmentItem> {
+  const data = await request<{ appointment: CustomerAppointmentItem }>(
+    coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+    token,
+    { method: "POST" },
+  );
+  return data.appointment;
+}
+
+export async function payCustomerAppointment(token: string, appointmentId: string): Promise<CustomerAppointmentItem> {
+  const data = await request<{ appointment: CustomerAppointmentItem }>(
+    coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/pay`,
+    token,
+    { method: "POST" },
+  );
+  return data.appointment;
+}
+
 export function createHttpBookingAdapter(getToken: () => string | null): BookingWizardDataSource {
   return {
     async listBranches(): Promise<Branch[]> {

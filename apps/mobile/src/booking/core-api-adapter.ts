@@ -146,7 +146,7 @@ export const coreApiBookingAdapter: BookingWizardDataSource = {
     return {
       id: data.appointment.id,
       status: "booked",
-      mode: "demo",
+      mode: "api",
       booking,
     };
   },

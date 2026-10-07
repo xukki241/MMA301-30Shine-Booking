@@ -2,13 +2,16 @@ import { router } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
 
 export function RoleResetButton() {
   const theme = useAppTheme();
   const { clearRole } = useRole();
+  const { logout } = useAuth();
 
   function resetRole() {
+    logout();
     clearRole();
     router.replace("/");
   }

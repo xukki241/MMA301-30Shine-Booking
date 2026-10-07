@@ -4,6 +4,7 @@ import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/providers/auth-provider";
 import {
   completeStylistAppointment,
   getStylistTodayAppointments,
@@ -13,7 +14,10 @@ import {
 
 export default function StylistTodayScreen() {
   const theme = useAppTheme();
-  const [token, setToken] = useState<string | null>(null);
+  const { token: contextToken, role: authRole, setAuth } = useAuth();
+  const [localToken, setLocalToken] = useState<string | null>(null);
+  const token = (authRole === "stylist" ? contextToken : null) || localToken;
+
   const [email, setEmail] = useState("stylist@30shine.vn");
   const [password, setPassword] = useState("Password123!");
   const [loggingIn, setLoggingIn] = useState(false);
@@ -48,7 +52,8 @@ export default function StylistTodayScreen() {
     setLoginError(null);
     try {
       const result = await loginStylist(email, password);
-      setToken(result.token);
+      setLocalToken(result.token);
+      setAuth(result.token, result.user as any);
     } catch (cause) {
       setLoginError(cause instanceof Error ? cause.message : "Đăng nhập thất bại.");
     } finally {
