@@ -1,9 +1,12 @@
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "./types";
 
+const isWeb = typeof window !== "undefined" || typeof document !== "undefined";
+const defaultHost = isWeb ? "localhost" : "10.0.2.2";
+
 const defaultCoreApi = (
   typeof process !== "undefined" && process.env?.EXPO_PUBLIC_CORE_API_URL
     ? process.env.EXPO_PUBLIC_CORE_API_URL
-    : "http://10.0.2.2:4102"
+    : `http://${defaultHost}:4102`
 ).replace(/\/$/, "");
 
 export function createCoreApiAppointmentDataSource(

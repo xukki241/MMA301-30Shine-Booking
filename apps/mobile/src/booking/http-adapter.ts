@@ -9,8 +9,11 @@ import type {
   TimeSlotQuery,
 } from "./types";
 
-const coreApi = (process.env.EXPO_PUBLIC_CORE_API_URL || "http://localhost:4102").replace(/\/$/, "");
-const authApi = (process.env.EXPO_PUBLIC_AUTH_API_URL || "http://localhost:4101").replace(/\/$/, "");
+const isWeb = typeof window !== "undefined" || typeof document !== "undefined";
+const defaultHost = isWeb ? "localhost" : "10.0.2.2";
+
+const coreApi = (process.env.EXPO_PUBLIC_CORE_API_URL || `http://${defaultHost}:4102`).replace(/\/$/, "");
+const authApi = (process.env.EXPO_PUBLIC_AUTH_API_URL || `http://${defaultHost}:4101`).replace(/\/$/, "");
 
 async function request<T>(base: string, path: string, token?: string, init?: RequestInit): Promise<T> {
   let response: Response;
