@@ -30,7 +30,7 @@ export function upcomingDates(count = 7, now = new Date()): BookingDate[] {
 
 export function formatSlot(slot: { startTime: string; endTime: string }): string {
   const formatter = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" });
-  return `${formatter.format(new Date(slot.startTime))} – ${formatter.format(new Date(slot.endTime))}`;
+  return `${formatter.format(new Date(slot.startTime))} - ${formatter.format(new Date(slot.endTime))}`;
 }
 
 export function formatDate(date: string): string {

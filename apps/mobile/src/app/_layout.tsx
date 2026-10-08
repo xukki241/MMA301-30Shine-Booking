@@ -4,23 +4,26 @@ import { View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { NetworkProvider, OfflineBanner } from "@/offline/network-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 import { RoleProvider } from "@/providers/role-provider";
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <NetworkProvider>
-        <RoleProvider>
-          <StatusBar style="auto" />
-          <View style={{ flex: 1 }}>
-            <OfflineBanner />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(customer)" />
-              <Stack.Screen name="(stylist)" />
-            </Stack>
-          </View>
-        </RoleProvider>
+        <AuthProvider>
+          <RoleProvider>
+            <StatusBar style="auto" />
+            <View style={{ flex: 1 }}>
+              <OfflineBanner />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(customer)" />
+                <Stack.Screen name="(stylist)" />
+              </Stack>
+            </View>
+          </RoleProvider>
+        </AuthProvider>
       </NetworkProvider>
     </SafeAreaProvider>
   );

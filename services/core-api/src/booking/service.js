@@ -28,6 +28,16 @@ function createBookingService(repository) {
       if (actor.role !== "stylist") throw new BookingError(403, "Only stylists can access stylist appointments");
       return repository.listByStylist ? repository.listByStylist(actor.userId, date) : [];
     },
+    async listCustomerAppointments(actor, customerId) {
+      if (actor.role !== "customer" && actor.role !== "shop_admin") {
+        throw new BookingError(403, "Only customers can access their appointments");
+      }
+      const targetId = customerId ? customerId.toLowerCase() : actor.userId.toLowerCase();
+      if (actor.role === "customer" && targetId !== actor.userId.toLowerCase()) {
+        throw new BookingError(403, "Cannot access another customer's appointments");
+      }
+      return repository.listByCustomer ? repository.listByCustomer(targetId) : [];
+    },
   };
 }
 module.exports = { createBookingService };

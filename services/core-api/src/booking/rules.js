@@ -52,4 +52,16 @@ function validateBooking(body) {
   };
 }
 
-module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking };
+function validateDayRange(query) {
+  if (!query || typeof query !== "object") {
+    throw new BookingError(400, "from/to must be ISO 8601 with timezone, from < to, max 48h");
+  }
+  const from = parseTime(query.from);
+  const to = parseTime(query.to);
+  if (!from || !to || from >= to || to.getTime() - from.getTime() > 48 * 3600e3) {
+    throw new BookingError(400, "from/to must be ISO 8601 with timezone, from < to, max 48h");
+  }
+  return { from, to };
+}
+
+module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validateDayRange };

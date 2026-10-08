@@ -25,7 +25,7 @@ import type {
 } from "./types";
 
 // ---------------------------------------------------------------------------
-// Token management — very simple in-memory store for MVP.
+// Token management - very simple in-memory store for MVP.
 // Replace with SecureStore / AuthContext in a real app.
 // ---------------------------------------------------------------------------
 let _token: string | null = null;
@@ -146,7 +146,7 @@ export const coreApiBookingAdapter: BookingWizardDataSource = {
     return {
       id: data.appointment.id,
       status: "booked",
-      mode: "demo",
+      mode: "api",
       booking,
     };
   },

@@ -35,6 +35,16 @@ export function createDemoAppointmentDataSource(
 
       appointment.status = "cancelled";
       return { ...appointment };
+    },
+    async pay(id) {
+      const appointment = appointments.find((item) => item.id === id);
+      if (!appointment) throw new Error("Không tìm thấy lịch hẹn. Vui lòng tải lại danh sách.");
+      if (appointment.status !== "completed") {
+        throw new Error("Chỉ có thể thanh toán lịch hẹn đã hoàn thành dịch vụ.");
+      }
+
+      appointment.status = "paid";
+      return { ...appointment };
     }
   };
 }

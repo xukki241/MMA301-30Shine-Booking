@@ -8,14 +8,14 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --test test/offline.test.mjs test/appointments.test.mjs test/stylist.test.mjs",
+    "test": "node --test test/appointments.test.mjs test/offline.test.mjs test/core-api-adapter.test.mjs",
     "test:offline": "node --test test/offline.test.mjs",
-    "test:appointments": "node --test test/appointments.test.mjs",
-    "test:stylist": "node --test test/stylist.test.mjs",
+    "test:appointments": "node --test test/appointments.test.mjs test/core-api-adapter.test.mjs",
     "typecheck": "tsc --noEmit",
     "export:android": "expo export --platform android"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/netinfo": "12.0.1",
     "expo": "~57.0.25",
