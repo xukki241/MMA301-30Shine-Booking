@@ -9,8 +9,11 @@ import type {
   TimeSlotQuery,
 } from "./types";
 
-const coreApi = (process.env.EXPO_PUBLIC_CORE_API_URL || "http://localhost:4102").replace(/\/$/, "");
-const authApi = (process.env.EXPO_PUBLIC_AUTH_API_URL || "http://localhost:4101").replace(/\/$/, "");
+const isWeb = typeof window !== "undefined" || typeof document !== "undefined";
+const defaultHost = isWeb ? "localhost" : "10.0.2.2";
+
+const coreApi = (process.env.EXPO_PUBLIC_CORE_API_URL || `http://${defaultHost}:4102`).replace(/\/$/, "");
+const authApi = (process.env.EXPO_PUBLIC_AUTH_API_URL || `http://${defaultHost}:4101`).replace(/\/$/, "");
 
 async function request<T>(base: string, path: string, token?: string, init?: RequestInit): Promise<T> {
   let response: Response;
@@ -74,6 +77,43 @@ export async function completeStylistAppointment(token: string, appointmentId: s
   const data = await request<{ appointment: StylistAppointmentItem }>(
     coreApi,
     `/appointments/${encodeURIComponent(appointmentId)}/complete`,
+    token,
+    { method: "POST" },
+  );
+  return data.appointment;
+}
+
+export interface CustomerAppointmentItem {
+  id: string;
+  customerId: string;
+  stylistId: string;
+  startTime: string;
+  endTime?: string;
+  status: "booked" | "completed" | "paid" | "cancelled";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function getCustomerAppointments(token: string, customerId?: string): Promise<CustomerAppointmentItem[]> {
+  const path = customerId ? `/appointments?customerId=${encodeURIComponent(customerId)}` : "/appointments/customer";
+  const data = await request<{ appointments: CustomerAppointmentItem[] }>(coreApi, path, token);
+  return data.appointments || [];
+}
+
+export async function cancelCustomerAppointment(token: string, appointmentId: string): Promise<CustomerAppointmentItem> {
+  const data = await request<{ appointment: CustomerAppointmentItem }>(
+    coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+    token,
+    { method: "POST" },
+  );
+  return data.appointment;
+}
+
+export async function payCustomerAppointment(token: string, appointmentId: string): Promise<CustomerAppointmentItem> {
+  const data = await request<{ appointment: CustomerAppointmentItem }>(
+    coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/pay`,
     token,
     { method: "POST" },
   );

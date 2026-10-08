@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/providers/auth-provider";
 import {
   completeStylistAppointment,
   getStylistTodayAppointments,
@@ -13,7 +15,10 @@ import {
 
 export default function StylistTodayScreen() {
   const theme = useAppTheme();
-  const [token, setToken] = useState<string | null>(null);
+  const { token: contextToken, role: authRole, setAuth } = useAuth();
+  const [localToken, setLocalToken] = useState<string | null>(null);
+  const token = (authRole === "stylist" ? contextToken : null) || localToken;
+
   const [email, setEmail] = useState("stylist@30shine.vn");
   const [password, setPassword] = useState("Password123!");
   const [loggingIn, setLoggingIn] = useState(false);
@@ -48,7 +53,8 @@ export default function StylistTodayScreen() {
     setLoginError(null);
     try {
       const result = await loginStylist(email, password);
-      setToken(result.token);
+      setLocalToken(result.token);
+      setAuth(result.token, result.user as any);
     } catch (cause) {
       setLoginError(cause instanceof Error ? cause.message : "Đăng nhập thất bại.");
     } finally {
@@ -134,7 +140,7 @@ export default function StylistTodayScreen() {
         <InlineError message={error} onRetry={() => { void fetchAppointments(token); }} />
       ) : appointments.length === 0 ? (
         <EmptyState
-          icon="🪑"
+          icon="calendar-outline"
           title="Hôm nay chưa có khách"
           description="Các lịch hẹn mới do khách đặt sẽ tự động xuất hiện tại đây."
         />
@@ -142,9 +148,17 @@ export default function StylistTodayScreen() {
         appointments.map((item) => (
           <Card key={item.id}>
             <View style={styles.cardHeader}>
-              <Text style={styles.timeText}>
-                ⏰ {formatTime(item.startTime)} — {formatTime(item.endTime)}
-              </Text>
+              <View style={styles.timeRow}>
+                <Ionicons
+                  name="time-outline"
+                  size={15}
+                  color={theme.textMuted}
+                  style={styles.timeIcon}
+                />
+                <Text style={styles.timeText}>
+                  {formatTime(item.startTime)} - {formatTime(item.endTime)}
+                </Text>
+              </View>
               <View
                 style={[
                   styles.badge,
@@ -185,14 +199,14 @@ export default function StylistTodayScreen() {
             {item.status === "booked" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
-                  label="✓ Đánh dấu Hoàn thành"
+                  label="Đánh dấu Hoàn thành"
                   onPress={() => { void handleComplete(item.id); }}
                   loading={completingId === item.id}
                 />
               </View>
             ) : item.status === "completed" ? (
               <Text style={[styles.doneNote, { color: theme.brand }]}>
-                ✓ Đã hoàn thành. Chờ khách hàng thanh toán.
+                Đã hoàn thành. Chờ khách hàng thanh toán.
               </Text>
             ) : null}
           </Card>
@@ -219,6 +233,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 8,
+  },
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  timeIcon: {
+    marginRight: 6,
   },
   timeText: {
     fontSize: 15,

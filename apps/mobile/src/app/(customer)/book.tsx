@@ -10,6 +10,7 @@ import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgre
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { useAuth } from "@/providers/auth-provider";
 
 const steps = [
   { title: "Chọn chi nhánh", description: "Chọn nơi bạn muốn đến cắt tóc." },
@@ -26,6 +27,7 @@ const initialDraft: BookingDraft = { branch: null, service: null, stylist: null,
 
 export default function CustomerBookingScreen() {
   const theme = useAppTheme();
+  const { token: authToken, login } = useAuth();
   const dates = useMemo(() => upcomingDates(), []);
   const [step, setStep] = useState<BookingStep>(0);
   const [draft, setDraft] = useState<BookingDraft>(initialDraft);
@@ -33,10 +35,11 @@ export default function CustomerBookingScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [customerToken, setCustomerToken] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("customer@30shine.vn");
+  const [password, setPassword] = useState("Password123!");
   const submitLock = useRef(false);
-  const tokenRef = useRef<string | null>(null);
+  const tokenRef = useRef<string | null>(authToken);
+  tokenRef.current = authToken || customerToken;
   const bookingAdapter = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
   const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, bookingAdapter);
 
@@ -129,13 +132,13 @@ export default function CustomerBookingScreen() {
 
       {step === 0 ? (
         loading ? <LoadingState label="Đang tải chi nhánh..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          branches.length === 0 ? <EmptyState icon="📍" title="Chưa có chi nhánh" description="Vui lòng quay lại sau." /> :
+          branches.length === 0 ? <EmptyState icon="location-outline" title="Chưa có chi nhánh" description="Vui lòng quay lại sau." /> :
             branches.map((branch) => <SelectableCard key={branch.id} label={branch.name} detail={branch.address} selected={draft.branch?.id === branch.id} onPress={() => selectBranch(branch)} />)
       ) : null}
 
       {step === 1 ? (
         loading ? <LoadingState label="Đang tải dịch vụ..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          services.length === 0 ? <EmptyState icon="✂️" title="Chưa có dịch vụ" description="Hãy quay lại chọn chi nhánh khác." /> :
+          services.length === 0 ? <EmptyState icon="cut-outline" title="Chưa có dịch vụ" description="Hãy quay lại chọn chi nhánh khác." /> :
             services.map((service) => (
               <SelectableCard key={service.id} label={service.name}
                 detail={`${service.durationMinutes} phút · ${new Intl.NumberFormat("vi-VN").format(service.priceVnd)} ₫`}
@@ -145,7 +148,7 @@ export default function CustomerBookingScreen() {
 
       {step === 2 ? (
         loading ? <LoadingState label="Đang tải Stylist..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          stylists.length === 0 ? <EmptyState icon="✂️" title="Chưa có Stylist" description="Hãy quay lại chọn dịch vụ hoặc chi nhánh khác." /> :
+          stylists.length === 0 ? <EmptyState icon="person-outline" title="Chưa có Stylist" description="Hãy quay lại chọn dịch vụ hoặc chi nhánh khác." /> :
             stylists.map((stylist) => <SelectableCard key={stylist.id} label={stylist.name} selected={draft.stylist?.id === stylist.id} onPress={() => selectStylist(stylist)} />)
       ) : null}
 
@@ -162,7 +165,7 @@ export default function CustomerBookingScreen() {
           {!draft.date ? <Card><CardText>Chọn một ngày để xem khung giờ.</CardText></Card> :
             loading ? <LoadingState label="Đang tải khung giờ..." /> :
               error ? <InlineError message={error} onRetry={retry} /> :
-                slots.length === 0 ? <EmptyState icon="🕒" title="Không có khung giờ trống" description="Chọn ngày khác hoặc quay lại chọn Stylist khác." /> :
+                slots.length === 0 ? <EmptyState icon="time-outline" title="Không có khung giờ trống" description="Chọn ngày khác hoặc quay lại chọn Stylist khác." /> :
                   slots.map((slot) => <SelectableCard key={slot.id} label={formatSlot(slot)} selected={draft.slot?.id === slot.id} onPress={() => selectSlot(slot)} />)}
         </>
       ) : null}
@@ -170,7 +173,7 @@ export default function CustomerBookingScreen() {
       {step === 4 && isCompleteBookingDraft(draft) ? (
         <>
           <BookingSummary booking={draft} />
-          {!customerToken ? (
+          {!tokenRef.current ? (
             <Card>
               <CardTitle>Đăng nhập để xác nhận</CardTitle>
               <CardText>Dùng tài khoản Customer để lưu lịch hẹn của bạn.</CardText>

@@ -16,7 +16,25 @@ function bookingRoutes(repository, workShiftRepository) {
       return next(error);
     }
   };
+  router.get("/customer", handle(async (req, res) => {
+    const appointments = await service.listCustomerAppointments(req.auth, req.query.customerId);
+    res.json({ appointments });
+  }));
+  router.get("/stylist", handle(async (req, res) => {
+    if (req.auth.role !== "stylist") throw new BookingError(403, "Only stylists can list appointments");
+    const today = () => {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    const date = String(req.query.date || today());
+    const appointments = await service.listStylistAppointments(req.auth, date);
+    res.json({ appointments });
+  }));
   router.get("/", handle(async (req, res) => {
+    if (req.query.customerId) {
+      const appointments = await service.listCustomerAppointments(req.auth, req.query.customerId);
+      return res.json({ appointments });
+    }
     if (req.auth.role !== "stylist") throw new BookingError(403, "Only stylists can list appointments");
     const today = () => {
       const d = new Date();

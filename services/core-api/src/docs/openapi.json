@@ -733,6 +733,33 @@
       }
     },
     "/appointments": {
+      "get": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Danh sách lịch hẹn của Stylist hoặc Customer",
+        "description": "Yêu cầu Bearer Token.\n- Nếu role là **customer**: truyền query `customerId` trùng với user ID của mình để lấy danh sách lịch hẹn.\n- Nếu role là **stylist**: có thể truyền query `date` (YYYY-MM-DD) để lấy lịch hẹn theo ngày.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Lọc theo ID khách hàng" },
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Lọc theo ngày (YYYY-MM-DD)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách lịch hẹn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appointments": { "type": "array", "items": { "$ref": "#/components/schemas/Appointment" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Chưa xác thực" },
+          "403": { "description": "Không có quyền truy cập" }
+        }
+      },
       "post": {
         "tags": ["SHINE-03/07 · Booking API"],
         "summary": "Đặt lịch hẹn mới",

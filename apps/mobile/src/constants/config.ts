@@ -10,8 +10,14 @@
  * USE_DEMO_ADAPTER: When true, the booking wizard uses the local demo adapter
  * (no network required). When false, it calls the real Core API.
  */
+const isWeb = typeof window !== "undefined" || typeof document !== "undefined";
+const defaultHost = isWeb ? "localhost" : "10.0.2.2";
+
 export const CORE_API_URL =
-  process.env.EXPO_PUBLIC_CORE_API_URL ?? "http://10.0.2.2:4102";
+  process.env.EXPO_PUBLIC_CORE_API_URL ?? `http://${defaultHost}:4102`;
+
+export const AUTH_SERVICE_URL =
+  process.env.EXPO_PUBLIC_AUTH_API_URL ?? `http://${defaultHost}:4101`;
 
 export const USE_DEMO_ADAPTER =
   process.env.EXPO_PUBLIC_USE_DEMO_ADAPTER !== "false";
