@@ -49,15 +49,23 @@ test("getStylistTodayAppointments lists appointments and handles empty state", a
     globalThis.fetch = originalFetch;
   });
 
-  // 1. Empty state
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({ appointments: [] }),
-  });
+  // 1. Empty state with date query param verification
+  let calledUrl = "";
+  let calledHeaders = {};
+  globalThis.fetch = async (url, options) => {
+    calledUrl = String(url);
+    calledHeaders = options?.headers || {};
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ appointments: [] }),
+    };
+  };
 
   const emptyList = await getStylistTodayAppointments("mock_token", "2026-10-10");
   assert.deepEqual(emptyList, []);
+  assert.match(calledUrl, /\/appointments\?date=2026-10-10$/);
+  assert.equal(calledHeaders["Authorization"], "Bearer mock_token");
 
   // 2. Returns appointment list
   const mockAppointments = [
@@ -82,6 +90,15 @@ test("getStylistTodayAppointments lists appointments and handles empty state", a
   assert.equal(list.length, 1);
   assert.equal(list[0].id, "appt_001");
   assert.equal(list[0].status, "booked");
+
+  // 3. Network connection failure handling
+  globalThis.fetch = async () => {
+    throw new Error("Network request failed");
+  };
+  await assert.rejects(
+    getStylistTodayAppointments("mock_token"),
+    /Không kết nối được máy chủ/
+  );
 });
 
 test("completeStylistAppointment transitions booked appointment to completed", async (t) => {
@@ -92,9 +109,11 @@ test("completeStylistAppointment transitions booked appointment to completed", a
 
   let calledUrl = "";
   let calledMethod = "";
+  let calledHeaders = {};
   globalThis.fetch = async (url, options) => {
     calledUrl = String(url);
     calledMethod = options?.method || "GET";
+    calledHeaders = options?.headers || {};
     return {
       ok: true,
       status: 200,
@@ -118,6 +137,7 @@ test("completeStylistAppointment transitions booked appointment to completed", a
   assert.equal(completed.status, "completed");
   assert.match(calledUrl, /\/appointments\/appt_001\/complete$/);
   assert.equal(calledMethod, "POST");
+  assert.equal(calledHeaders["Authorization"], "Bearer mock_token");
 
   // Error case: already completed or invalid state returns error from API
   globalThis.fetch = async () => ({
