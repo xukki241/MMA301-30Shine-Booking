@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Card, CardText, CardTitle } from "@/components/screen";
 import { WizardAction } from "@/components/booking-wizard";
@@ -93,7 +94,13 @@ export default function LoginScreen() {
 
           {errorMessage ? (
             <View style={styles.errorBox}>
-              <Text style={styles.errorText}>⚠️ {errorMessage}</Text>
+              <Ionicons
+                name="alert-circle"
+                size={16}
+                color={theme.danger}
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.errorText}>{errorMessage}</Text>
             </View>
           ) : null}
 
@@ -121,8 +128,14 @@ export default function LoginScreen() {
                 void handleLogin("customer@30shine.vn", "Password123!");
               }}
             >
+              <Ionicons
+                name="person-outline"
+                size={14}
+                color={theme.brand}
+                style={{ marginRight: 6 }}
+              />
               <Text style={[styles.presetBadgeText, { color: theme.brand }]}>
-                ✂️ Customer (Khách)
+                Customer (Khách)
               </Text>
             </Pressable>
 
@@ -135,8 +148,14 @@ export default function LoginScreen() {
                 void handleLogin("stylist@30shine.vn", "Password123!");
               }}
             >
+              <Ionicons
+                name="cut-outline"
+                size={14}
+                color={theme.brand}
+                style={{ marginRight: 6 }}
+              />
               <Text style={[styles.presetBadgeText, { color: theme.brand }]}>
-                💈 Stylist (Thợ)
+                Stylist (Thợ)
               </Text>
             </Pressable>
           </View>
@@ -206,6 +225,8 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 10,
     padding: 10,
     backgroundColor: "#FEE2E2",
@@ -215,6 +236,7 @@ const styles = StyleSheet.create({
     color: "#B91C1C",
     fontSize: 13,
     fontWeight: "600",
+    flex: 1,
   },
   presets: {
     marginTop: 20,
@@ -230,6 +252,7 @@ const styles = StyleSheet.create({
   },
   presetBadge: {
     flex: 1,
+    flexDirection: "row",
     borderWidth: 1.5,
     borderRadius: 10,
     paddingVertical: 10,

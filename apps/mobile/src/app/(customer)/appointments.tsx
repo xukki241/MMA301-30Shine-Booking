@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
@@ -7,7 +7,7 @@ import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adap
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
-import { Card, CardText, CardTitle, Screen } from "@/components/screen";
+import { Card, CardText, CardTitle, PrimaryButton, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
 import { type AppointmentSummary, isAppointmentSummary } from "@/offline/appointments";
@@ -211,9 +211,16 @@ export default function CustomerAppointmentsScreen() {
         </Card>
       ) : appointments.length === 0 ? (
         <EmptyState
-          icon="📭"
+          icon="calendar-outline"
           title="Chưa có lịch hẹn"
           description="Các lịch hẹn bạn đã đặt sẽ xuất hiện tại đây."
+          action={
+            <PrimaryButton
+              label="Đặt lịch ngay"
+              onPress={() => router.push("/(customer)/book")}
+              style={{ minWidth: 160 }}
+            />
+          }
         />
       ) : (
         appointments.map((item) => (
@@ -309,7 +316,7 @@ export default function CustomerAppointmentsScreen() {
             {item.status === "completed" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
-                  label="💳 Thanh toán dịch vụ (MoMo / VNPay)"
+                  label="Thanh toán dịch vụ (MoMo / VNPay)"
                   onPress={() => { void handlePay(item.id); }}
                   loading={processingId === item.id}
                 />
@@ -318,7 +325,7 @@ export default function CustomerAppointmentsScreen() {
 
             {item.status === "paid" ? (
               <Text style={[styles.paidNote, { color: theme.brand }]}>
-                ✓ Đã thanh toán dịch vụ thành công.
+                Đã thanh toán dịch vụ thành công.
               </Text>
             ) : null}
           </Card>

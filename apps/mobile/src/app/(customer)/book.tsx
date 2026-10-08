@@ -132,13 +132,13 @@ export default function CustomerBookingScreen() {
 
       {step === 0 ? (
         loading ? <LoadingState label="Đang tải chi nhánh..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          branches.length === 0 ? <EmptyState icon="📍" title="Chưa có chi nhánh" description="Vui lòng quay lại sau." /> :
+          branches.length === 0 ? <EmptyState icon="location-outline" title="Chưa có chi nhánh" description="Vui lòng quay lại sau." /> :
             branches.map((branch) => <SelectableCard key={branch.id} label={branch.name} detail={branch.address} selected={draft.branch?.id === branch.id} onPress={() => selectBranch(branch)} />)
       ) : null}
 
       {step === 1 ? (
         loading ? <LoadingState label="Đang tải dịch vụ..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          services.length === 0 ? <EmptyState icon="✂️" title="Chưa có dịch vụ" description="Hãy quay lại chọn chi nhánh khác." /> :
+          services.length === 0 ? <EmptyState icon="cut-outline" title="Chưa có dịch vụ" description="Hãy quay lại chọn chi nhánh khác." /> :
             services.map((service) => (
               <SelectableCard key={service.id} label={service.name}
                 detail={`${service.durationMinutes} phút · ${new Intl.NumberFormat("vi-VN").format(service.priceVnd)} ₫`}
@@ -148,7 +148,7 @@ export default function CustomerBookingScreen() {
 
       {step === 2 ? (
         loading ? <LoadingState label="Đang tải Stylist..." /> : error ? <InlineError message={error} onRetry={retry} /> :
-          stylists.length === 0 ? <EmptyState icon="✂️" title="Chưa có Stylist" description="Hãy quay lại chọn dịch vụ hoặc chi nhánh khác." /> :
+          stylists.length === 0 ? <EmptyState icon="person-outline" title="Chưa có Stylist" description="Hãy quay lại chọn dịch vụ hoặc chi nhánh khác." /> :
             stylists.map((stylist) => <SelectableCard key={stylist.id} label={stylist.name} selected={draft.stylist?.id === stylist.id} onPress={() => selectStylist(stylist)} />)
       ) : null}
 
@@ -165,7 +165,7 @@ export default function CustomerBookingScreen() {
           {!draft.date ? <Card><CardText>Chọn một ngày để xem khung giờ.</CardText></Card> :
             loading ? <LoadingState label="Đang tải khung giờ..." /> :
               error ? <InlineError message={error} onRetry={retry} /> :
-                slots.length === 0 ? <EmptyState icon="🕒" title="Không có khung giờ trống" description="Chọn ngày khác hoặc quay lại chọn Stylist khác." /> :
+                slots.length === 0 ? <EmptyState icon="time-outline" title="Không có khung giờ trống" description="Chọn ngày khác hoặc quay lại chọn Stylist khác." /> :
                   slots.map((slot) => <SelectableCard key={slot.id} label={formatSlot(slot)} selected={draft.slot?.id === slot.id} onPress={() => selectSlot(slot)} />)}
         </>
       ) : null}

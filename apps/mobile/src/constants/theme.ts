@@ -3,10 +3,16 @@ import { useColorScheme } from "react-native";
 const shared = {
   brand: "#E11D2E",
   brandPressed: "#B71322",
+  brandMuted: "rgba(225, 29, 46, 0.12)",
   accent: "#F59E0B",
-  success: "#15803D",
+  gold: "#F59E0B",
+  goldMuted: "rgba(245, 158, 11, 0.15)",
+  success: "#10B981",
+  successMuted: "rgba(16, 185, 129, 0.15)",
   danger: "#DC2626",
-  radius: 18,
+  radius: 16,
+  radiusSm: 10,
+  radiusPill: 999,
   spacing: {
     xs: 6,
     sm: 10,
@@ -21,21 +27,29 @@ const lightTheme = {
   isDark: false,
   background: "#F8FAFC",
   surface: "#FFFFFF",
-  surfaceMuted: "#F1F5F9",
-  text: "#172033",
+  surfaceHighlight: "#F1F5F9",
+  surfaceMuted: "#E2E8F0",
+  text: "#0F172A",
   textMuted: "#64748B",
-  border: "#E2E8F0"
+  textDim: "#94A3B8",
+  border: "#E2E8F0",
+  borderLight: "rgba(0, 0, 0, 0.06)",
+  cardShadow: "rgba(15, 23, 42, 0.06)"
 } as const;
 
 const darkTheme = {
   ...shared,
   isDark: true,
-  background: "#0F172A",
-  surface: "#182235",
-  surfaceMuted: "#243047",
+  background: "#0B0F19",
+  surface: "#141C2E",
+  surfaceHighlight: "#1E2B42",
+  surfaceMuted: "#182235",
   text: "#F8FAFC",
-  textMuted: "#A8B3C7",
-  border: "#334155"
+  textMuted: "#94A3B8",
+  textDim: "#64748B",
+  border: "#233048",
+  borderLight: "rgba(255, 255, 255, 0.08)",
+  cardShadow: "rgba(0, 0, 0, 0.35)"
 } as const;
 
 export function useAppTheme() {

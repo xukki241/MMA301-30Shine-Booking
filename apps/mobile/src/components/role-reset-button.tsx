@@ -1,5 +1,6 @@
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useAppTheme } from "@/constants/theme";
 import { useAuth } from "@/providers/auth-provider";
@@ -22,8 +23,21 @@ export function RoleResetButton() {
       accessibilityLabel="Đổi vai trò"
       onPress={resetRole}
       hitSlop={8}
-      style={({ pressed }) => [styles.button, { opacity: pressed ? 0.55 : 1 }]}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: theme.surfaceHighlight,
+          borderColor: theme.border,
+          opacity: pressed ? 0.7 : 1
+        }
+      ]}
     >
+      <Ionicons
+        name="swap-horizontal"
+        size={13}
+        color={theme.brand}
+        style={styles.icon}
+      />
       <Text style={[styles.label, { color: theme.brand }]}>Đổi vai trò</Text>
     </Pressable>
   );
@@ -31,11 +45,19 @@ export function RoleResetButton() {
 
 const styles = StyleSheet.create({
   button: {
-    paddingHorizontal: 16,
-    paddingVertical: 8
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginRight: 14
+  },
+  icon: {
+    marginRight: 4
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700"
   }
 });
