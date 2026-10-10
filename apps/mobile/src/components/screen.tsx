@@ -16,6 +16,7 @@ type ScreenProps = PropsWithChildren<{
   title?: string;
   description?: string;
   headerContent?: ReactNode;
+  refreshControl?: React.ReactElement;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }>;
 
@@ -50,6 +51,7 @@ export function Screen({
   title,
   description,
   headerContent,
+  refreshControl,
   contentContainerStyle,
   children
 }: ScreenProps) {
@@ -60,6 +62,7 @@ export function Screen({
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[styles.content, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
+      refreshControl={refreshControl}
     >
       {headerContent}
       {eyebrow ? (
