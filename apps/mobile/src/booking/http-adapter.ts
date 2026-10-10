@@ -56,6 +56,16 @@ export async function loginStylist(email: string, password: string) {
   return { token: result.accessToken, user: result.user };
 }
 
+export async function registerUser(email: string, password: string, role: "customer" | "stylist") {
+  const result = await request<{ user: { id: string; email: string; role: string } }>(
+    authApi,
+    "/auth/register",
+    undefined,
+    { method: "POST", body: JSON.stringify({ email, password, role }), headers: { "Content-Type": "application/json" } },
+  );
+  return result.user;
+}
+
 export interface StylistAppointmentItem {
   id: string;
   customerId: string;

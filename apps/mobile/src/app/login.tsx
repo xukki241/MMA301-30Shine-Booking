@@ -1,7 +1,8 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +26,8 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("customer@30shine.vn");
   const [password, setPassword] = useState("Password123!");
+  const [showPassword, setShowPassword] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -59,123 +62,262 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.brandMark, { backgroundColor: theme.brand }]}>
-          <Text style={styles.brandMarkText}>30</Text>
-        </View>
-        <Text style={[styles.title, { color: theme.text }]}>30Shine Booking</Text>
-        <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-          Đăng nhập hệ thống để đặt lịch, phục vụ và quản lý lịch hẹn.
-        </Text>
-
-        <Card>
-          <CardTitle>Đăng nhập tài khoản</CardTitle>
-          <CardText>Nhập email và mật khẩu của bạn để tiếp tục.</CardText>
-
-          <TextInput
-            accessibilityLabel="Email đăng nhập"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            placeholder="Email (vd: customer@30shine.vn)"
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-          />
-          <TextInput
-            accessibilityLabel="Mật khẩu đăng nhập"
-            autoComplete="current-password"
-            placeholder="Mật khẩu"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-          />
-
-          {errorMessage ? (
-            <View style={styles.errorBox}>
-              <Ionicons
-                name="alert-circle"
-                size={16}
-                color={theme.danger}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.errorText}>{errorMessage}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header Brand */}
+          <View style={styles.header}>
+            <View style={styles.brandRow}>
+              <View style={[styles.brandMark, { backgroundColor: theme.brand }]}>
+                <Text style={styles.brandMarkText}>30</Text>
+              </View>
+              <View>
+                <Text style={[styles.brandBadge, { color: theme.gold }]}>30SHINE SALON</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>Đăng nhập</Text>
+              </View>
             </View>
-          ) : null}
-
-          <View style={styles.buttonGroup}>
-            <WizardAction
-              label="Đăng nhập"
-              onPress={() => { void handleLogin(); }}
-              loading={loading}
-            />
+            <Text style={[styles.headerSubtitle, { color: theme.textMuted }]}>
+              Đăng nhập tài khoản để đặt lịch, phục vụ ca làm việc và trải nghiệm dịch vụ tiện ích.
+            </Text>
           </View>
-        </Card>
 
-        {/* Quick demo account presets */}
-        <View style={styles.presets}>
-          <Text style={[styles.presetTitle, { color: theme.textMuted }]}>
-            Tài khoản mẫu thử nghiệm nhanh:
-          </Text>
-          <View style={styles.presetButtons}>
+          {/* Login Card */}
+          <Card style={styles.formCard}>
+            <CardTitle>Tài khoản & Mật khẩu</CardTitle>
+            <CardText>Nhập email và mật khẩu của bạn để tiếp tục:</CardText>
+
+            {/* Email Field */}
+            <View style={styles.fieldBlock}>
+              <Text style={[styles.fieldLabel, { color: theme.text }]}>Email tài khoản</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: theme.surfaceHighlight,
+                    borderColor: focusedField === "email" ? theme.brand : theme.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="mail-outline"
+                  size={18}
+                  color={focusedField === "email" ? theme.brand : theme.textMuted}
+                  style={styles.inputLeadingIcon}
+                />
+                <TextInput
+                  accessibilityLabel="Email đăng nhập"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  keyboardType="email-address"
+                  placeholder="nhap.email@example.com"
+                  placeholderTextColor={theme.textDim}
+                  value={email}
+                  onChangeText={setEmail}
+                  onFocus={() => setFocusedField("email")}
+                  onBlur={() => setFocusedField(null)}
+                  style={[styles.input, { color: theme.text }]}
+                />
+              </View>
+            </View>
+
+            {/* Password Field */}
+            <View style={styles.fieldBlock}>
+              <Text style={[styles.fieldLabel, { color: theme.text }]}>Mật khẩu</Text>
+              <View
+                style={[
+                  styles.inputContainer,
+                  {
+                    backgroundColor: theme.surfaceHighlight,
+                    borderColor: focusedField === "password" ? theme.brand : theme.border,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={18}
+                  color={focusedField === "password" ? theme.brand : theme.textMuted}
+                  style={styles.inputLeadingIcon}
+                />
+                <TextInput
+                  accessibilityLabel="Mật khẩu đăng nhập"
+                  autoComplete="current-password"
+                  placeholder="Mật khẩu"
+                  placeholderTextColor={theme.textDim}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  onFocus={() => setFocusedField("password")}
+                  onBlur={() => setFocusedField(null)}
+                  style={[styles.input, { color: theme.text }]}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  hitSlop={8}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color={theme.textMuted}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Error Message */}
+            {errorMessage ? (
+              <View
+                style={[
+                  styles.errorBox,
+                  {
+                    backgroundColor: theme.isDark ? "rgba(220, 38, 38, 0.18)" : "#FEE2E2",
+                    borderColor: theme.danger,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="alert-circle"
+                  size={18}
+                  color={theme.danger}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={[styles.errorText, { color: theme.danger }]}>{errorMessage}</Text>
+              </View>
+            ) : null}
+
+            {/* Submit Action */}
+            <View style={styles.actionSection}>
+              <WizardAction
+                label="Đăng nhập"
+                onPress={() => { void handleLogin(); }}
+                loading={loading}
+              />
+            </View>
+          </Card>
+
+          {/* Link to register screen */}
+          <View style={styles.registerRedirect}>
+            <Text style={[styles.redirectText, { color: theme.textMuted }]}>
+              Chưa có tài khoản 30Shine?{" "}
+            </Text>
             <Pressable
               accessibilityRole="button"
-              style={[styles.presetBadge, { borderColor: theme.brand }]}
-              onPress={() => {
-                setEmail("customer@30shine.vn");
-                setPassword("Password123!");
-                void handleLogin("customer@30shine.vn", "Password123!");
-              }}
+              accessibilityLabel="Chuyển sang đăng ký ngay"
+              onPress={() => router.push("/register")}
+              hitSlop={8}
             >
-              <Ionicons
-                name="person-outline"
-                size={14}
-                color={theme.brand}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.presetBadgeText, { color: theme.brand }]}>
-                Customer (Khách)
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              style={[styles.presetBadge, { borderColor: theme.brand }]}
-              onPress={() => {
-                setEmail("stylist@30shine.vn");
-                setPassword("Password123!");
-                void handleLogin("stylist@30shine.vn", "Password123!");
-              }}
-            >
-              <Ionicons
-                name="cut-outline"
-                size={14}
-                color={theme.brand}
-                style={{ marginRight: 6 }}
-              />
-              <Text style={[styles.presetBadgeText, { color: theme.brand }]}>
-                Stylist (Thợ)
+              <Text style={[styles.redirectLink, { color: theme.brand }]}>
+                Đăng ký ngay
               </Text>
             </Pressable>
           </View>
-        </View>
 
-        {/* Local offline demo mode */}
-        <View style={[styles.demoCard, { backgroundColor: theme.surfaceMuted }]}>
-          <Text style={[styles.demoCardText, { color: theme.textMuted }]}>
-            Chưa có kết nối mạng? Trải nghiệm giao diện demo ngoại tuyến:
-          </Text>
-          <View style={styles.demoActions}>
-            <Pressable onPress={() => enterDemo("customer")}>
-              <Text style={[styles.demoLink, { color: theme.brand }]}>Demo Khách hàng ›</Text>
-            </Pressable>
-            <Pressable onPress={() => enterDemo("stylist")}>
-              <Text style={[styles.demoLink, { color: theme.brand }]}>Demo Stylist ›</Text>
-            </Pressable>
+          {/* Quick demo account presets */}
+          <View style={styles.presetsSection}>
+            <Text style={[styles.sectionHeading, { color: theme.textMuted }]}>
+              TÀI KHOẢN MẪU THỬ NGHIỆM
+            </Text>
+            <View style={styles.presetGrid}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Đăng nhập nhanh tài khoản Khách hàng"
+                style={({ pressed }) => [
+                  styles.presetCard,
+                  {
+                    backgroundColor: theme.surfaceHighlight,
+                    borderColor: theme.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  setEmail("customer@30shine.vn");
+                  setPassword("Password123!");
+                  void handleLogin("customer@30shine.vn", "Password123!");
+                }}
+              >
+                <View style={styles.presetTop}>
+                  <View style={[styles.presetIconBadge, { backgroundColor: theme.brandMuted }]}>
+                    <Ionicons name="person" size={16} color={theme.brand} />
+                  </View>
+                  <Text style={[styles.presetRoleTag, { color: theme.brand }]}>Customer</Text>
+                </View>
+                <Text style={[styles.presetCardTitle, { color: theme.text }]}>Khách hàng mẫu</Text>
+                <Text style={[styles.presetEmail, { color: theme.textMuted }]}>
+                  customer@30shine.vn
+                </Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Đăng nhập nhanh tài khoản Stylist"
+                style={({ pressed }) => [
+                  styles.presetCard,
+                  {
+                    backgroundColor: theme.surfaceHighlight,
+                    borderColor: theme.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  setEmail("stylist@30shine.vn");
+                  setPassword("Password123!");
+                  void handleLogin("stylist@30shine.vn", "Password123!");
+                }}
+              >
+                <View style={styles.presetTop}>
+                  <View style={[styles.presetIconBadge, { backgroundColor: theme.goldMuted }]}>
+                    <Ionicons name="cut" size={16} color={theme.gold} />
+                  </View>
+                  <Text style={[styles.presetRoleTag, { color: theme.gold }]}>Stylist</Text>
+                </View>
+                <Text style={[styles.presetCardTitle, { color: theme.text }]}>Stylist mẫu</Text>
+                <Text style={[styles.presetEmail, { color: theme.textMuted }]}>
+                  stylist@30shine.vn
+                </Text>
+              </Pressable>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+
+          {/* Local offline demo mode */}
+          <View style={[styles.demoCard, { backgroundColor: theme.surfaceHighlight, borderColor: theme.border }]}>
+            <View style={styles.demoCardHeader}>
+              <Ionicons name="cloud-offline-outline" size={16} color={theme.textMuted} />
+              <Text style={[styles.demoCardTitle, { color: theme.text }]}>
+                Chế độ xem trước ngoại tuyến (Offline Demo)
+              </Text>
+            </View>
+            <Text style={[styles.demoCardDesc, { color: theme.textMuted }]}>
+              Trải nghiệm nhanh luồng giao diện mẫu mà không cần kết nối máy chủ backend:
+            </Text>
+            <View style={styles.demoActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Mở demo Khách hàng"
+                style={[styles.demoButton, { borderColor: theme.border }]}
+                onPress={() => enterDemo("customer")}
+              >
+                <Text style={[styles.demoButtonText, { color: theme.brand }]}>Demo Khách hàng ›</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Mở demo Stylist"
+                style={[styles.demoButton, { borderColor: theme.border }]}
+                onPress={() => enterDemo("stylist")}
+              >
+                <Text style={[styles.demoButtonText, { color: theme.brand }]}>Demo Stylist ›</Text>
+              </Pressable>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -184,102 +326,199 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
+  keyboardAvoid: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    padding: 22,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   brandMark: {
     alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: 16,
-    height: 56,
+    borderRadius: 14,
+    height: 48,
     justifyContent: "center",
-    width: 56,
+    width: 48,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   brandMarkText: {
     color: "#FFFFFF",
     fontSize: 22,
     fontWeight: "900",
+    letterSpacing: 0.5,
   },
-  title: {
-    fontSize: 30,
+  brandBadge: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+  },
+  headerTitle: {
+    fontSize: 24,
     fontWeight: "900",
-    marginTop: 18,
+    lineHeight: 30,
+    marginTop: 2,
   },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: 6,
-    marginBottom: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+  headerSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
     marginTop: 10,
   },
-  buttonGroup: {
-    marginTop: 14,
+  formCard: {
+    padding: 18,
+    gap: 12,
+  },
+  fieldBlock: {
+    marginTop: 6,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 12,
+    borderWidth: 1.5,
+    minHeight: 50,
+    paddingHorizontal: 12,
+  },
+  inputLeadingIcon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: 10,
+  },
+  eyeButton: {
+    padding: 4,
+    marginLeft: 6,
   },
   errorBox: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    padding: 10,
-    backgroundColor: "#FEE2E2",
-    borderRadius: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
   },
   errorText: {
-    color: "#B91C1C",
     fontSize: 13,
     fontWeight: "600",
     flex: 1,
+    lineHeight: 18,
   },
-  presets: {
+  actionSection: {
+    marginTop: 10,
+  },
+  registerRedirect: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 20,
-    gap: 8,
+    paddingVertical: 4,
   },
-  presetTitle: {
-    fontSize: 13,
-    fontWeight: "600",
+  redirectText: {
+    fontSize: 14,
   },
-  presetButtons: {
+  redirectLink: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  presetsSection: {
+    marginTop: 24,
+    gap: 10,
+  },
+  sectionHeading: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+  },
+  presetGrid: {
     flexDirection: "row",
     gap: 10,
   },
-  presetBadge: {
+  presetCard: {
     flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+    gap: 4,
+  },
+  presetTop: {
     flexDirection: "row",
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 10,
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  presetIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  presetBadgeText: {
-    fontSize: 14,
+  presetRoleTag: {
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  presetCardTitle: {
+    fontSize: 13,
     fontWeight: "700",
   },
+  presetEmail: {
+    fontSize: 11,
+  },
   demoCard: {
-    borderRadius: 12,
+    borderRadius: 14,
+    borderWidth: 1,
     padding: 14,
     marginTop: 20,
     gap: 8,
   },
-  demoCardText: {
+  demoCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  demoCardTitle: {
     fontSize: 13,
-    lineHeight: 18,
+    fontWeight: "700",
+  },
+  demoCardDesc: {
+    fontSize: 12,
+    lineHeight: 17,
   },
   demoActions: {
     flexDirection: "row",
-    gap: 20,
+    gap: 10,
     marginTop: 4,
   },
-  demoLink: {
-    fontSize: 14,
+  demoButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  demoButtonText: {
+    fontSize: 12,
     fontWeight: "700",
   },
 });
+

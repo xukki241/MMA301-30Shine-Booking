@@ -9,7 +9,7 @@ import { useRole } from "@/providers/role-provider";
 export function RoleResetButton() {
   const theme = useAppTheme();
   const { clearRole } = useRole();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
   function resetRole() {
     logout();
@@ -17,10 +17,14 @@ export function RoleResetButton() {
     router.replace("/");
   }
 
+  const isUserLoggedIn = Boolean(user);
+  const label = isUserLoggedIn ? "Đăng xuất" : "Đổi vai trò";
+  const icon = isUserLoggedIn ? "log-out-outline" : "swap-horizontal";
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel="Đổi vai trò"
+      accessibilityLabel={label}
       onPress={resetRole}
       hitSlop={8}
       style={({ pressed }) => [
@@ -33,12 +37,12 @@ export function RoleResetButton() {
       ]}
     >
       <Ionicons
-        name="swap-horizontal"
+        name={icon}
         size={13}
         color={theme.brand}
         style={styles.icon}
       />
-      <Text style={[styles.label, { color: theme.brand }]}>Đổi vai trò</Text>
+      <Text style={[styles.label, { color: theme.brand }]}>{label}</Text>
     </Pressable>
   );
 }

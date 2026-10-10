@@ -18,6 +18,8 @@ export default function RootLayout() {
               <OfflineBanner />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="register" />
                 <Stack.Screen name="(customer)" />
                 <Stack.Screen name="(stylist)" />
               </Stack>
