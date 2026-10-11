@@ -38,7 +38,12 @@ Create a payment in the app. In SePay → Test mode → Mô phỏng giao dịch,
 configured test account, Tiền vào, and copy the exact amount and reference from
 the payment screen. The screen polls every 3 seconds while focused and pending.
 Leaving the screen does not cancel or settle a transfer. Reopening reuses the
-same pending payment. Sandbox payments use SePay simulation, not a banking app QR.
+same pending payment. The screen displays a VietQR image generated through SePay's
+documented `https://vietqr.app/img` endpoint with the payment's account, bank,
+amount and reference. Only those payment details are sent to the image service;
+authentication secrets are never included. Loading failures show a retry control.
+The sandbox account cannot receive real bank transfers: use SePay's simulation
+to confirm payment. Displaying or scanning the QR never marks a payment paid.
 
 ## API and persistence
 

@@ -1,10 +1,11 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Text, View } from 'react-native';
 import { Card, CardText, CardTitle, PrimaryButton, Screen } from '@/components/screen';
 import { useAppTheme } from '@/constants/theme';
 import { useAuth } from '@/providers/auth-provider';
 import { Payment, paymentRequest } from '@/payments/api';
+import { paymentQrUrl } from '@/payments/qr';
 
 export default function PaymentScreen() {
   const { appointmentId } = useLocalSearchParams<{ appointmentId: string }>();
@@ -14,6 +15,8 @@ export default function PaymentScreen() {
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [qrState, setQrState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [qrRevision, setQrRevision] = useState(0);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -21,6 +24,7 @@ export default function PaymentScreen() {
     setPayment(null);
     setError(null);
     setLoading(true);
+    setQrState('loading');
     async function refresh(create: boolean) {
       if (!token || !appointmentId) {
         if (active) { setError('Vui lòng đăng nhập và chọn lịch hẹn.'); setLoading(false); }
@@ -47,7 +51,21 @@ export default function PaymentScreen() {
       <CardTitle>{payment.status === 'paid' ? 'Thanh toán thành công' : 'Chờ xác nhận từ SePay'}</CardTitle>
       <Text accessibilityLiveRegion="polite" style={{ color: theme.brand, fontSize: 32, fontWeight: '800', marginVertical: 16 }}>{payment.amount.toLocaleString('vi-VN')} đ</Text>
       {payment.status === 'pending' ? <View style={{ gap: 12 }}>
-        <CardText>Sandbox — không chuyển tiền thật bằng ứng dụng ngân hàng.</CardText>
+        <CardTitle>Mã VietQR thử nghiệm</CardTitle>
+        <View style={{ alignSelf: 'center', width: '100%', maxWidth: 280, aspectRatio: 1, backgroundColor: '#FFFFFF', padding: 12 }}>
+          <Image
+            key={`${payment.reference}-${qrRevision}`}
+            source={{ uri: paymentQrUrl(payment) }}
+            accessibilityLabel={`Mã VietQR thử nghiệm, ${payment.amount} đồng, nội dung ${payment.reference}`}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="contain"
+            onLoad={() => setQrState('ready')}
+            onError={() => setQrState('error')}
+          />
+          {qrState === 'loading' ? <ActivityIndicator accessibilityLabel="Đang tải mã QR" style={{ position: 'absolute', alignSelf: 'center', top: '45%' }} color={theme.brand} /> : null}
+        </View>
+        {qrState === 'error' ? <View style={{ gap: 8 }}><CardText>Không tải được mã QR. Bạn vẫn có thể dùng thông tin bên dưới.</CardText><PrimaryButton label="Tải lại mã QR" onPress={() => { setQrState('loading'); setQrRevision(v => v + 1); }} /></View> : null}
+        <CardText>QR đã điền sẵn tài khoản, số tiền và nội dung. Đây là tài khoản sandbox: app ngân hàng thật không thể chuyển tiền. Dùng mô phỏng chuyển khoản trong SePay để xác nhận.</CardText>
         <CardText>Ngân hàng: {payment.bankCode}</CardText>
         <Text selectable style={{ color: theme.text }}>Tài khoản: {payment.accountNumber}</Text>
         <CardText>Nội dung giao dịch (sao chép chính xác):</CardText>
