@@ -10,6 +10,19 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     status: { type: String, enum: STATUSES, default: "booked", required: true },
+    payment: {
+      type: new mongoose.Schema({
+        reference: { type: String, required: true },
+        amount: { type: Number, required: true },
+        accountNumber: { type: String, required: true },
+        bankCode: { type: String, required: true },
+        status: { type: String, enum: ['pending', 'paid'], required: true },
+        createdAt: { type: Date, required: true },
+        paidAt: Date,
+        transactionId: String,
+      }, { _id: false }),
+      default: undefined,
+    },
   }, { timestamps: true, versionKey: false });
   appointment.pre("validate", function () {
     if (this.startTime && this.endTime && this.startTime >= this.endTime) {

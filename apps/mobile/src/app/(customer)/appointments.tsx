@@ -146,6 +146,10 @@ export default function CustomerAppointmentsScreen() {
   }
 
   async function handlePay(id: string) {
+    if (!isDemo) {
+      router.push({ pathname: '/(customer)/payment', params: { appointmentId: id } });
+      return;
+    }
     if (!dataSource.pay) return;
     setProcessingId(id);
     setActionError(null);
@@ -316,7 +320,7 @@ export default function CustomerAppointmentsScreen() {
             {item.status === "completed" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
-                  label="Thanh toán dịch vụ (MoMo / VNPay)"
+                  label={isDemo ? "Thanh toán mô phỏng" : "Thanh toán SePay"}
                   onPress={() => { void handlePay(item.id); }}
                   loading={processingId === item.id}
                 />

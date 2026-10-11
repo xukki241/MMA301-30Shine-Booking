@@ -16,7 +16,7 @@ type ScreenProps = PropsWithChildren<{
   title?: string;
   description?: string;
   headerContent?: ReactNode;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<import('react-native').RefreshControlProps>;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }>;
 

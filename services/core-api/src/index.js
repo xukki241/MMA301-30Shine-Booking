@@ -28,7 +28,13 @@ async function start() {
       models.WorkShift.init(),
     ]);
 
-    const app = createApp({ secret: config.secret, models });
+    let paymentRepository;
+    if (process.env.PAYMENT_PROVIDER === 'sepay') {
+      if (process.env.SEPAY_MODE !== 'sandbox' || !process.env.SEPAY_BANK_ACCOUNT || !process.env.SEPAY_BANK_CODE || !process.env.SEPAY_WEBHOOK_API_KEY) throw new Error('Complete SePay sandbox configuration is required');
+      paymentRepository = require('./payments/repository').createPaymentRepository(models, { accountNumber: process.env.SEPAY_BANK_ACCOUNT, bankCode: process.env.SEPAY_BANK_CODE, gateway: process.env.SEPAY_BANK_GATEWAY });
+      await paymentRepository.init();
+    }
+    const app = createApp({ secret: config.secret, models, paymentRepository, paymentConfig: { webhookKey: process.env.SEPAY_WEBHOOK_API_KEY } });
     const server = app.listen(config.port, "0.0.0.0", () => {
       console.log(`core-api on ${config.port}`);
     });

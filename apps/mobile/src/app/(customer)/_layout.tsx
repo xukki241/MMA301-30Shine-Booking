@@ -63,6 +63,7 @@ export default function CustomerLayout() {
         name="book"
         options={{ title: "Đặt lịch", href: null }}
       />
+      <Tabs.Screen name="payment" options={{ title: "Thanh toán", href: null }} />
       <Tabs.Screen
         name="appointments"
         options={{
