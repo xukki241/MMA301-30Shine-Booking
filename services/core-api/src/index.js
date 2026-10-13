@@ -34,7 +34,7 @@ async function start() {
       paymentRepository = require('./payments/repository').createPaymentRepository(models, { accountNumber: process.env.SEPAY_BANK_ACCOUNT, bankCode: process.env.SEPAY_BANK_CODE, gateway: process.env.SEPAY_BANK_GATEWAY });
       await paymentRepository.init();
     }
-    const app = createApp({ secret: config.secret, models, paymentRepository, paymentConfig: { webhookKey: process.env.SEPAY_WEBHOOK_API_KEY } });
+    const app = createApp({ secret: config.secret, models, paymentRepository, paymentConfig: { webhookKey: process.env.SEPAY_WEBHOOK_API_KEY, sandboxControls: process.env.SEPAY_MODE === 'sandbox' } });
     const server = app.listen(config.port, "0.0.0.0", () => {
       console.log(`core-api on ${config.port}`);
     });

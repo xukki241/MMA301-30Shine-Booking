@@ -17,6 +17,16 @@ export default function PaymentScreen() {
   const [loading, setLoading] = useState(true);
   const [qrState, setQrState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [qrRevision, setQrRevision] = useState(0);
+  const [changing, setChanging] = useState(false);
+  async function changeOutcome(status: 'pending' | 'failed' | 'cancelled') {
+    if (!token || !appointmentId || changing) return;
+    setChanging(true);
+    try {
+      await paymentRequest(token, appointmentId, false, status);
+      setRevision(v => v + 1);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Không thể cập nhật thanh toán.'); }
+    finally { setChanging(false); }
+  }
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -48,7 +58,7 @@ export default function PaymentScreen() {
     {loading ? <ActivityIndicator color={theme.brand} accessibilityLabel="Đang tạo thanh toán" /> : null}
     {error ? <Card><CardTitle>Chưa thể xác nhận thanh toán</CardTitle><CardText>{error}</CardText><PrimaryButton label="Thử lại" onPress={() => setRevision(v => v + 1)} /></Card> : null}
     {payment ? <Card>
-      <CardTitle>{payment.status === 'paid' ? 'Thanh toán thành công' : 'Chờ xác nhận từ SePay'}</CardTitle>
+      <CardTitle>{{ paid: 'Thanh toán thành công', pending: 'Chờ xác nhận từ SePay', failed: 'Thanh toán thử nghiệm thất bại', cancelled: 'Đã hủy lần thử thanh toán' }[payment.status]}</CardTitle>
       <Text accessibilityLiveRegion="polite" style={{ color: theme.brand, fontSize: 32, fontWeight: '800', marginVertical: 16 }}>{payment.amount.toLocaleString('vi-VN')} đ</Text>
       {payment.status === 'pending' ? <View style={{ gap: 12 }}>
         <CardTitle>Mã VietQR thử nghiệm</CardTitle>
@@ -72,8 +82,15 @@ export default function PaymentScreen() {
         <Text selectable style={{ color: theme.text, fontSize: 20, fontWeight: '700' }}>{payment.reference}</Text>
         <CardText>Trong SePay Test mode, chọn Mô phỏng giao dịch → Tiền vào. Nhập đúng tài khoản, số tiền và nội dung trên. Màn hình này tự cập nhật khi nhận xác nhận.</CardText>
         <PrimaryButton label="Mở SePay" onPress={() => { void Linking.openURL('https://my.sepay.vn').catch(() => setError('Không mở được SePay. Hãy mở my.sepay.vn trong trình duyệt.')); }} />
+        {changing ? <ActivityIndicator accessibilityLabel="Đang cập nhật thanh toán" /> : <View style={{ gap: 8 }}>
+          <PrimaryButton label="Mô phỏng thất bại" onPress={() => void changeOutcome('failed')} />
+          <PrimaryButton label="Hủy lần thử (sandbox)" onPress={() => void changeOutcome('cancelled')} />
+        </View>}
         <CardText>Rời màn hình không xác nhận hay hủy giao dịch; bạn có thể mở lại từ lịch hẹn.</CardText>
-      </View> : <CardText>Lịch hẹn đã được cập nhật thành Đã thanh toán.</CardText>}
+      </View> : payment.status === 'paid' ? <CardText>Lịch hẹn đã được cập nhật thành Đã thanh toán.</CardText> : <View style={{ gap: 12 }}>
+        <CardText>Lịch hẹn vẫn ở trạng thái Đã hoàn thành và chưa được thanh toán. Đây là kết quả mô phỏng, không hủy giao dịch tại ngân hàng. Xác nhận hợp lệ từ SePay vẫn được ghi nhận.</CardText>
+        {changing ? <ActivityIndicator /> : <PrimaryButton label="Thử thanh toán lại" onPress={() => void changeOutcome('pending')} />}
+      </View>}
     </Card> : null}
     <PrimaryButton label="Về lịch hẹn" onPress={() => router.replace('/(customer)/appointments')} />
   </Screen>;

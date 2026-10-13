@@ -2,7 +2,7 @@ const { timingSafeEqual } = require('node:crypto');
 const { authenticate } = require('../middleware/auth');
 const { BookingError } = require('../booking/rules');
 
-function mountPayments(app, { repository, secret, webhookKey }) {
+function mountPayments(app, { repository, secret, webhookKey, sandboxControls = false }) {
   if (!webhookKey) throw new Error('SEPAY_WEBHOOK_API_KEY is required');
   const handle = operation => async (req, res, next) => {
     res.set('Cache-Control', 'no-store');
@@ -19,6 +19,10 @@ function mountPayments(app, { repository, secret, webhookKey }) {
   app.post('/payments', authenticate(secret), handle(async (req, res) => {
     if (!req.body || Object.keys(req.body).length !== 1 || !req.body.appointmentId) throw new BookingError(400, 'Only appointmentId is accepted');
     res.status(201).json({ payment: await repository.create(req.body.appointmentId, req.auth) });
+  }));
+  if (sandboxControls) app.post('/payments/:appointmentId/sandbox-outcome', authenticate(secret), handle(async (req, res) => {
+    if (!req.body || Object.keys(req.body).length !== 1) throw new BookingError(400, 'Only status is accepted');
+    res.json({ payment: await repository.sandboxOutcome(req.params.appointmentId, req.auth, req.body.status) });
   }));
   app.get('/payments/:appointmentId', authenticate(secret), handle(async (req, res) => {
     const payment = await repository.get(req.params.appointmentId, req.auth);

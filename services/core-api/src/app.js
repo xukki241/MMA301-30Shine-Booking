@@ -85,7 +85,7 @@ function createApp(optionsOrSecret, extraBookingRepository) {
 
   // Booking routes (SHINE-03 / develop)
   if (opts.paymentRepository) {
-    require('./payments/routes').mountPayments(app, { repository: opts.paymentRepository, secret, webhookKey: opts.paymentConfig.webhookKey });
+    require('./payments/routes').mountPayments(app, { repository: opts.paymentRepository, secret, webhookKey: opts.paymentConfig.webhookKey, sandboxControls: opts.paymentConfig.sandboxControls === true });
   }
   app.use("/appointments", authenticate(secret), bookingRoutes(bookingRepository, workShiftRepository));
   if (workShiftRepository) {

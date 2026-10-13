@@ -25,6 +25,14 @@ function createPaymentRepository({ Calendar, Service }, config) {
     receipts,
     init: () => receipts.init(),
     async get(id, actor) { return publicPayment(await owned(id, actor)); },
+    async sandboxOutcome(id, actor, status) {
+      if (!['pending', 'failed', 'cancelled'].includes(status)) throw new BookingError(400, 'Invalid sandbox outcome');
+      const appointment = await owned(id, actor);
+      if (!appointment.payment || appointment.status !== 'completed') throw new BookingError(409, 'Payment cannot be changed');
+      const result = await Calendar.updateOne({ appointments: { $elemMatch: { _id: id, customerId: actor.userId, status: 'completed', 'payment.status': { $in: ['pending', 'failed', 'cancelled'] } } } }, { $set: { 'appointments.$.payment.status': status } }, { runValidators: true });
+      if (!result.matchedCount) throw new BookingError(409, 'Payment changed; refresh and retry');
+      return publicPayment(await find(id));
+    },
     async create(id, actor) {
       const appointment = await owned(id, actor);
       if (appointment.payment) return publicPayment(appointment);
@@ -63,7 +71,7 @@ function createPaymentRepository({ Calendar, Service }, config) {
       }
       if (!receipt || receipt.reference !== reference || receipt.amount !== event.transferAmount || receipt.accountNumber !== event.accountNumber) throw new BookingError(409, 'Transaction already assigned');
       // One atomic Mongo write changes BOTH appointment and embedded payment.
-      await Calendar.updateOne({ _id: calendar._id, appointments: { $elemMatch: { _id: appointment._id, status: 'completed', 'payment.reference': reference, 'payment.status': 'pending' } } }, { $set: {
+      await Calendar.updateOne({ _id: calendar._id, appointments: { $elemMatch: { _id: appointment._id, status: 'completed', 'payment.reference': reference, 'payment.status': { $in: ['pending', 'failed', 'cancelled'] } } } }, { $set: {
         'appointments.$.status': 'paid', 'appointments.$.updatedAt': new Date(),
         'appointments.$.payment.status': 'paid', 'appointments.$.payment.paidAt': new Date(), 'appointments.$.payment.transactionId': transactionId,
       } }, { runValidators: true });

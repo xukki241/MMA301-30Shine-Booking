@@ -4,6 +4,29 @@ SePay sandbox replaces the mock payment action when `PAYMENT_PROVIDER=sepay`.
 Live transfers are deliberately unsupported. Mobile uses the existing authenticated
 Customer flow: Lịch hẹn → completed appointment → Thanh toán SePay.
 
+The user selected SePay sandbox in place of the original MoMo/VNPay mock scope.
+The Notion cards still describe MoMo/VNPay; they require an authenticated editor
+to align their scope and attach review evidence. Do not mark them Done solely
+because code has been pushed.
+
+## Failure, cancellation and retry
+
+The payment screen includes clearly labelled sandbox failure and cancellation
+controls. `POST /payments/:appointmentId/sandbox-outcome` accepts exactly one
+`status` field (`failed`, `cancelled`, or `pending` to retry), with the owner's
+Customer JWT. This route is mounted only when sandbox controls are enabled;
+normal startup enables it only for `SEPAY_MODE=sandbox`.
+No client action can set `paid`. Failed/cancelled attempts leave the appointment
+completed. Retry preserves the reference and frozen price. A valid delayed webhook
+can still settle a failed/cancelled attempt: cancelling the test UI does not cancel
+a bank transfer. Once paid, the failure/cancellation endpoint returns 409.
+
+Acceptance evidence: 115 existing Core tests, Mongo payment lifecycle integration,
+17 mobile tests, TypeScript checking and Android bundle export. Browser payment success was verified
+using a synthetic webhook through the tunnel. Android device runtime/video and
+actual SePay dashboard dispatch remain unverified; no Android SDK/adb was found
+in PATH or the default SDK installation location on this machine.
+
 ## Local setup
 
 Install dependencies with `npm ci` in `services/auth-service`, `services/core-api`

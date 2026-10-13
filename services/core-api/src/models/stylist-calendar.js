@@ -16,7 +16,7 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
         amount: { type: Number, required: true },
         accountNumber: { type: String, required: true },
         bankCode: { type: String, required: true },
-        status: { type: String, enum: ['pending', 'paid'], required: true },
+        status: { type: String, enum: ['pending', 'paid', 'failed', 'cancelled'], required: true },
         createdAt: { type: Date, required: true },
         paidAt: Date,
         transactionId: String,

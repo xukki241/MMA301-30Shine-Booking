@@ -18,7 +18,7 @@ test('SePay sandbox: ownership, completed-only, exact matching, atomic settlemen
   const appointmentId = new mongoose.Types.ObjectId();
   await models.Calendar.create({ _id: stylistId, appointments: [{ _id: appointmentId, customerId, stylistId, branchId, serviceId: service._id, status: 'booked', startTime: new Date('2030-01-01T10:00:00Z'), endTime: new Date('2030-01-01T10:30:00Z') }] });
   const secret = 'a'.repeat(64);
-  const app = createApp({ secret, models, paymentRepository: repository, paymentConfig: { webhookKey: 'webhook-test' } });
+  const app = createApp({ secret, models, paymentRepository: repository, paymentConfig: { webhookKey: 'webhook-test', sandboxControls: true } });
   const server = app.listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await models.Calendar.deleteOne({ _id: stylistId }); await models.Service.deleteOne({ _id: service._id }); await repository.receipts.deleteMany({ appointmentId: String(appointmentId) }); await connection.close(); });
@@ -36,16 +36,29 @@ test('SePay sandbox: ownership, completed-only, exact matching, atomic settlemen
   assert.equal(payments[0].payment.reference, payments[1].payment.reference);
   const payment = payments[0].payment;
   assert.equal(payment.amount, 10000);
+  for (const status of ['failed', 'cancelled']) {
+    const outcome = await request(`/payments/${appointmentId}/sandbox-outcome`, { status });
+    assert.equal(outcome.status, 200);
+    assert.equal((await outcome.json()).payment.status, status);
+    assert.equal((await models.Calendar.findById(stylistId).lean()).appointments[0].status, 'completed');
+    const retry = await request(`/payments/${appointmentId}/sandbox-outcome`, { status: 'pending' });
+    assert.equal((await retry.json()).payment.reference, payment.reference);
+  }
+  assert.equal((await request(`/payments/${appointmentId}/sandbox-outcome`, { status: 'paid' })).status, 400);
+  assert.equal((await request(`/payments/${appointmentId}/sandbox-outcome`, { status: 'failed' }, `Bearer ${token(new mongoose.Types.ObjectId())}`)).status, 403);
   const event = { id: Date.now(), transferType: 'in', transferAmount: 10000, accountNumber: '0000000001', gateway: 'MBBank', content: payment.reference };
   const webhook = (body, key = 'webhook-test') => request('/webhooks/sepay', body, `Apikey ${key}`);
   assert.equal((await webhook(event, 'wrong')).status, 401);
   for (const change of [{ transferAmount: 1 }, { accountNumber: 'wrong' }, { gateway: 'WrongBank' }, { transferType: 'out' }, { content: 'SHINEUNKNOWN' }]) await webhook({ ...event, ...change });
   assert.equal((await (await request(`/payments/${appointmentId}`)).json()).payment.status, 'pending');
+  // A delayed transfer still settles a cancelled sandbox attempt.
+  assert.equal((await request(`/payments/${appointmentId}/sandbox-outcome`, { status: 'cancelled' })).status, 200);
   const results = await Promise.all([webhook(event), webhook(event)]);
   assert.deepEqual(await results[0].json(), { success: true });
   assert.equal(results[1].status, 200);
   const settled = await (await request(`/payments/${appointmentId}`)).json();
   assert.equal(settled.payment.status, 'paid');
+  assert.equal((await request(`/payments/${appointmentId}/sandbox-outcome`, { status: 'cancelled' })).status, 409);
   const calendar = await models.Calendar.findById(stylistId).lean();
   assert.equal(calendar.appointments[0].status, 'paid');
   assert.equal(await repository.receipts.countDocuments({ transactionId: String(event.id) }), 1);
