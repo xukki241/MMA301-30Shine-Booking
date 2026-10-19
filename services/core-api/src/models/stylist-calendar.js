@@ -2,6 +2,14 @@ const mongoose = require("mongoose");
 const { STATUSES } = require("../booking/rules");
 
 function createCalendarModel(connection, collection = "stylist_calendars") {
+  const paymentAttempt = new mongoose.Schema({
+    requestId: { type: String, required: true },
+    branchId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    amount: { type: Number, required: true, min: 0 },
+    provider: { type: String, enum: ["momo", "vnpay"], required: true },
+    status: { type: String, enum: ["success", "failed"], required: true },
+    attemptedAt: { type: Date, required: true },
+  }, { versionKey: false });
   const appointment = new mongoose.Schema({
     customerId: { type: mongoose.Schema.Types.ObjectId, required: true },
     customerName: { type: String },
@@ -10,6 +18,7 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
     branchId: { type: mongoose.Schema.Types.ObjectId },
     serviceId: { type: mongoose.Schema.Types.ObjectId },
     bookedPrice: { type: Number, min: 0 },
+    paymentAttempts: { type: [paymentAttempt], default: [] },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     status: { type: String, enum: STATUSES, default: "booked", required: true },

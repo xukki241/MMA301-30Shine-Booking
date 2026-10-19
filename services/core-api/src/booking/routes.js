@@ -51,7 +51,10 @@ function bookingRoutes(repository, workShiftRepository) {
     const appointment = await service.book(req.auth, req.body, snapshot);
     res.status(201).json({ appointment });
   }));
-  for (const action of ["complete", "cancel", "pay"]) {
+  router.post("/:id/pay", handle(async (req, res) => {
+    res.json(await service.pay(req.auth, req.params.id, req.body));
+  }));
+  for (const action of ["complete", "cancel"]) {
     router.post("/:id/" + action, handle(async (req, res) => {
       if (req.body && (Array.isArray(req.body) || typeof req.body !== "object" || Object.keys(req.body).length)) {
         throw new BookingError(400, "Action does not accept update fields");

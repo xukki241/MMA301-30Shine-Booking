@@ -17,7 +17,7 @@ function memoryDouble() {
         ACTIVE_STATUSES.includes(r.status) && overlaps(data.startTime, data.endTime, r.startTime, r.endTime))) {
         throw new BookingError(409, "Overlap");
       }
-      const appointment = { ...data, id: id(), status: "booked" };
+      const appointment = { ...data, id: id(), status: "booked", paymentAttempts: [] };
       records.set(appointment.id, appointment);
       return structuredClone(appointment);
     },
@@ -29,6 +29,18 @@ function memoryDouble() {
         current[rule.owner] !== actor.userId) return null;
       current.status = rule.to;
       return structuredClone(current);
+    },
+    async recordPayment(key, actor, input) {
+      const current = records.get(key);
+      if (!current || current.status !== "completed" ||
+          (current.customerId !== actor.userId && current.customerPhone !== actor.authorizedPhone) ||
+          current.paymentAttempts.some((attempt) => attempt.requestId === input.requestId)) return null;
+      const attempt = { id: id(), requestId: input.requestId, branchId: current.branchId,
+        amount: current.bookedPrice, provider: input.provider, status: input.outcome,
+        attemptedAt: new Date() };
+      current.paymentAttempts.push(attempt);
+      if (input.outcome === "success") current.status = "paid";
+      return { appointment: structuredClone(current), attempt: structuredClone(attempt) };
     },
   };
 }

@@ -11,6 +11,11 @@ function plain(appointment) {
     ...(appointment.branchId ? { branchId: String(appointment.branchId) } : {}),
     ...(appointment.serviceId ? { serviceId: String(appointment.serviceId) } : {}),
     ...(typeof appointment.bookedPrice === "number" ? { bookedPrice: appointment.bookedPrice } : {}),
+    paymentAttempts: (appointment.paymentAttempts || []).map((attempt) => ({
+      id: String(attempt._id), requestId: attempt.requestId,
+      branchId: String(attempt.branchId), amount: attempt.amount,
+      provider: attempt.provider, status: attempt.status, attemptedAt: attempt.attemptedAt,
+    })),
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     status: appointment.status,
@@ -164,6 +169,31 @@ function createBookingRepository(Calendar) {
         projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
       }).lean().exec();
       return calendar ? plain(calendar.appointments[0]) : null;
+    },
+
+    async recordPayment(id, actor, input, appointment) {
+      const attempt = {
+        _id: new mongoose.Types.ObjectId(), requestId: input.requestId,
+        branchId: appointment.branchId, amount: appointment.bookedPrice,
+        provider: input.provider, status: input.outcome, attemptedAt: new Date(),
+      };
+      const owner = actor.authorizedPhone
+        ? { $or: [{ customerId: actor.userId }, { customerPhone: actor.authorizedPhone }] }
+        : { customerId: actor.userId };
+      const calendar = await Calendar.findOneAndUpdate({ appointments: { $elemMatch: {
+        _id: id, status: "completed", bookedPrice: { $exists: true },
+        "paymentAttempts.requestId": { $ne: input.requestId }, ...owner,
+      } } }, {
+        $push: { "appointments.$.paymentAttempts": attempt },
+        $set: { "appointments.$.updatedAt": new Date(),
+          ...(input.outcome === "success" ? { "appointments.$.status": "paid" } : {}) },
+      }, {
+        returnDocument: "after", runValidators: true,
+        projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
+      }).lean().exec();
+      if (!calendar) return null;
+      const result = plain(calendar.appointments[0]);
+      return { appointment: result, attempt: result.paymentAttempts.find((item) => item.requestId === input.requestId) };
     },
   };
 }
