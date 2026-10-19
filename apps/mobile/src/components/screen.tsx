@@ -6,6 +6,7 @@ import {
   Text,
   View,
   type StyleProp,
+  type RefreshControlProps,
   type ViewStyle
 } from "react-native";
 
@@ -16,7 +17,7 @@ type ScreenProps = PropsWithChildren<{
   title?: string;
   description?: string;
   headerContent?: ReactNode;
-  refreshControl?: React.ReactElement;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
   contentContainerStyle?: StyleProp<ViewStyle>;
 }>;
 

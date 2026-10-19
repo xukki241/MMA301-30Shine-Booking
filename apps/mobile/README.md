@@ -1,6 +1,6 @@
 # Mobile Expo — Customer + Stylist
 
-Customer Booking Wizard follows Branch → Service → Stylist → date/slot → review → confirm. It loads active catalog entries from Core API, lists available slots generated from Work Shift, then signs in Customer and creates a persisted appointment.
+Customer nhập tên + số điện thoại ở màn bắt đầu, không cần email/mật khẩu. App nhận Guest Session từ Auth Service rồi chạy Booking Wizard Branch → Service → Stylist → date/slot → review → confirm. Lịch trên cùng thiết bị được giữ qua bí mật phiên; trên thiết bị mới, Customer có thể vào app ngay và dùng OTP demo để khôi phục lịch cũ cùng số.
 
 ## Environment and run
 
@@ -19,7 +19,7 @@ npm ci
 npm run android
 ```
 
-At confirmation, sign in with an existing Customer account. The access token stays in memory for this app screen session. The role selector at the entry screen is only a UI navigation demo; backend JWT authorization remains authoritative.
+Màn Customer không còn form email/mật khẩu. Màn Stylist vẫn đăng nhập tài khoản nhân sự bằng email/mật khẩu. OTP demo chỉ được ghi ở console Auth Service, không gửi SMS, không mất phí; để thử khôi phục, vào **Lịch hẹn → Lấy mã khôi phục**, đọc mã trên server rồi nhập vào app. Phiên chưa khôi phục chỉ thấy lịch do thiết bị đó đặt. `deviceSecret` hiện lưu trong AsyncStorage cho bản demo; cần storage bảo mật hơn trước khi phát hành công khai.
 
 ## Checks
 
@@ -48,12 +48,9 @@ không tồn tại sẽ hiện trạng thái rỗng rõ ràng. `npm run test:off
 cache đọc, trạng thái mạng và guard từ chối booking offline. Guard không tạo
 queue hoặc tự gửi lại thao tác khi có mạng.
 
-Giới hạn của base `develop` hiện tại: chưa có API lấy lịch Customer, catalog,
-booking action hay auth mobile. Màn Lịch hẹn online vẫn trả danh sách rỗng mẫu,
-nên branch này chưa thể tạo cache lịch thật hoặc demo thao tác booking trên UI.
-Khi các luồng online được merge, nối loader lịch/catalog vào read cache và gọi
-`runOnlineBooking` tại đúng bước xác nhận booking. Cache lịch demo có key riêng,
-không dùng cho tài khoản thật khi auth được thêm sau này.
+Màn Lịch hẹn online đọc từ Core API khi có Guest Session. Cache được tách theo
+Guest Session và trạng thái khôi phục để dữ liệu của phiên khác không lẫn nhau.
+Màn demo dùng nguồn dữ liệu riêng khi bật `EXPO_PUBLIC_USE_DEMO_API=true`.
 
 ### Kiểm tra Airplane mode trên Android sau khi có luồng online
 

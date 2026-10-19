@@ -1,5 +1,18 @@
 # Auth Service — 30Shine / SHINE-02
 
+## Customer không cần mật khẩu (ADR 0007)
+
+Mobile Customer nhập tên + số điện thoại Việt Nam ở `POST /auth/customer/start`. Auth tạo Guest Session mới, trả JWT `customer` và `deviceSecret` để app tiếp tục phiên qua `POST /auth/customer/resume` khi mở lại. Số được chuẩn hóa về `+84...`; phiên mới **không** tự xem lịch của phiên khác cùng số.
+
+| Endpoint | Body | Kết quả |
+|---|---|---|
+| `POST /auth/customer/start` | `{name, phone}` | 201; `{accessToken, deviceSecret, user}` |
+| `POST /auth/customer/resume` | `{deviceSecret}` | JWT mới cho cùng Guest Session |
+| `POST /auth/customer/recovery/request` | `{phone}` | OTP demo 6 số được ghi trong **console Auth Service**, không trả trong HTTP |
+| `POST /auth/customer/recovery/verify` | `{phone, code, deviceSecret}` | JWT mới với quyền khôi phục lịch guest cùng số |
+
+OTP demo không gửi SMS và không mất phí; mã hết hạn sau 5 phút, dùng một lần, tối đa 5 lần nhập sai và yêu cầu lại sau 60 giây. `DEMO_OTP_ENABLED=true` trong `.env` cho bản demo; nên tắt ở môi trường công khai vì đây không phải xác minh số điện thoại thật. Guest Session lưu trong `customer_guests`, challenge trong `customer_recoveries`; `deviceSecret` chỉ trả khi tạo phiên và cần được bảo vệ như mật khẩu. Customer email/mật khẩu cũ không được chuyển hoặc xóa; API legacy bên dưới vẫn tồn tại trong giai đoạn chuyển đổi.
+
 Express + JavaScript CommonJS, npm, MongoDB/Mongoose. Một User có đúng một role:
 `customer`, `stylist` hoặc `shop_admin`. Role customer/stylist dùng cùng tên với mobile.
 

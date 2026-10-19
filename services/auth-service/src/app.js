@@ -3,6 +3,7 @@ const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { ROLES } = require("./models/user");
+const { installCustomerGuestRoutes } = require("./customer-guest");
 
 function credentials(body, register) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
@@ -21,12 +22,13 @@ function publicUser(user) {
   return { id: String(user._id), email: user.email, role: user.role };
 }
 
-function createApp({ users, secret, expiresIn }) {
+function createApp({ users, guests, secret, expiresIn, otpEnabled, otpLogger }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
   app.use(express.json({ limit: "16kb" }));
   app.get("/health", (_req, res) => res.json({ ok: true, service: "auth-service" }));
+  installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger });
 
   app.post("/auth/register", async (req, res, next) => {
     const data = credentials(req.body, true);

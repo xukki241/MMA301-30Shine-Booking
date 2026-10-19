@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const { readConfig } = require("./config");
 const { createApp } = require("./app");
 const { createUserModel, createUserRepository } = require("./models/user");
+const { createGuestModels, createGuestRepository } = require("./customer-guest");
 
 async function start() {
   let config;
@@ -17,8 +18,10 @@ async function start() {
     connection = mongoose.createConnection(config.mongoUri, { serverSelectionTimeoutMS: 5000 });
     await connection.asPromise();
     const User = createUserModel(connection);
+    const guestModels = createGuestModels(connection);
     await User.init(); // Build unique email index before accepting requests.
-    const app = createApp({ users: createUserRepository(User), ...config });
+    await Promise.all([guestModels.Guest.init(), guestModels.Recovery.init()]);
+    const app = createApp({ users: createUserRepository(User), guests: createGuestRepository(guestModels), ...config });
     const server = app.listen(config.port, "0.0.0.0", () => console.log(`auth-service on ${config.port}`));
     server.on("error", async () => {
       console.error("Auth HTTP server failed to listen");

@@ -18,7 +18,17 @@ function authenticate(secret) {
           !ROLES.includes(payload.role) || !Number.isSafeInteger(payload.exp)) {
         throw new Error("Invalid token claims");
       }
-      req.auth = { userId: payload.sub, role: payload.role };
+      if (payload.guest === true) {
+        if (payload.role !== "customer" || typeof payload.phone !== "string" ||
+            !/^\+84[35789]\d{8}$/.test(payload.phone) || typeof payload.name !== "string" ||
+            payload.name.length < 2 || payload.name.length > 100 || typeof payload.phoneVerified !== "boolean") {
+          throw new Error("Invalid guest claims");
+        }
+        req.auth = { userId: payload.sub, role: payload.role, guest: true,
+          phone: payload.phone, name: payload.name, phoneVerified: payload.phoneVerified };
+      } else {
+        req.auth = { userId: payload.sub, role: payload.role };
+      }
     } catch {
       res.set("WWW-Authenticate", "Bearer");
       return res.status(401).json({ error: "Invalid or expired bearer token" });

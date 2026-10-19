@@ -1,8 +1,10 @@
-# Chương 6. Hướng dẫn phát triển và triển khai
+# Chương 6. Hướng dẫn phát triển và triển khai — code hiện tại
+
+> Các lệnh và quyền API ở chương này áp dụng cho code đang chạy với `shop_admin`. Thiết kế mục tiêu bốn role ở [Chương 2](./02-phan-tich-yeu-cau.md) chưa được triển khai.
 
 ## 6.1. Môi trường
 
-Node.js LTS, Git, Android emulator/thiết bị, (tuỳ chọn) MongoDB/MySQL.
+Node.js LTS, Git, Android emulator/thiết bị và MongoDB. Auth Service/Core API hiện cần kết nối MongoDB trước khi mở HTTP port.
 
 ## 6.2. Chạy dịch vụ khung
 
@@ -24,6 +26,10 @@ Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo R
 | GET | `/health` | Health |
 | POST | `/auth/register` | Tạo tài khoản theo role |
 | POST | `/auth/login` | Đăng nhập, trả JWT |
+| POST | `/auth/customer/start` | Khách nhập tên + số điện thoại, nhận Guest Session |
+| POST | `/auth/customer/resume` | Tiếp tục Guest Session trên cùng thiết bị |
+| POST | `/auth/customer/recovery/request` | Tạo OTP demo, ghi mã ở console Auth Service |
+| POST | `/auth/customer/recovery/verify` | Khôi phục lịch guest cũ cùng số bằng OTP demo |
 
 ### Core (`:4102`)
 
@@ -34,7 +40,7 @@ Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo R
 | Shifts | `/work-shifts` | CRUD ca; chỉ Shop Admin ghi |
 | Slots | `GET /time-slots` | Slot theo Work Shift và duration Service |
 | Booking | `/appointments`, `/appointments/:id/complete` | Đặt / hoàn thành |
-| Pay | `/appointments/:id/payments` | Mock MoMo/VNPay |
+| Pay | `POST /appointments/:id/pay` | Chuyển `completed` → `paid` mô phỏng; chưa lưu Payment Attempt riêng |
 
 ## 6.4. Onboarding
 

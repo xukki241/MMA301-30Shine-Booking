@@ -1,5 +1,7 @@
 # Các task backend có API để kiểm thử
 
+> Các hợp đồng API dưới đây ghi lại task/code hiện tại với `shop_admin`; backlog cho thiết kế bốn role ở [07-backlog-tracking.md](./07-backlog-tracking.md).
+
 Tài liệu này chỉ liệt kê các task backend đã có endpoint trong source code. Giao diện
 Mobile, Admin Web và các task tài liệu không nằm trong danh sách API Reference.
 

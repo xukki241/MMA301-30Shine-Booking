@@ -1,9 +1,9 @@
 import { router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 import { formatSlot, upcomingDates } from "@/booking/dates";
-import { createHttpBookingAdapter, loginCustomer } from "@/booking/http-adapter";
+import { createHttpBookingAdapter } from "@/booking/http-adapter";
 import { type BookingStep, useBookingOptions } from "@/booking/use-booking-options";
 import { type AppointmentResult, type BookingDraft, type Branch, type Service, type Stylist, type TimeSlot, isCompleteBookingDraft } from "@/booking/types";
 import { BookingSummary, InlineError, SelectableCard, WizardAction, WizardProgress } from "@/components/booking-wizard";
@@ -27,19 +27,16 @@ const initialDraft: BookingDraft = { branch: null, service: null, stylist: null,
 
 export default function CustomerBookingScreen() {
   const theme = useAppTheme();
-  const { token: authToken, login } = useAuth();
+  const { token: authToken } = useAuth();
   const dates = useMemo(() => upcomingDates(), []);
   const [step, setStep] = useState<BookingStep>(0);
   const [draft, setDraft] = useState<BookingDraft>(initialDraft);
   const [result, setResult] = useState<AppointmentResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [customerToken, setCustomerToken] = useState<string | null>(null);
-  const [email, setEmail] = useState("customer@30shine.vn");
-  const [password, setPassword] = useState("Password123!");
   const submitLock = useRef(false);
   const tokenRef = useRef<string | null>(authToken);
-  tokenRef.current = authToken || customerToken;
+  tokenRef.current = authToken;
   const bookingAdapter = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
   const { branches, services, stylists, slots, loading, error, retry } = useBookingOptions(step, draft, bookingAdapter);
 
@@ -85,11 +82,7 @@ export default function CustomerBookingScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (!tokenRef.current) {
-        const token = await loginCustomer(email, password);
-        tokenRef.current = token;
-        setCustomerToken(token);
-      }
+      if (!tokenRef.current) throw new Error("Vui lòng nhập tên và số điện thoại để tiếp tục.");
       const appointment = await bookingAdapter.confirmBooking(draft);
       setResult(appointment);
     } catch (cause) {
@@ -173,14 +166,8 @@ export default function CustomerBookingScreen() {
       {step === 4 && isCompleteBookingDraft(draft) ? (
         <>
           <BookingSummary booking={draft} />
-          {!tokenRef.current ? (
-            <Card>
-              <CardTitle>Đăng nhập để xác nhận</CardTitle>
-              <CardText>Dùng tài khoản Customer để lưu lịch hẹn của bạn.</CardText>
-              <TextInput accessibilityLabel="Email Customer" autoCapitalize="none" autoComplete="email" keyboardType="email-address" placeholder="Email" value={email} onChangeText={setEmail} style={styles.input} />
-              <TextInput accessibilityLabel="Mật khẩu Customer" autoComplete="current-password" placeholder="Mật khẩu" secureTextEntry value={password} onChangeText={setPassword} style={styles.input} />
-            </Card>
-          ) : <Card><CardText>Đã đăng nhập Customer. Sẵn sàng xác nhận lịch hẹn.</CardText></Card>}
+          {!tokenRef.current ? <Card><CardText>Vui lòng quay về màn bắt đầu và nhập tên, số điện thoại.</CardText></Card>
+            : <Card><CardText>Thông tin khách đã sẵn sàng. Xác nhận để giữ lịch hẹn.</CardText></Card>}
           {submitError ? <InlineError message={submitError} /> : null}
         </>
       ) : null}
@@ -209,5 +196,4 @@ const styles = StyleSheet.create({
   dateItem: { width: "48%" },
   actions: { flexDirection: "row", gap: 10, marginTop: 8 },
   actionItem: { flex: 1 },
-  input: { borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 }
 });

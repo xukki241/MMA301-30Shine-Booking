@@ -1,5 +1,7 @@
 # Chương 5. Tổ chức nhóm và phân công
 
+> Bảng phân công dưới đây là kế hoạch **MVP ban đầu** với `shop_admin`. Các đầu việc mới cho `system_admin` và `general_manager` chưa được giao người; xem [backlog mục tiêu](./07-backlog-tracking.md).
+
 ## 5.1. Thành viên và năng lực
 
 | Họ tên | Track | Ghi chú |

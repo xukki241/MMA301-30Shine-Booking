@@ -80,3 +80,51 @@ test("database failures return generic 500 without internal details", async (t) 
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "Internal server error" });
 });
+
+test("guest session owns its bookings; verified phone recovers older guest bookings", async (t) => {
+  const secret = randomBytes(32).toString("hex");
+  const oldId = id();
+  const newId = id();
+  const phone = "+84912345678";
+  const saved = new Map();
+  const repository = {
+    async book(data) {
+      const appointment = { ...data, id: id(), status: "booked" };
+      saved.set(appointment.id, appointment);
+      return appointment;
+    },
+    async findById(key) { return saved.get(key) || null; },
+    async listByCustomer(customerId) { return [...saved.values()].filter((a) => a.customerId === customerId); },
+    async listByPhone(contactPhone) { return [...saved.values()].filter((a) => a.customerPhone === contactPhone); },
+    async transition(key, action, actor) {
+      const item = saved.get(key);
+      if (!item || item.status !== ACTIONS[action].from ||
+          (item.customerId !== actor.userId && item.customerPhone !== actor.authorizedPhone)) return null;
+      item.status = ACTIONS[action].to;
+      return item;
+    },
+  };
+  const base = await startHttp(t, createApp(secret, repository));
+  const token = (sub, verified) => jwt.sign({ role: "customer", guest: true,
+    phone, name: "Nguyễn An", phoneVerified: verified }, secret,
+  { subject: sub, expiresIn: 3600 });
+  const call = async (path, bearer, method = "GET", body) => {
+    const response = await fetch(base + path, { method, headers: {
+      Authorization: "Bearer " + bearer, "Content-Type": "application/json",
+    }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    return { status: response.status, data: await response.json() };
+  };
+  const old = await call("/appointments", token(oldId, false), "POST", {
+    stylistId: id(), startTime: "2030-10-20T10:00:00Z", endTime: "2030-10-20T11:00:00Z",
+  });
+  assert.equal(old.status, 201);
+  assert.equal(old.data.appointment.customerPhone, phone);
+  const appointmentId = old.data.appointment.id;
+  assert.equal((await call("/appointments/customer", token(newId, false))).data.appointments.length, 0);
+  assert.equal((await call(`/appointments/${appointmentId}/cancel`, token(newId, false), "POST")).status, 403);
+  assert.equal((await call("/appointments/customer", token(newId, true))).data.appointments.length, 1);
+  assert.equal((await call(`/appointments/${appointmentId}/cancel`, token(newId, true), "POST")).status, 200);
+  const forged = jwt.sign({ role: "customer", guest: true, phone: "bad", name: "Nguyễn An", phoneVerified: true }, secret,
+    { subject: newId, expiresIn: 3600 });
+  assert.equal((await call("/appointments/customer", forged)).status, 401);
+});

@@ -1,4 +1,6 @@
-# Shop Admin Web and Work Shift
+# Shop Admin Web and Work Shift — hiện trạng triển khai
+
+> Tài liệu này mô tả **code hiện tại**, vẫn dùng role `shop_admin`. Thiết kế mục tiêu bốn role ở [Chương 2](./02-phan-tich-yeu-cau.md), [Chương 3](./03-thiet-ke-he-thong.md) và [ADR 0006](./adr/0006-separate-system-admin-and-general-manager.md) chưa được triển khai. Không dùng tài liệu này làm ma trận quyền mục tiêu.
 
 ## Components
 

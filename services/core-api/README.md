@@ -1,5 +1,9 @@
 # Core API — booking, shifts, appointments, payment mock
 
+## Guest Customer theo tên + số điện thoại
+
+JWT từ Auth Service cho Guest Customer vẫn mang role `customer`, kèm tên, số điện thoại chuẩn hóa và cờ đã khôi phục. Booking lưu tên/số liên hệ từ **JWT đã xác minh**, không nhận chúng từ body. Trước OTP, Guest chỉ xem/hủy/thanh toán lịch do chính phiên tạo. Sau OTP demo, `GET /appointments/customer` và các hành động tương ứng có thể dùng lịch guest cũ cùng số; Customer email/mật khẩu cũ không có `customerPhone` trong lịch sẽ không xuất hiện qua cách khôi phục này. Chống trùng và máy trạng thái Appointment giữ nguyên.
+
 ## Catalog, Work Shift và Time Slot
 
 Core API phục vụ Admin Web tại `apps/admin-web` và luồng đặt lịch mobile. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `shop_admin`.

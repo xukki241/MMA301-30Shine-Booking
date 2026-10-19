@@ -3,7 +3,7 @@
   "info": {
     "title": "30Shine Backend API",
     "version": "1.0.0",
-    "description": "Tài liệu chỉ gồm các task **backend** có endpoint để kiểm tra trực tiếp.\n\nMở **SHINE-02** để đăng nhập lấy JWT, dán token vào **Authorize**, sau đó test Catalog, Work Shift, Time Slot, Booking và Payment Mock ngay trên trang.",
+    "description": "Tài liệu API cho code hiện tại. Customer Mobile dùng tên và số điện thoại qua `/auth/customer/start`; OTP khôi phục là mô phỏng, đọc từ console Auth Service. `/auth/register` và `/auth/login` còn tồn tại cho tài khoản legacy và nhân sự.\n\nDán JWT vào **Authorize** để thử Catalog, Work Shift, Time Slot, Booking và Payment Mock.",
     "contact": {
       "name": "30Shine Engineering Team"
     }
@@ -28,7 +28,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "JWT",
-        "description": "Nhập JWT Bearer Token nhận được từ endpoint `/auth/login` (Auth Service)."
+        "description": "Nhập JWT Bearer Token nhận từ `/auth/customer/start`, `/auth/customer/resume`, hoặc `/auth/login` (Auth Service)."
       }
     },
     "schemas": {
@@ -221,6 +221,8 @@
         "properties": {
           "id": { "type": "string", "example": "660c55556666777788889999" },
           "customerId": { "type": "string", "example": "65f111111111111111111111" },
+          "customerName": { "type": "string", "description": "Tên khách của Guest Session, nếu có" },
+          "customerPhone": { "type": "string", "description": "Số khách đã chuẩn hóa, nếu có", "example": "+84912345678" },
           "stylistId": { "type": "string", "example": "65f1234567890abcdef12345" },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
           "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
@@ -266,7 +268,7 @@
       "post": {
         "tags": ["SHINE-02 · Authentication & Lấy Token"],
         "summary": "Đăng ký tài khoản mới (Auth Service)",
-        "description": "Tạo người dùng mới với một trong ba vai trò: `customer`, `stylist`, hoặc `shop_admin`.",
+        "description": "API legacy hiện vẫn tạo User bằng email/mật khẩu với vai trò `customer`, `stylist`, hoặc `shop_admin`. Customer Mobile dùng `/auth/customer/start`. Thiết kế phân quyền mục tiêu chưa triển khai.",
         "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
         "requestBody": {
           "required": true,
@@ -309,6 +311,45 @@
           "400": { "description": "Yêu cầu sai cấu trúc", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
           "401": { "description": "Sai email hoặc mật khẩu", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
+      }
+    },
+    "/auth/customer/start": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Khách bắt đầu bằng tên và số điện thoại",
+        "description": "Tạo Guest Session mới theo thiết bị. Chỉ phiên này xem được lịch đã đặt, cho đến khi khôi phục bằng OTP demo.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name", "phone"], "properties": { "name": { "type": "string", "example": "Nguyễn An" }, "phone": { "type": "string", "example": "0912345678" } } } } } },
+        "responses": { "201": { "description": "Trả accessToken, deviceSecret và user Guest Session" }, "400": { "description": "Tên hoặc số điện thoại không hợp lệ" } }
+      }
+    },
+    "/auth/customer/resume": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Tiếp tục Guest Session trên cùng thiết bị",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["deviceSecret"], "properties": { "deviceSecret": { "type": "string", "description": "Bí mật 64 ký tự hex trả từ /auth/customer/start" } } } } } },
+        "responses": { "200": { "description": "Trả JWT mới và user" }, "401": { "description": "Không tìm thấy phiên" } }
+      }
+    },
+    "/auth/customer/recovery/request": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Tạo OTP khôi phục mô phỏng",
+        "description": "Mã 6 số được ghi ở console Auth Service; không gửi SMS, không trừ phí. Hết hạn sau 5 phút.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone"], "properties": { "phone": { "type": "string", "example": "0912345678" } } } } } },
+        "responses": { "200": { "description": "Đã ghi mã ở console" }, "429": { "description": "Yêu cầu lại quá sớm" }, "503": { "description": "OTP demo đang tắt" } }
+      }
+    },
+    "/auth/customer/recovery/verify": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Xác nhận OTP demo để khôi phục lịch cũ",
+        "description": "OTP dùng một lần. JWT trả về cho phép xem các lịch Guest Session cùng số điện thoại.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone", "code", "deviceSecret"], "properties": { "phone": { "type": "string", "example": "0912345678" }, "code": { "type": "string", "example": "123456" }, "deviceSecret": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Trả JWT với phoneVerified=true" }, "401": { "description": "Mã sai, hết hạn hoặc đã dùng" }, "503": { "description": "OTP demo đang tắt" } }
       }
     },
     "/auth/me": {
@@ -736,7 +777,7 @@
       "get": {
         "tags": ["SHINE-03/07 · Booking API"],
         "summary": "Danh sách lịch hẹn của Stylist hoặc Customer",
-        "description": "Yêu cầu Bearer Token.\n- Nếu role là **customer**: truyền query `customerId` trùng với user ID của mình để lấy danh sách lịch hẹn.\n- Nếu role là **stylist**: có thể truyền query `date` (YYYY-MM-DD) để lấy lịch hẹn theo ngày.",
+        "description": "Yêu cầu Bearer Token. Customer mặc định xem lịch của phiên; Guest Session đã khôi phục bằng OTP demo xem lịch guest cùng số. Stylist có thể lọc theo `date` (YYYY-MM-DD).",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Lọc theo ID khách hàng" },
@@ -789,6 +830,16 @@
           "403": { "description": "Chỉ khách hàng (customer) mới được đặt lịch" },
           "409": { "description": "Trùng lịch hẹn của stylist" }
         }
+      }
+    },
+    "/appointments/customer": {
+      "get": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Lấy lịch hẹn của Customer",
+        "description": "Guest chưa khôi phục xem lịch của phiên hiện tại; Guest đã khôi phục xem lịch guest cùng số. `customerId` của người khác bị từ chối.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Danh sách appointments" }, "401": { "description": "Chưa xác thực" }, "403": { "description": "Không có quyền" } }
       }
     },
     "/appointments/{id}/complete": {

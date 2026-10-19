@@ -7,6 +7,8 @@
 
 Bộ tài liệu đóng hai vai trò: **báo cáo nộp đồ án** và **hướng dẫn phát triển** cho nhóm.
 
+> Chương 1–3, `SCOPE.md` và `CONTEXT.md` mô tả **thiết kế mục tiêu bốn role**. Flow Customer tên + số điện thoại đã triển khai theo [ADR 0007](./adr/0007-customer-name-phone-guest-session.md); phần bốn role của [ADR 0006](./adr/0006-separate-system-admin-and-general-manager.md) chưa triển khai. [Chương 8](./08-admin-web.md) mô tả admin web hiện vẫn dùng `shop_admin`.
+
 | Chương | File | Nội dung |
 |--------|------|----------|
 | 1 | [01-gioi-thieu.md](./01-gioi-thieu.md) | Bối cảnh, mục tiêu, phạm vi |

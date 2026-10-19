@@ -15,7 +15,7 @@ import { useConnectivity } from "@/offline/network-provider";
 import { type ReadResult, readCachedList } from "@/offline/read-cache";
 import { useAuth } from "@/providers/auth-provider";
 
-const cacheKey = "shine:customer-appointments:v2";
+const cacheKeyPrefix = "shine:customer-appointments:v3";
 const statusLabels: Record<CustomerAppointment["status"], string> = {
   booked: "Đã đặt",
   completed: "Đã hoàn thành",
@@ -42,7 +42,7 @@ function formattedTime(value: string): string {
 export default function CustomerAppointmentsScreen() {
   const theme = useAppTheme();
   const connectivity = useConnectivity();
-  const { token, user, login } = useAuth();
+  const { token, user, requestCustomerRecovery, verifyCustomerRecovery } = useAuth();
 
   const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,21 +53,18 @@ export default function CustomerAppointmentsScreen() {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
 
-  // Quick inline login state if not logged in yet
-  const [email, setEmail] = useState("customer@30shine.vn");
-  const [password, setPassword] = useState("Password123!");
-  const [loggingIn, setLoggingIn] = useState(false);
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryRequested, setRecoveryRequested] = useState(false);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   const isDemo = process.env.EXPO_PUBLIC_USE_DEMO_API === "true";
+  const cacheKey = `${cacheKeyPrefix}:${user?.id || "demo"}:${user?.phoneVerified ? "verified" : "device"}`;
 
   const dataSource: CustomerAppointmentDataSource = useMemo(() => {
     if (isDemo) return demoAppointmentDataSource;
-    return createCoreApiAppointmentDataSource(
-      () => token,
-      () => user?.id
-    );
-  }, [isDemo, token, user?.id]);
+    return createCoreApiAppointmentDataSource(() => token);
+  }, [isDemo, token]);
 
   const fetchItems = useCallback(async (): Promise<AppointmentSummary[]> => {
     if (!token && !isDemo) return [];
@@ -116,17 +113,30 @@ export default function CustomerAppointmentsScreen() {
     }, [connectivity, revision, token, isDemo, fetchItems])
   );
 
-  async function handleLogin() {
-    setLoggingIn(true);
-    setLoginError(null);
+  async function requestRecovery() {
+    setRecoveryBusy(true);
+    setRecoveryError(null);
     try {
-      await login(email, password);
+      await requestCustomerRecovery();
+      setRecoveryRequested(true);
+    } catch (cause) {
+      setRecoveryError(cause instanceof Error ? cause.message : "Không thể tạo mã khôi phục.");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  }
+
+  async function verifyRecovery() {
+    setRecoveryBusy(true);
+    setRecoveryError(null);
+    try {
+      await verifyCustomerRecovery(recoveryCode.trim());
+      setRecoveryRequested(false);
+      setRecoveryCode("");
       setRevision((prev) => prev + 1);
     } catch (cause) {
-      setLoginError(cause instanceof Error ? cause.message : "Đăng nhập thất bại.");
-    } finally {
-      setLoggingIn(false);
-    }
+      setRecoveryError(cause instanceof Error ? cause.message : "Mã khôi phục không đúng.");
+    } finally { setRecoveryBusy(false); }
   }
 
   async function handleCancel(id: string) {
@@ -169,37 +179,27 @@ export default function CustomerAppointmentsScreen() {
     >
       {!token && !isDemo ? (
         <Card>
-          <CardTitle>Đăng nhập tài khoản Customer</CardTitle>
-          <CardText>Vui lòng đăng nhập để xem danh sách lịch hẹn của bạn.</CardText>
-          <TextInput
-            accessibilityLabel="Email Customer"
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            placeholder="Email Customer"
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-          />
-          <TextInput
-            accessibilityLabel="Mật khẩu Customer"
-            autoComplete="current-password"
-            placeholder="Mật khẩu"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-          />
-          {loginError ? <InlineError message={loginError} /> : null}
+          <CardTitle>Bắt đầu bằng tên và số điện thoại</CardTitle>
+          <CardText>Vào app để xem lịch hẹn trên thiết bị này.</CardText>
           <View style={styles.actionWrap}>
             <WizardAction
-              label="Đăng nhập"
-              onPress={() => { void handleLogin(); }}
-              loading={loggingIn}
+              label="Về màn bắt đầu"
+              onPress={() => router.replace("/login")}
             />
           </View>
         </Card>
-      ) : loading ? (
+      ) : <>
+      {user?.phone && !user.phoneVerified && !isDemo ? <Card>
+        <CardTitle>Khôi phục lịch trên thiết bị cũ</CardTitle>
+        <CardText>OTP demo được ghi ở log Auth Service, không gửi SMS và không mất phí.</CardText>
+        {recoveryRequested ? <>
+          <TextInput accessibilityLabel="Mã OTP khôi phục" keyboardType="number-pad" maxLength={6}
+            placeholder="Mã 6 số" value={recoveryCode} onChangeText={setRecoveryCode} style={styles.input} />
+          <WizardAction label="Xác nhận mã" onPress={() => { void verifyRecovery(); }} loading={recoveryBusy} />
+        </> : <WizardAction label="Lấy mã khôi phục" onPress={() => { void requestRecovery(); }} loading={recoveryBusy} />}
+        {recoveryError ? <InlineError message={recoveryError} /> : null}
+      </Card> : null}
+      {loading ? (
         <LoadingState label="Đang tải lịch hẹn..." />
       ) : loadError ? (
         <Card>
@@ -316,10 +316,11 @@ export default function CustomerAppointmentsScreen() {
             {item.status === "completed" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
-                  label="Thanh toán dịch vụ (MoMo / VNPay)"
+                  label="Thanh toán mô phỏng (MoMo / VNPay)"
                   onPress={() => { void handlePay(item.id); }}
                   loading={processingId === item.id}
                 />
+                <CardText>Chế độ demo, không trừ tiền thật.</CardText>
               </View>
             ) : null}
 
@@ -331,6 +332,7 @@ export default function CustomerAppointmentsScreen() {
           </Card>
         ))
       )}
+      </>}
     </Screen>
   );
 }

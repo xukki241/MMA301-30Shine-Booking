@@ -4,6 +4,8 @@ const { STATUSES } = require("../booking/rules");
 function createCalendarModel(connection, collection = "stylist_calendars") {
   const appointment = new mongoose.Schema({
     customerId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    customerName: { type: String },
+    customerPhone: { type: String },
     stylistId: { type: mongoose.Schema.Types.ObjectId, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId },
     serviceId: { type: mongoose.Schema.Types.ObjectId },

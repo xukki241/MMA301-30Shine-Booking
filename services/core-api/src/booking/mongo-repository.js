@@ -5,6 +5,8 @@ function plain(appointment) {
   return {
     id: String(appointment._id),
     customerId: String(appointment.customerId),
+    ...(appointment.customerName ? { customerName: appointment.customerName } : {}),
+    ...(appointment.customerPhone ? { customerPhone: appointment.customerPhone } : {}),
     stylistId: String(appointment.stylistId),
     startTime: appointment.startTime,
     endTime: appointment.endTime,
@@ -88,6 +90,14 @@ function createBookingRepository(Calendar) {
       return list;
     },
 
+    async listByPhone(phone) {
+      const calendars = await Calendar.find({ "appointments.customerPhone": phone }).lean().exec();
+      const list = calendars.flatMap((calendar) => (calendar.appointments || [])
+        .filter((appointment) => appointment.customerPhone === phone).map(plain));
+      list.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+      return list;
+    },
+
     /**
      * Return all booked/completed appointments for a stylist on a given date.
      * Used by work-shift service to compute available time slots.
@@ -136,9 +146,12 @@ function createBookingRepository(Calendar) {
       const rule = ACTIONS[action];
       if (!rule || actor.role !== rule.role) throw new BookingError(403, "Action not permitted");
       // Compare-and-set prevents concurrent transitions from overwriting a new state.
+      const owner = actor.authorizedPhone && rule.role === "customer"
+        ? { $or: [{ [rule.owner]: actor.userId }, { customerPhone: actor.authorizedPhone }] }
+        : { [rule.owner]: actor.userId };
       const calendar = await Calendar.findOneAndUpdate({
         appointments: { $elemMatch: {
-          _id: id, status: rule.from, [rule.owner]: actor.userId,
+          _id: id, status: rule.from, ...owner,
         } },
       }, { $set: {
         "appointments.$.status": rule.to,
