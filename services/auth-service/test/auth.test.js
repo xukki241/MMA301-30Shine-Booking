@@ -26,27 +26,24 @@ test("Auth HTTP contract (unit-test repository double; no database)", async (t) 
   const records = new Map();
   const users = {
     findByEmail: async (email) => records.get(email) || null,
+    findById: async (id) => [...records.values()].find((user) => String(user._id) === String(id)) || null,
     create: async (data) => {
       if (records.has(data.email)) throw Object.assign(new Error("duplicate"), { code: 11000 });
-      const user = { ...data, _id: new mongoose.Types.ObjectId() };
+      const user = { ...data, _id: new mongoose.Types.ObjectId(), status: data.status || "active",
+        authVersion: data.authVersion || 0 };
       records.set(data.email, user);
       return user;
     },
+    updateById: async (id, changes) => {
+      const user = [...records.values()].find((item) => String(item._id) === String(id));
+      if (!user) return null;
+      Object.assign(user, changes);
+      user.authVersion++;
+      return user;
+    },
+    countActiveAdmins: async () => [...records.values()].filter((item) => item.role === "system_admin" && item.status === "active").length,
   };
   await authContract(t, { users, inspect: users.findByEmail, secret });
-});
-
-test("Mongo duplicate-key error after pre-check maps to 409", async (t) => {
-  const users = {
-    findByEmail: async () => null,
-    create: async () => { throw Object.assign(new Error("E11000 private details"), { code: 11000 }); },
-  };
-  const base = await serve(t, createApp({ users, secret, expiresIn: 3600 }));
-  const response = await post(base, "/auth/register", {
-    email: "race@example.test", password: "demo-password", role: "customer",
-  });
-  assert.equal(response.status, 409);
-  assert.deepEqual(response.body, { error: "Email already registered" });
 });
 
 test("unexpected failures return generic 500, no stack or database details", async (t) => {
@@ -74,14 +71,14 @@ test("Mongoose schema validates role/hash, hides hash and declares unique email 
   const connection = mongoose.createConnection();
   const User = createUserModel(connection);
   const passwordHash = await bcrypt.hash("demo-password", 12);
-  const user = new User({ email: " USER@example.test ", passwordHash, role: "customer" });
+  const user = new User({ email: " USER@example.test ", passwordHash, role: "stylist" });
   await user.validate();
   assert.equal(user.email, "user@example.test");
   assert.equal(user.toJSON().passwordHash, undefined);
   assert.equal(User.schema.path("passwordHash").options.select, false);
   assert.ok(User.schema.indexes().some(([keys, options]) => keys.email === 1 && options.unique));
-  for (const data of [{ passwordHash: "plain-text", role: "customer" }, { passwordHash, role: "admin" },
-    { passwordHash, role: ["customer", "stylist"] }]) {
+  for (const data of [{ passwordHash: "plain-text", role: "stylist" }, { passwordHash, role: "admin" },
+    { passwordHash, role: ["stylist", "system_admin"] }]) {
     await assert.rejects(new User({ email: "user@example.test", ...data }).validate());
   }
   await connection.close();

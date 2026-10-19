@@ -1,6 +1,6 @@
 # ADR 0007 — Customer vào app bằng tên và số điện thoại
 
-**Trạng thái:** Flow Customer đã có trong mobile/Auth/Core; phần phân quyền bốn role của ADR 0006 vẫn là thiết kế mục tiêu.
+**Trạng thái:** Flow Customer đã có trong mobile/Auth/Core; SHINE-26 đã triển khai ranh giới role và System Admin của ADR 0006.
 
 ## Bối cảnh
 
@@ -12,7 +12,7 @@ Customer không muốn tạo email/mật khẩu trước khi dùng app. Booking 
 2. Số điện thoại là thông tin liên hệ, không phải bằng chứng sở hữu. Phiên chưa xác minh chỉ xem/hủy/thanh toán Appointment do chính phiên đó tạo. Một số điện thoại có thể có nhiều phiên khách; không tự trộn lịch giữa các phiên.
 3. Trên thiết bị mới, Customer có thể dùng app ngay với tên và số điện thoại. Muốn khôi phục lịch từ phiên cũ cùng số, họ yêu cầu OTP **mô phỏng**. Mã chỉ ghi trong console Auth Service ở môi trường demo, không gửi SMS và không mất phí. OTP hết hạn sau 5 phút, dùng một lần, tối đa 5 lần nhập sai và giới hạn yêu cầu lại 60 giây.
 4. Sau khi nhập OTP đúng, phiên hiện tại được đánh dấu đã xác minh số; Core cho xem/hủy/thanh toán các lịch guest có cùng số chuẩn hóa. JWT và quyền này được cấp từ Auth, không nhận số điện thoại do client tự gửi vào API lịch.
-5. Dữ liệu Customer email/mật khẩu cũ không được chuyển vào flow mới, nhưng cũng không bị xóa. Đăng nhập email/mật khẩu vẫn dành cho nhân sự hiện tại; các quyết định phân quyền nhân sự trong ADR 0006 vẫn chờ triển khai.
+5. Dữ liệu Customer email/mật khẩu cũ không được chuyển vào flow mới, nhưng cũng không bị xóa. Đăng nhập email/mật khẩu chỉ dành cho nhân sự; tài khoản Customer cũ không xuất hiện trong màn quản trị nhân sự.
 
 ## Giới hạn
 

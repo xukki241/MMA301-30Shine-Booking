@@ -34,7 +34,7 @@ function createBookingService(repository) {
       return repository.listByStylist ? repository.listByStylist(actor.userId, date) : [];
     },
     async listCustomerAppointments(actor, customerId) {
-      if (actor.role !== "customer" && actor.role !== "shop_admin") {
+      if (actor.role !== "customer") {
         throw new BookingError(403, "Only customers can access their appointments");
       }
       const targetId = customerId ? customerId.toLowerCase() : actor.userId.toLowerCase();

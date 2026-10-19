@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
+import { SystemAdminApp } from "./SystemAdminApp.jsx";
 
 const cached = () => {
   try { return JSON.parse(sessionStorage.getItem("shine-admin-session") || "null"); } catch { return null; }
@@ -31,7 +32,7 @@ export function AdminApp() {
 
   const selectedBranch = useMemo(() => branches.find((branch) => branch.id === branchId), [branches, branchId]);
   const refreshBranches = useCallback(async () => {
-    if (!session?.accessToken) return;
+    if (!session?.accessToken || session.user?.role !== "general_manager") return;
     const next = await api.listBranches(session.accessToken);
     setBranches(next);
     setBranchId((current) => next.some((branch) => branch.id === current) ? current : next[0]?.id || "");
@@ -55,7 +56,7 @@ export function AdminApp() {
     refreshBranches().catch((cause) => setError(cause.message)).finally(() => setLoading(false));
   }, [session, refreshBranches]);
   useEffect(() => {
-    if (!session?.accessToken || !branchId) return;
+    if (!session?.accessToken || session.user?.role !== "general_manager" || !branchId) return;
     setLoading(true); setError("");
     Promise.all([refreshCatalog(), refreshShifts()]).catch((cause) => setError(cause.message)).finally(() => setLoading(false));
   }, [session, branchId, date, refreshCatalog, refreshShifts]);
@@ -74,20 +75,21 @@ export function AdminApp() {
     const form = new FormData(event.currentTarget);
     try {
       const result = await api.login(String(form.get("email")), String(form.get("password")));
-      if (result.user?.role !== "shop_admin") { setError("403 · Tài khoản này không có quyền Shop Admin."); return; }
+      if (!["system_admin", "general_manager"].includes(result.user?.role)) { setError("403 · Tài khoản này không có quyền truy cập web quản trị."); return; }
       const next = { accessToken: result.accessToken, user: result.user };
       sessionStorage.setItem("shine-admin-session", JSON.stringify(next)); setSession(next);
     } catch (cause) { setError(cause.message); }
   }
 
-  if (!session?.accessToken || session.user?.role !== "shop_admin") return <Login onSubmit={submitLogin} error={error} />;
+  if (!session?.accessToken || !["system_admin", "general_manager"].includes(session.user?.role)) return <Login onSubmit={submitLogin} error={error} />;
+  if (session.user.role === "system_admin") return <SystemAdminApp session={session} signOut={signOut} />;
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="#catalog"><span className="brand-mark">30</span><span>30SHINE<small>SHOP ADMIN</small></span></a>
+      <a className="brand" href="#catalog"><span className="brand-mark">30</span><span>30SHINE<small>GENERAL MANAGER</small></span></a>
       <div className="nav-caption">QUẢN LÝ</div>
-      <button className={`nav-item ${page === "catalog" ? "active" : ""}`} onClick={() => setPage("catalog")}><span>▦</span> Danh mục</button>
-      <button className={`nav-item ${page === "shifts" ? "active" : ""}`} onClick={() => setPage("shifts")}><span>◷</span> Lịch làm việc</button>
-      <div className="sidebar-bottom"><div className="avatar">{session.user.email?.slice(0, 1).toUpperCase()}</div><div className="account"><strong>Shop Admin</strong><small>{session.user.email}</small></div><button className="icon-button" title="Đăng xuất" onClick={signOut}>↗</button></div>
+      <button className={`nav-item ${page === "catalog" ? "active" : ""}`} title="Danh mục" onClick={() => setPage("catalog")}><span>▦</span> Danh mục</button>
+      <button className={`nav-item ${page === "shifts" ? "active" : ""}`} title="Lịch làm việc" onClick={() => setPage("shifts")}><span>◷</span> Lịch làm việc</button>
+      <div className="sidebar-bottom"><div className="avatar">{session.user.email?.slice(0, 1).toUpperCase()}</div><div className="account"><strong>General Manager</strong><small>{session.user.email}</small></div><button className="icon-button" title="Đăng xuất" aria-label="Đăng xuất" onClick={signOut}>↗</button></div>
     </aside>
     <main className="main-content">
       <header className="topbar"><div><span className="crumb">30Shine / Quản trị</span><h1>{page === "catalog" ? "Danh mục cửa hàng" : "Lịch làm việc"}</h1></div><div className="top-meta"><span className="online-dot" /> Hệ thống đang hoạt động <span className="date-stamp">{new Intl.DateTimeFormat("vi-VN", { dateStyle: "long" }).format(new Date())}</span></div></header>
@@ -102,11 +104,11 @@ export function AdminApp() {
 }
 
 function Login({ onSubmit, error }) {
-  const [email, setEmail] = useState("admin@30shine.vn");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  return <main className="login-page"><div className="login-art"><div className="art-glow"/><div className="art-brand"><span className="brand-mark">30</span> 30SHINE</div><div className="art-copy"><span className="eyebrow">SALON OPERATIONS</span><h1>Vận hành<br/>sáng bừng.</h1><p>Một không gian gọn gàng để đội ngũ của bạn chăm sóc từng lịch hẹn.</p></div><div className="art-footer">ĐẸP TRAI · ĐẸP GÁI · ĐẸP CẢ ĐÔI</div></div><div className="login-panel"><form className="login-form" onSubmit={onSubmit}><span className="eyebrow red">SHOP ADMIN PORTAL</span><h2>Chào mừng trở lại</h2><p>Đăng nhập tài khoản quản trị của bạn.</p>{error && <div className="login-error">{error}</div>}<Field label="Email quản trị" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@30shine.vn" required /><label className="field"><span>Mật khẩu</span><div className="password-wrapper"><input name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nhập mật khẩu" required /><button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}>{showPassword ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}</button></div></label><button className="primary-button full" type="submit">Đăng nhập <span>→</span></button><div className="login-note">Chỉ tài khoản có vai trò <b>Shop Admin</b> mới có quyền truy cập.</div></form><div className="login-bottom">© 2026 30Shine · Salon Management</div></div></main>;
+  return <main className="login-page"><div className="login-art"><div className="art-glow"/><div className="art-brand"><span className="brand-mark">30</span> 30SHINE</div><div className="art-copy"><span className="eyebrow">SALON OPERATIONS</span><h1>Vận hành<br/>sáng bừng.</h1><p>Một không gian gọn gàng để đội ngũ của bạn chăm sóc từng lịch hẹn.</p></div><div className="art-footer">ĐẸP TRAI · ĐẸP GÁI · ĐẸP CẢ ĐÔI</div></div><div className="login-panel"><form className="login-form" onSubmit={onSubmit}><span className="eyebrow red">MANAGEMENT PORTAL</span><h2>Chào mừng trở lại</h2><p>Đăng nhập tài khoản nhân sự của bạn.</p>{error && <div className="login-error">{error}</div>}<Field label="Email quản trị" name="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@30shine.vn" required /><label className="field"><span>Mật khẩu</span><div className="password-wrapper"><input name="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Nhập mật khẩu" required /><button type="button" className="password-toggle-btn" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"} aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}>{showPassword ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}</button></div></label><button className="primary-button full" type="submit">Đăng nhập <span>→</span></button><div className="login-note">Dành cho <b>System Admin</b> và <b>General Manager</b>.</div></form><div className="login-bottom">© 2026 30Shine · Salon Management</div></div></main>;
 }
 
 
@@ -152,7 +154,7 @@ function EditorDialog({ dialog, branchId, stylists, onClose, onSave, token }) {
     await onSave(operation, success);
   }
   const localInput = (iso) => { if (!iso) return "09:00"; const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="modal" onSubmit={submit}><div className="modal-head"><div><span className="eyebrow">SHOP ADMIN</span><h2>{title}</h2></div><button type="button" className="icon-button" onClick={onClose}>×</button></div><div className="modal-fields">
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="modal" onSubmit={submit}><div className="modal-head"><div><span className="eyebrow">GENERAL MANAGER</span><h2>{title}</h2></div><button type="button" className="icon-button" onClick={onClose}>×</button></div><div className="modal-fields">
     {kind === "branch" && <><Field label="Tên chi nhánh" name="name" required defaultValue={item?.name} placeholder="30Shine Quận 1" /><Field label="Địa chỉ" name="address" required defaultValue={item?.address} placeholder="Địa chỉ chi nhánh" /><Field label="Số điện thoại" name="phone" defaultValue={item?.phone} placeholder="090…" /><Checkbox item={item} /></>}
     {kind === "service" && <><Field label="Tên dịch vụ" name="name" required defaultValue={item?.name} placeholder="Cắt tóc" /><div className="field-grid"><Field label="Giá (VND)" name="price" type="number" min="0" required defaultValue={item?.price} /><Field label="Thời lượng (phút)" name="durationMinutes" type="number" min="5" max="480" required defaultValue={item?.durationMinutes || 45} /></div><Field label="Mô tả" name="description" defaultValue={item?.description} placeholder="Mô tả dịch vụ" /><Checkbox item={item} /></>}
     {kind === "stylist" && <>{!item?.id && <Field label="User ID tài khoản stylist" name="userId" required pattern="[a-fA-F0-9]{24}" placeholder="24 ký tự hex từ Auth Service" hint="Nhập ID của tài khoản có role stylist đã tạo sẵn." />}<Field label="Tên hiển thị" name="displayName" required defaultValue={item?.displayName} placeholder="Stylist An" /><Checkbox item={item} /></>}

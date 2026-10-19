@@ -34,17 +34,6 @@ async function request<T>(base: string, path: string, token?: string, init?: Req
   return data as T;
 }
 
-export async function loginCustomer(email: string, password: string) {
-  const result = await request<{ accessToken: string; user: { id: string; email: string; role: string } }>(
-    authApi,
-    "/auth/login",
-    undefined,
-    { method: "POST", body: JSON.stringify({ email, password }), headers: { "Content-Type": "application/json" } },
-  );
-  if (result.user?.role !== "customer") throw new Error("Tài khoản này không có quyền Customer.");
-  return result.accessToken;
-}
-
 export async function loginStylist(email: string, password: string) {
   const result = await request<{ accessToken: string; user: { id: string; email: string; role: string } }>(
     authApi,
@@ -54,16 +43,6 @@ export async function loginStylist(email: string, password: string) {
   );
   if (result.user?.role !== "stylist") throw new Error("Tài khoản này không có quyền Stylist.");
   return { token: result.accessToken, user: result.user };
-}
-
-export async function registerUser(email: string, password: string, role: "customer" | "stylist") {
-  const result = await request<{ user: { id: string; email: string; role: string } }>(
-    authApi,
-    "/auth/register",
-    undefined,
-    { method: "POST", body: JSON.stringify({ email, password, role }), headers: { "Content-Type": "application/json" } },
-  );
-  return result.user;
 }
 
 export interface StylistAppointmentItem {
@@ -133,20 +112,20 @@ export async function payCustomerAppointment(token: string, appointmentId: strin
 export function createHttpBookingAdapter(getToken: () => string | null): BookingWizardDataSource {
   return {
     async listBranches(): Promise<Branch[]> {
-      const data = await request<{ branches: Array<{ id: string; name: string; address: string; isActive: boolean }> }>(coreApi, "/branches");
+      const data = await request<{ branches: Array<{ id: string; name: string; address: string; isActive: boolean }> }>(coreApi, "/branches", getToken() || undefined);
       return data.branches.filter((branch) => branch.isActive).map(({ id, name, address }) => ({ id, name, address }));
     },
     async listServices(branchId: string): Promise<Service[]> {
-      const data = await request<{ services: Array<{ id: string; name: string; durationMinutes: number; price: number; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/services?isActive=true`);
+      const data = await request<{ services: Array<{ id: string; name: string; durationMinutes: number; price: number; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/services?isActive=true`, getToken() || undefined);
       return data.services.map((service) => ({ id: service.id, name: service.name, durationMinutes: service.durationMinutes, priceVnd: service.price }));
     },
     async listStylists(branchId: string, _serviceId: string): Promise<Stylist[]> {
-      const data = await request<{ stylists: Array<{ userId: string; displayName: string; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/stylists?isActive=true`);
+      const data = await request<{ stylists: Array<{ userId: string; displayName: string; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/stylists?isActive=true`, getToken() || undefined);
       return data.stylists.filter((stylist) => stylist.isActive).map((stylist) => ({ id: stylist.userId, name: stylist.displayName }));
     },
     async listTimeSlots(query: TimeSlotQuery): Promise<TimeSlot[]> {
       const params = new URLSearchParams(query);
-      const data = await request<{ slots: TimeSlot[] }>(coreApi, `/time-slots?${params}`);
+      const data = await request<{ slots: TimeSlot[] }>(coreApi, `/time-slots?${params}`, getToken() || undefined);
       return data.slots;
     },
     async confirmBooking(booking: CompleteBookingDraft): Promise<AppointmentResult> {

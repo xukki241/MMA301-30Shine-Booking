@@ -14,8 +14,8 @@ async function startHttp(t, app) {
 
 async function bookingContract(t, firstRepository, secondRepository = firstRepository) {
   const secret = randomBytes(32).toString("hex");
-  const base = await startHttp(t, createApp(secret, firstRepository));
-  const secondBase = await startHttp(t, createApp(secret, secondRepository));
+  const base = await startHttp(t, createApp({ secret, bookingRepository: firstRepository, verifyStaff: async () => true }));
+  const secondBase = await startHttp(t, createApp({ secret, bookingRepository: secondRepository, verifyStaff: async () => true }));
   const customer = { userId: id(), role: "customer" };
   const stranger = { userId: id(), role: "customer" };
   const bodyFor = (stylistId = id(), startTime = "2030-10-20T10:00:00Z", endTime = "2030-10-20T11:00:00Z") =>
@@ -25,7 +25,9 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(actor ? { Authorization: "Bearer " + jwt.sign({ role: actor.role }, secret, {
+        ...(actor ? { Authorization: "Bearer " + jwt.sign(actor.role === "customer" ?
+          { role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
+          { role: actor.role, authVersion: 0 }, secret, {
           subject: actor.userId, expiresIn: 3600, algorithm: "HS256",
         }) } : {}),
       },
@@ -88,7 +90,7 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
   });
   await t.test("correct stylist complete; wrong stylist/customer/admin -> 403", async () => {
     const appointment = await book();
-    for (const actor of [{ userId: id(), role: "stylist" }, customer, { userId: id(), role: "shop_admin" }]) {
+    for (const actor of [{ userId: id(), role: "stylist" }, customer, { userId: id(), role: "system_admin" }]) {
       assert.equal((await act(appointment, "complete", actor)).status, 403);
     }
     const completed = await act(appointment, "complete", { userId: appointment.stylistId, role: "stylist" });

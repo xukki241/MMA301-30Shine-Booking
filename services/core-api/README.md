@@ -6,7 +6,7 @@ JWT từ Auth Service cho Guest Customer vẫn mang role `customer`, kèm tên, 
 
 ## Catalog, Work Shift và Time Slot
 
-Core API phục vụ Admin Web tại `apps/admin-web` và luồng đặt lịch mobile. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `shop_admin`.
+Core API phục vụ Admin Web tại `apps/admin-web` và luồng đặt lịch mobile. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `general_manager`. API đọc Catalog và Time Slot yêu cầu JWT của Customer Guest hoặc `general_manager`; `system_admin` không có quyền đọc dữ liệu vận hành. Trước khi gán hồ sơ thợ hoặc tạo/sửa ca, Core kiểm tra tài khoản `stylist` đang hoạt động qua Auth Service.
 
 ### Work Shift
 
@@ -18,11 +18,11 @@ Work Shift là một khoảng làm việc trong một ngày lịch, gắn với 
 
 | Method | Path | Quyền | Nội dung |
 |---|---|---|---|
-| GET | `/work-shifts?branchId=&stylistId=&date=` | Public | Liệt kê ca, các bộ lọc đều tùy chọn |
-| POST | `/work-shifts` | Shop Admin | Tạo ca; trùng ca của cùng stylist trả 409 |
-| PUT | `/work-shifts/:id` | Shop Admin | Cập nhật đầy đủ branchId, stylistId, date, startAt, endAt |
-| DELETE | `/work-shifts/:id` | Shop Admin | Xóa nếu không có Appointment active trong ca |
-| GET | `/time-slots?branchId=&serviceId=&stylistId=&date=` | Public | Slot tương lai theo ca và thời lượng dịch vụ |
+| GET | `/work-shifts?branchId=&stylistId=&date=` | General Manager | Liệt kê ca, các bộ lọc đều tùy chọn |
+| POST | `/work-shifts` | General Manager | Tạo ca; trùng ca của cùng stylist trả 409 |
+| PUT | `/work-shifts/:id` | General Manager | Cập nhật đầy đủ branchId, stylistId, date, startAt, endAt |
+| DELETE | `/work-shifts/:id` | General Manager | Xóa nếu không có Appointment active trong ca |
+| GET | `/time-slots?branchId=&serviceId=&stylistId=&date=` | Customer Guest hoặc General Manager | Slot tương lai theo ca và thời lượng dịch vụ |
 
 Slot có cùng độ dài `Service.durationMinutes`; API loại slot giao với Appointment `booked`, `completed`, `paid`. `POST /appointments` khi Work Shift đã bật cần gửi `branchId`, `serviceId`, `stylistId`, `startTime`, `endTime`; Core xác thực service/duration/ca trước khi ghi lịch. Appointment trùng thời gian vẫn được chặn atomically bởi calendar repository.
 
@@ -38,7 +38,7 @@ npm ci
 Copy-Item .env.example .env
 ```
 
-Điền JWT_SECRET **giống hệt Auth Service** (ít nhất 32 byte); PORT mặc định 4102.
+Điền JWT_SECRET **giống hệt Auth Service** (ít nhất 32 byte) và `AUTH_SERVICE_URL` trỏ đến Auth; PORT mặc định 4102.
 Thiếu secret hoặc secret quá ngắn: server fail trước khi listen, không có secret dự phòng.
 
 ```powershell
@@ -47,7 +47,7 @@ npm run dev
 npm test
 ```
 
-GET /health vẫn public. GET /auth/me cần JWT từ POST /auth/login của Auth Service:
+GET /health vẫn public và kèm trạng thái database. GET /auth/me cần JWT từ Auth Service:
 
 ```bash
 curl -i http://localhost:4102/auth/me -H "Authorization: Bearer <accessToken>"
@@ -62,10 +62,9 @@ Trên Windows PowerShell dùng curl.exe thay curl.
 
 Middleware `src/middleware/auth.js` gán `req.auth = { userId, role }` sau khi verify.
 Chỉ chấp nhận HS256, chữ ký đúng, token còn hạn, sub là Mongo ObjectId, role thuộc
-customer/stylist/shop_admin và exp tồn tại. Thiếu/sai/hết hạn token trả 401 với
-WWW-Authenticate: Bearer. Đây là xác minh danh tính; chưa thêm các rule quyền booking.
+`customer` Guest, `stylist`, `system_admin`, `general_manager` và exp tồn tại. Với nhân sự, Core gọi Auth `/auth/introspect` ở mỗi request để kiểm tra role, trạng thái khóa và `authVersion` hiện hành; Auth không sẵn sàng thì Core trả 503. Thiếu/sai/hết hạn token trả 401 với `WWW-Authenticate: Bearer`.
 
-Test dùng node:test + HTTP local; bao phủ cả ba role, thiếu token, chữ ký sai,
+Test dùng node:test + HTTP local; bao phủ bốn role, thiếu token, chữ ký sai,
 hết hạn, nbf trong tương lai, sai thuật toán/role/claims và public health.
 
 ## SHINE-03: booking và state machine

@@ -10,7 +10,7 @@ import {
 } from "react";
 import { AUTH_SERVICE_URL } from "@/constants/config";
 
-export type AuthRole = "customer" | "stylist" | "shop_admin";
+export type AuthRole = "customer" | "stylist" | "system_admin" | "general_manager";
 
 export type AuthUser = {
   id: string;
@@ -27,7 +27,6 @@ export type AuthContextValue = {
   role: "customer" | "stylist" | null;
   hydrated: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (email: string, password: string, role: "customer" | "stylist") => Promise<AuthUser>;
   enterCustomer: (name: string, phone: string) => Promise<AuthUser>;
   requestCustomerRecovery: () => Promise<void>;
   verifyCustomerRecovery: (code: string) => Promise<void>;
@@ -156,41 +155,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     return nextUser;
   }, []);
 
-  const register = useCallback(
-    async (email: string, password: string, role: "customer" | "stylist"): Promise<AuthUser> => {
-      const trimmedEmail = email.trim().toLowerCase();
-      if (password.length < 8) {
-        throw new Error("Mật khẩu phải chứa ít nhất 8 ký tự.");
-      }
-      if (role !== "customer" && role !== "stylist") {
-        throw new Error("Vai trò không hợp lệ trên ứng dụng Mobile.");
-      }
-
-      let response: Response;
-      try {
-        response = await fetch(`${AUTH_SERVICE_URL}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, password, role }),
-        });
-      } catch {
-        throw new Error("Không kết nối được Auth Service. Vui lòng kiểm tra mạng.");
-      }
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (response.status === 409) {
-          throw new Error("Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.");
-        }
-        throw new Error(data.error || `Đăng ký thất bại (${response.status})`);
-      }
-
-      // Automatically login to receive JWT and establish session
-      return login(trimmedEmail, password);
-    },
-    [login]
-  );
-
   const enterCustomer = useCallback(async (name: string, phone: string): Promise<AuthUser> => {
     let response: Response;
     try {
@@ -266,14 +230,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       role,
       hydrated,
       login,
-      register,
       enterCustomer,
       requestCustomerRecovery,
       verifyCustomerRecovery,
       logout,
       setAuth,
     }),
-    [token, user, role, hydrated, login, register, enterCustomer, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
+    [token, user, role, hydrated, login, enterCustomer, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

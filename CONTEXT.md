@@ -1,6 +1,6 @@
 # Phụ lục A — Thuật ngữ miền (thiết kế mục tiêu)
 
-> Tài liệu này thống nhất thuật ngữ cho thiết kế bốn role. Code hiện tại vẫn dùng `shop_admin`; ADR 0006 mô tả chuyển đổi.
+> Tài liệu này thống nhất thuật ngữ cho bốn role. SHINE-26 đã chuyển role nhân sự từ `shop_admin`; các chức năng Manager theo dõi lịch/thanh toán còn trong thiết kế mục tiêu.
 
 ## Vai trò
 
@@ -10,9 +10,9 @@
 | **Stylist** (`stylist`) | Thợ xem lịch theo ca do Manager xếp và đánh dấu lịch của mình hoàn thành. Không tự khai báo ca. |
 | **System Admin** (`system_admin`) | Quản trị tài khoản, một role cho mỗi tài khoản, health và audit log. Không xem lịch vận hành, danh mục kinh doanh hay thanh toán. |
 | **General Manager** (`general_manager`) | Quản lý vận hành mọi Branch, gồm Service, hồ sơ Stylist, Work Shift, lịch đặt và lịch sử thanh toán. Không tạo tài khoản hoặc phân quyền. |
-| **User** | Tài khoản đăng nhập có đúng một role và trạng thái hoạt động/khóa mềm. |
+| **User** | Tài khoản nhân sự đăng nhập có đúng một role (`stylist`, `system_admin`, `general_manager`) và trạng thái hoạt động/khóa mềm; Customer dùng Guest Session riêng. |
 
-`shop_admin` là tên role **chỉ còn trong code hiện tại**. Khi triển khai thiết kế mục tiêu, tài khoản `shop_admin` cũ chuyển thành `system_admin`; System Admin tạo General Manager đầu tiên. Không dùng `shop_admin` để mô tả quyền mục tiêu.
+`shop_admin` là tên role legacy. Auth Service tự chuyển tài khoản cũ sang `system_admin` lúc khởi động; System Admin tạo General Manager đầu tiên. Database mới dùng lệnh bootstrap Admin một lần.
 
 ## Nghiệp vụ đặt lịch
 

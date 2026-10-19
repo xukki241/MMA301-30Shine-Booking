@@ -3,6 +3,9 @@ const { readConfig } = require("./config");
 const { createApp } = require("./app");
 const { createUserModel, createUserRepository } = require("./models/user");
 const { createGuestModels, createGuestRepository } = require("./customer-guest");
+const { migrateLegacyShopAdmins } = require("./staff-migration");
+const { createStylistChangeGuard } = require("./stylist-change-guard");
+const { createAuditLogModel, createAuditRepository } = require("./audit-log");
 
 async function start() {
   let config;
@@ -19,9 +22,13 @@ async function start() {
     await connection.asPromise();
     const User = createUserModel(connection);
     const guestModels = createGuestModels(connection);
+    const AuditLog = createAuditLogModel(connection);
+    await migrateLegacyShopAdmins(User);
     await User.init(); // Build unique email index before accepting requests.
-    await Promise.all([guestModels.Guest.init(), guestModels.Recovery.init()]);
-    const app = createApp({ users: createUserRepository(User), guests: createGuestRepository(guestModels), ...config });
+    await Promise.all([guestModels.Guest.init(), guestModels.Recovery.init(), AuditLog.init()]);
+    const app = createApp({ users: createUserRepository(User), guests: createGuestRepository(guestModels),
+      audit: createAuditRepository(AuditLog),
+      staffChangeGuard: createStylistChangeGuard({ coreApiUrl: config.coreApiUrl, secret: config.secret }), ...config });
     const server = app.listen(config.port, "0.0.0.0", () => console.log(`auth-service on ${config.port}`));
     server.on("error", async () => {
       console.error("Auth HTTP server failed to listen");

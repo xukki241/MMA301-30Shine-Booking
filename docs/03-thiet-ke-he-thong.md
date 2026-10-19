@@ -1,6 +1,6 @@
 # Chương 3. Thiết kế hệ thống — trạng thái mục tiêu
 
-> Sơ đồ và màn hình chương này là **thiết kế cần triển khai**. Code hiện tại dùng `shop_admin`, chưa có System Admin/General Manager, audit log hoặc lịch sử Payment Attempt theo Branch. Hợp đồng API đang chạy xem [Core API README](../services/core-api/README.md) và [hiện trạng Admin Web](./08-admin-web.md).
+> Sơ đồ liên vai trò là thiết kế đầy đủ. SHINE-26 đã tách System Admin/General Manager và có tài khoản nhân sự, health, audit log. Màn Manager theo dõi lịch/thanh toán và lịch sử Payment Attempt theo Branch chưa triển khai. Hợp đồng API hiện tại xem [Core API README](../services/core-api/README.md) và [Admin Web](./08-admin-web.md).
 
 ## 3.1. Thành phần và ranh giới
 
@@ -80,7 +80,7 @@ Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao v
 
 **General Manager:** Đăng nhập web → tổng quan lịch hôm nay → lọc theo ngày/Branch/Stylist/trạng thái → quản lý Branch/Service/Stylist Profile → phân Work Shift → xem lịch sử Payment Attempt theo Branch (thành công và thất bại) cùng tổng thành công. Manager không tạo User; chỉ gán hồ sơ cho User `stylist` đã được Admin cấp.
 
-**System Admin:** Đăng nhập web → quản lý User/role → tạo, sửa, khóa mềm, khôi phục → xem health Auth/Core/database → lọc audit log. Trước khi khóa Customer, hiển thị số lịch `booked` và `completed` còn mở; xác nhận khóa không tự hủy lịch. Chặn khóa/đổi role Stylist nếu còn ca tương lai hoặc lịch chưa xử lý. Admin không vào màn lịch, catalog hay thanh toán.
+**System Admin:** Đăng nhập web → quản lý tài khoản nhân sự/role → tạo, sửa, khóa mềm, khôi phục → xem health Auth/Core/database → lọc audit log. Customer Guest không nằm trong danh sách. Chặn khóa/đổi role Stylist nếu còn ca tương lai hoặc lịch chưa xử lý. Admin không vào màn lịch, catalog hay thanh toán.
 
 ## 3.5. Danh sách màn hình mục tiêu
 
@@ -91,9 +91,9 @@ Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao v
 | Stylist | Đăng nhập; Lịch hôm nay; Chi tiết lịch | Xem lịch được giao và đánh dấu hoàn thành |
 | General Manager | Tổng quan; Chi nhánh; Dịch vụ; Hồ sơ thợ; Phân ca | Quản lý catalog và lịch làm |
 | General Manager | Lịch đặt; Chi tiết lịch; Lịch sử thanh toán | Lọc lịch/ngày/Branch/Stylist/trạng thái, tra cứu giao dịch theo Branch |
-| System Admin | Tài khoản; Tạo/sửa User; Chi tiết/đổi quyền; Khóa/khôi phục | Quản trị User, xem cảnh báo lịch mở trước khi khóa Customer |
+| System Admin | Tài khoản nhân sự; Tạo/sửa User; Chi tiết/đổi quyền; Khóa/khôi phục | Quản trị tài khoản nhân sự |
 | System Admin | Health; Audit log | Xem trạng thái dịch vụ/database và tra cứu sự kiện |
 
 ## 3.6. Chuyển đổi từ code hiện tại
 
-Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database. Phần bốn role của ADR 0006 **chưa triển khai**: code nhân sự vẫn dùng `stylist`, `shop_admin`; `shop_admin` đang có quyền vận hành Branch/Service/Stylist/Work Shift và có thể được chọn khi đăng ký cũ. `/health` chưa phải bảng giám sát; payment hiện chỉ chuyển `paid` mô phỏng, chưa lưu Payment Attempt. Khi triển khai mục tiêu: chuyển tài khoản `shop_admin` cũ sang `system_admin`, cấp General Manager đầu tiên bằng Admin, chuyển quyền vận hành sang Manager, giới hạn đăng ký công khai và bổ sung Payment Attempt/audit log.
+Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Payment hiện chỉ chuyển `paid` mô phỏng, chưa lưu Payment Attempt; màn Manager theo dõi lịch và lịch sử thanh toán vẫn thuộc backlog tiếp theo.

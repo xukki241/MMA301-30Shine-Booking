@@ -19,19 +19,21 @@ Backlog SHINE-01–14 dưới đây phản ánh **phạm vi và tiến độ ban
 | SHINE-13 | Huy | Dễ | Stylist lịch hôm nay |
 | SHINE-14 | Kiên | Khó | E2E book→complete→pay |
 
-SHINE-12 admin-web CRUD/Work Shift và phần Work Shift/Time Slot của SHINE-06 đã được triển khai với role **`shop_admin`**; xem [08-admin-web.md](./08-admin-web.md) để biết hiện trạng. Mobile Booking Wizard dùng catalog/slot thật và tạo booking có Customer JWT; các phần còn lại cần xác nhận bằng code trước khi đánh dấu hoàn thành.
+SHINE-12 admin-web CRUD/Work Shift và phần Work Shift/Time Slot của SHINE-06 đã chuyển quyền ghi sang **`general_manager`** trong SHINE-26; xem [08-admin-web.md](./08-admin-web.md) để biết hiện trạng. Mobile Booking Wizard dùng catalog/slot thật và tạo booking có Customer JWT; các phần còn lại cần xác nhận bằng code trước khi đánh dấu hoàn thành.
 
-Flow Customer nhập tên + số điện thoại đã có trong Auth Service, Core API và Mobile. Guest Session chỉ xem lịch của mình trên thiết bị hiện tại; OTP demo đọc từ console Auth Service mở quyền xem lịch guest cũ cùng số. OTP không gửi SMS. Xem [ADR 0007](./adr/0007-customer-name-phone-guest-session.md). API email/mật khẩu Customer cũ vẫn tồn tại trong code để tương thích, nhưng Mobile không dùng; phần tách `system_admin`/`general_manager` vẫn thuộc backlog mục tiêu.
+Flow Customer nhập tên + số điện thoại đã có trong Auth Service, Core API và Mobile. Guest Session chỉ xem lịch của mình trên thiết bị hiện tại; OTP demo đọc từ console Auth Service mở quyền xem lịch guest cũ cùng số. OTP không gửi SMS. Xem [ADR 0007](./adr/0007-customer-name-phone-guest-session.md). Bản ghi tài khoản Customer email/mật khẩu cũ vẫn có thể nằm trong database nhưng endpoint đăng ký công khai đã đóng và login nhân sự từ chối chúng. Ranh giới `system_admin`/`general_manager` đã được triển khai trong SHINE-26.
 
-## Backlog mới từ thiết kế mục tiêu (chưa triển khai)
+## Phân quyền và System Admin (SHINE-26)
+
+Auth/Core/Admin Web đã có `system_admin` và `general_manager`, chuyển `shop_admin` cũ, tài khoản nhân sự CRUD qua khóa mềm, health và audit metadata. Customer Guest không nằm trong màn quản trị. Kiểm tra phiên nhân sự qua Auth khiến khóa/đổi role có hiệu lực ở Core. Test Auth, Work Shift và hợp đồng hai service với MongoDB thật đã qua; Admin Web đã được xem trong trình duyệt ở cả hai role trên dữ liệu thử.
+
+## Backlog còn lại từ thiết kế mục tiêu
 
 | Hạng mục | Kết quả cần có |
 |---|---|
-| Tách role và chuyển đổi | `shop_admin` cũ → `system_admin`; Admin tạo `general_manager`; đăng ký công khai chỉ tạo Customer; quyền Core/admin web đổi theo ma trận |
-| Tài khoản | CRUD qua khóa mềm/khôi phục, một role/User, vô hiệu phiên khi khóa/đổi role, chặn thao tác Stylist còn ca/lịch |
-| Manager web | Tổng quan/lọc lịch mọi Branch, catalog, Stylist Profile và Work Shift dưới quyền Manager |
+| Manager web | Tổng quan/lọc lịch mọi Branch, tra cứu Appointment và Payment Attempt theo Branch; catalog/Stylist Profile/Work Shift đã thuộc quyền Manager |
 | Thanh toán có lịch sử | Giá chốt lúc đặt; Payment Attempt thành công/thất bại theo Branch; thống kê chỉ tính thành công; UI ghi không trừ tiền thật |
-| Health và audit | Admin xem Auth/Core/database và thời điểm kiểm tra; audit metadata thao tác quan trọng |
-| Tài liệu và kiểm thử | Cập nhật OpenAPI/README triển khai sau khi code đổi; test quyền chéo, khóa nhầm Customer, chặn khóa Stylist, giá cũ và thử lại thanh toán |
+| Kiểm thử tích hợp còn lại | Kiểm tra toàn bộ hành trình UI với dữ liệu nghiệp vụ thật và audit khi dịch vụ phụ thuộc lỗi |
+| Thanh toán mục tiêu | Test giá cũ sau sửa Service và thử lại Payment Attempt thất bại |
 
-Các hạng mục trên là **thiết kế và việc cần làm**, không phải tuyên bố đã triển khai. ADR 0006 và Chương 2–3 là nguồn yêu cầu mục tiêu; không đổi hợp đồng API công khai trước khi code tương ứng tồn tại.
+Các hạng mục trong bảng cuối là **việc cần làm**, không phải tuyên bố đã triển khai. ADR 0006 và Chương 2–3 là nguồn yêu cầu; OpenAPI mô tả code đang chạy.

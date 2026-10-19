@@ -59,7 +59,7 @@ test("Appointment schema rejects invalid interval/status (offline)", async () =>
 test("missing Mongo repository returns 503; no in-memory production fallback", async (t) => {
   const secret = randomBytes(32).toString("hex");
   const base = await startHttp(t, createApp(secret));
-  const token = jwt.sign({ role: "customer" }, secret, { subject: id(), expiresIn: 60 });
+  const token = jwt.sign({ role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false }, secret, { subject: id(), expiresIn: 60 });
   const response = await fetch(base + "/appointments", {
     method: "POST", headers: { Authorization: "Bearer " + token },
   });
@@ -71,7 +71,7 @@ test("database failures return generic 500 without internal details", async (t) 
   const base = await startHttp(t, createApp(secret, {
     book: async () => { throw new Error("private mongo credentials"); },
   }));
-  const token = jwt.sign({ role: "customer" }, secret, { subject: id(), expiresIn: 60 });
+  const token = jwt.sign({ role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false }, secret, { subject: id(), expiresIn: 60 });
   const response = await fetch(base + "/appointments", {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
