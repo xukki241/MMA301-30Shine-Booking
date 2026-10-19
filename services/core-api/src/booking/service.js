@@ -1,3 +1,4 @@
+// Booking service - orchestrates appointment creation, validation, and status transitions
 const { ACTIONS, BookingError, isId, validateBooking, validateReschedule } = require("./rules");
 
 function createBookingService(repository) {
