@@ -10,7 +10,7 @@ Health gồm Auth Service, Core API, database của từng service và `checkedA
 
 ## General Manager
 
-Role `general_manager` tiếp nhận quyền catalog/Work Shift trước đây của `shop_admin` trên mọi Branch. Web hiện có màn Danh mục và Lịch làm việc; Manager không thể gọi API quản lý tài khoản, health hoặc audit. Màn tổng quan lịch, lọc theo Branch/Stylist/trạng thái và lịch sử Payment Attempt thuộc backlog tiếp theo.
+Role `general_manager` tiếp nhận quyền catalog/Work Shift trước đây của `shop_admin` trên mọi Branch. Core API đã có tổng quan lịch, lọc theo Branch/Stylist/trạng thái và lịch sử Payment Attempt. Web hiện vẫn có Danh mục và Lịch làm việc trong lúc chuyển Manager sang app Expo; Manager không thể gọi API quản lý tài khoản, health hoặc audit.
 
 ## Chuyển đổi và kiểm tra
 

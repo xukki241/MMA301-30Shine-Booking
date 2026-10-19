@@ -20,7 +20,8 @@
     { "name": "SHINE-05 · Catalog API", "description": "CRUD Branch, Service và Stylist dành cho backend" },
     { "name": "SHINE-06 · Work Shift & Time Slot", "description": "Tạo ca, xem ca, xóa ca và tính khung giờ trống" },
     { "name": "SHINE-03/07 · Booking API", "description": "Đặt lịch, chống double-book và chuyển trạng thái appointment" },
-    { "name": "SHINE-08 · Payment Mock", "description": "Thanh toán mô phỏng sau khi appointment hoàn thành" }
+    { "name": "SHINE-08 · Payment Mock", "description": "Thanh toán mô phỏng sau khi appointment hoàn thành" },
+    { "name": "General Manager · Read API", "description": "Tổng quan, lịch đặt và Payment Attempt mọi chi nhánh; chỉ General Manager" }
   ],
   "components": {
     "securitySchemes": {
@@ -225,6 +226,10 @@
           "customerName": { "type": "string", "description": "Tên khách của Guest Session, nếu có" },
           "customerPhone": { "type": "string", "description": "Số khách đã chuẩn hóa, nếu có", "example": "+84912345678" },
           "stylistId": { "type": "string", "example": "65f1234567890abcdef12345" },
+          "branchId": { "type": "string" },
+          "serviceId": { "type": "string" },
+          "bookedPrice": { "type": "integer", "description": "Giá VND chốt lúc đặt; lịch cũ có thể thiếu" },
+          "paymentAttempts": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentAttempt" } },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
           "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
           "status": {
@@ -236,10 +241,35 @@
           "updatedAt": { "type": "string", "format": "date-time" }
         }
       },
+      "PaymentAttempt": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "requestId": { "type": "string" },
+          "appointmentId": { "type": "string" },
+          "branchId": { "type": "string" },
+          "amount": { "type": "integer", "description": "VND mô phỏng; không trừ tiền thật" },
+          "provider": { "type": "string", "enum": ["momo", "vnpay"] },
+          "status": { "type": "string", "enum": ["success", "failed"] },
+          "attemptedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaymentMockRequest": {
+        "type": "object",
+        "required": ["provider", "outcome", "requestId"],
+        "additionalProperties": false,
+        "properties": {
+          "provider": { "type": "string", "enum": ["momo", "vnpay"] },
+          "outcome": { "type": "string", "enum": ["success", "failed"] },
+          "requestId": { "type": "string", "minLength": 8, "maxLength": 100 }
+        }
+      },
       "BookingCreateRequest": {
         "type": "object",
-        "required": ["stylistId", "startTime", "endTime"],
+        "required": ["branchId", "serviceId", "stylistId", "startTime", "endTime"],
         "properties": {
+          "branchId": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+          "serviceId": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
           "stylistId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
           "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" }
@@ -951,19 +981,51 @@
         }
       }
     },
+    "/manager/overview": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Đếm lịch theo trạng thái trong ngày Việt Nam", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "branchId", "in": "query", "schema": { "type": "string" } }
+      ], "responses": { "200": { "description": "{date, counts: {booked, completed, paid, cancelled}}" }, "403": { "description": "General Manager required" } } }
+    },
+    "/manager/appointments": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Lọc lịch mọi chi nhánh, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "branchId", "in": "query", "schema": { "type": "string" } },
+        { "name": "stylistId", "in": "query", "schema": { "type": "string" } },
+        { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["booked", "completed", "paid", "cancelled"] } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
+      ], "responses": { "200": { "description": "{items, nextCursor}; số khách chỉ có trong chi tiết" }, "403": { "description": "General Manager required" } } }
+    },
+    "/manager/appointments/{id}": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Chi tiết lịch, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ], "responses": { "200": { "description": "Appointment gồm giá chốt và liên hệ khách" }, "403": { "description": "General Manager required" }, "404": { "description": "Không thấy lịch" } } }
+    },
+    "/manager/payments": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Payment Attempt theo chi nhánh", "description": "Thanh toán mô phỏng, không trừ tiền thật. Tổng thu chỉ cộng attempt thành công trên toàn bộ bộ lọc.", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "branchId", "in": "query", "required": true, "schema": { "type": "string" } },
+        { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
+      ], "responses": { "200": { "description": "{items, nextCursor, simulatedTotal}; gồm success và failed" }, "403": { "description": "General Manager required" } } }
+    },
     "/appointments/{id}/pay": {
       "post": {
         "tags": ["SHINE-08 · Payment Mock"],
-        "summary": "Khách hàng thanh toán dịch vụ",
-        "description": "Chuyển trạng thái từ `completed` sang `paid`.\n\nYêu cầu vai trò: **customer** và lịch hẹn đã phải ở trạng thái completed.",
+        "summary": "Khách hàng thử thanh toán mô phỏng",
+        "description": "Ghi Payment Attempt success/failed; chỉ success chuyển completed sang paid. Không trừ tiền thật. Retry cùng requestId trả cùng attempt.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMockRequest" } } } },
         "responses": {
-          "200": { "description": "Thanh toán thành công" },
+          "200": { "description": "{appointment, attempt}; cả success và failed" },
           "400": { "description": "Trạng thái không hợp lệ để thanh toán" },
-          "403": { "description": "Không phải chủ sở hữu lịch hẹn" }
+          "403": { "description": "Không phải chủ sở hữu lịch hẹn" },
+          "409": { "description": "Lịch cũ không có giá chốt hoặc đã thanh toán" }
         }
       }
     }

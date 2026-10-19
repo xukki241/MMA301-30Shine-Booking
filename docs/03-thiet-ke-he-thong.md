@@ -1,6 +1,6 @@
 # Chương 3. Thiết kế hệ thống — trạng thái mục tiêu
 
-> Sơ đồ liên vai trò là thiết kế đầy đủ. SHINE-26 đã tách System Admin/General Manager và có tài khoản nhân sự, health, audit log. Màn Manager theo dõi lịch/thanh toán và lịch sử Payment Attempt theo Branch chưa triển khai. Hợp đồng API hiện tại xem [Core API README](../services/core-api/README.md) và [Admin Web](./08-admin-web.md).
+> Sơ đồ liên vai trò là thiết kế đầy đủ. Core API đã lưu giá chốt, Payment Attempt mô phỏng và cung cấp API chỉ đọc cho Manager. Giao diện Manager trên mobile và việc thu hẹp Admin Web đang triển khai theo [kế hoạch](./superpowers/plans/2026-10-20-manager-mobile.md). Hợp đồng API hiện tại xem `/openapi.json` của Core.
 
 ## 3.1. Thành phần và ranh giới
 
@@ -96,4 +96,4 @@ Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao v
 
 ## 3.6. Chuyển đổi từ code hiện tại
 
-Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Payment hiện chỉ chuyển `paid` mô phỏng, chưa lưu Payment Attempt; màn Manager theo dõi lịch và lịch sử thanh toán vẫn thuộc backlog tiếp theo.
+Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Core API hiện ghi Payment Attempt và chỉ đưa lịch sang `paid` sau attempt thành công; lịch cũ không có `bookedPrice` được giữ nguyên và không thể thanh toán mô phỏng. Giao diện mobile Manager vẫn đang triển khai.
