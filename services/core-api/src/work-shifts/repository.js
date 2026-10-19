@@ -141,6 +141,7 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       if (endTime.getTime() - startTime.getTime() !== durationMs || (startTime.getTime() - shift.startAt.getTime()) % durationMs !== 0) {
         throw new BookingError(409, "Requested time does not match the selected service duration");
       }
+      return { bookedPrice: service.price };
     },
   };
 }

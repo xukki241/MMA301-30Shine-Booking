@@ -9,6 +9,7 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
     stylistId: { type: mongoose.Schema.Types.ObjectId, required: true },
     branchId: { type: mongoose.Schema.Types.ObjectId },
     serviceId: { type: mongoose.Schema.Types.ObjectId },
+    bookedPrice: { type: Number, min: 0 },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     status: { type: String, enum: STATUSES, default: "booked", required: true },

@@ -46,8 +46,9 @@ function bookingRoutes(repository, workShiftRepository) {
   }));
   router.post("/", handle(async (req, res) => {
     if (req.auth.role !== "customer") throw new BookingError(403, "Only customers can book");
-    if (workShiftRepository) await workShiftRepository.validateBooking(validateBooking(req.body || {}));
-    const appointment = await service.book(req.auth, req.body);
+    const validated = validateBooking(req.body || {});
+    const snapshot = workShiftRepository ? await workShiftRepository.validateBooking(validated) : {};
+    const appointment = await service.book(req.auth, req.body, snapshot);
     res.status(201).json({ appointment });
   }));
   for (const action of ["complete", "cancel", "pay"]) {

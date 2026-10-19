@@ -2,11 +2,11 @@ const { ACTIONS, BookingError, isId, validateBooking } = require("./rules");
 
 function createBookingService(repository) {
   return {
-    async book(actor, body) {
+    async book(actor, body, snapshot = {}) {
       if (actor.role !== "customer") throw new BookingError(403, "Only customers can book");
       const data = validateBooking(body);
       // Ownership comes from verified JWT, never a supplied customerId.
-      return repository.book({ ...data, customerId: actor.userId.toLowerCase(),
+      return repository.book({ ...data, ...snapshot, customerId: actor.userId.toLowerCase(),
         ...(actor.guest ? { customerName: actor.name, customerPhone: actor.phone } : {}) });
     },
     async transition(actor, id, action) {

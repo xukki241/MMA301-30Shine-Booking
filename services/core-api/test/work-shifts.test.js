@@ -85,6 +85,7 @@ function createShiftStore() {
     async validateBooking(data) {
       if (data.branchId !== ids.branch || data.serviceId !== ids.service || data.endTime.getTime() - data.startTime.getTime() !== 45 * 60000) throw new BookingError(409, "Requested time does not match the active service");
       if (!shifts.some((shift) => shift.stylistId === data.stylistId && data.startTime >= new Date(shift.startAt) && data.endTime <= new Date(shift.endAt))) throw new BookingError(409, "Requested time is outside an assigned work shift");
+      return { bookedPrice: 120000 };
     },
   };
 }
@@ -132,6 +133,9 @@ test("work shifts require General Manager, block appointment conflicts, and prov
 
   const booking = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[0].startTime, endTime: slots[0].endTime }) });
   assert.equal(booking.status, 201);
+  assert.equal((await booking.json()).appointment.bookedPrice, 120000);
+  const tamperedPrice = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[1].startTime, endTime: slots[1].endTime, bookedPrice: 1 }) });
+  assert.equal(tamperedPrice.status, 400);
   const refreshedSlots = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   assert.equal((await refreshedSlots.json()).slots.length, 3);
   const wrongDuration = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[1].startTime, endTime: "2030-10-20T03:15:00.000Z" }) });
