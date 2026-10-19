@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/constants/theme";
 import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
+import { staffLanding } from "@/providers/auth-utils";
 
 export default function EntryScreen() {
   const theme = useAppTheme();
@@ -22,7 +23,7 @@ export default function EntryScreen() {
   useEffect(() => {
     if (hydrated && token && role) {
       selectRole(role);
-      router.replace(role === "customer" ? "/(customer)/home" : "/(stylist)/today");
+      router.replace(role === "customer" ? "/(customer)/home" : staffLanding(role));
     }
   }, [hydrated, token, role, selectRole]);
 
@@ -38,14 +39,14 @@ export default function EntryScreen() {
     } finally { setBusy(false); }
   }
 
-  async function continueStylist() {
+  async function continueStaff() {
     setBusy(true);
     setError(null);
     try {
       const user = await login(email, password);
-      if (user.role !== "stylist") throw new Error("Màn này chỉ dành cho Stylist.");
-      selectRole("stylist");
-      router.replace("/(stylist)/today");
+      if (user.role !== "stylist" && user.role !== "general_manager") throw new Error("Tài khoản không được dùng app nhân sự.");
+      selectRole(user.role);
+      router.replace(staffLanding(user.role));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Đăng nhập thất bại.");
     } finally { setBusy(false); }
@@ -56,15 +57,15 @@ export default function EntryScreen() {
     <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
         <Text style={[styles.eyebrow, { color: theme.brand }]}>30SHINE BOOKING</Text>
-        <Text style={[styles.title, { color: theme.text }]}>{staffMode ? "Đăng nhập Stylist" : "Đặt lịch nhanh"}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{staffMode ? "Đăng nhập nhân sự" : "Đặt lịch nhanh"}</Text>
         <Text style={[styles.description, { color: theme.textMuted }]}>
           {staffMode ? "Nhập tài khoản nhân sự để xem ca và lịch hẹn." : "Chỉ cần tên và số điện thoại để bắt đầu. Không cần tạo mật khẩu."}
         </Text>
 
         {staffMode ? <>
-          <TextInput accessibilityLabel="Email Stylist" autoCapitalize="none" keyboardType="email-address"
-            placeholder="Email Stylist" value={email} onChangeText={setEmail} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
-          <TextInput accessibilityLabel="Mật khẩu Stylist" placeholder="Mật khẩu" secureTextEntry
+          <TextInput accessibilityLabel="Email nhân sự" autoCapitalize="none" keyboardType="email-address"
+            placeholder="Email nhân sự" value={email} onChangeText={setEmail} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
+          <TextInput accessibilityLabel="Mật khẩu nhân sự" placeholder="Mật khẩu" secureTextEntry
             value={password} onChangeText={setPassword} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
         </> : <>
           <TextInput accessibilityLabel="Tên khách hàng" autoComplete="name" placeholder="Họ và tên"
@@ -73,12 +74,12 @@ export default function EntryScreen() {
             placeholder="Số điện thoại" value={phone} onChangeText={setPhone} style={[styles.input, { color: theme.text, borderColor: theme.border }]} />
         </>}
         {error ? <Text style={[styles.error, { color: theme.danger }]}>{error}</Text> : null}
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void (staffMode ? continueStylist() : continueCustomer()); }}
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void (staffMode ? continueStaff() : continueCustomer()); }}
           style={[styles.button, { backgroundColor: theme.brand, opacity: busy ? 0.6 : 1 }]}>
           <Text style={styles.buttonText}>{busy ? "Đang xử lý..." : staffMode ? "Đăng nhập" : "Bắt đầu sử dụng"}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => { setStaffMode((current) => !current); setError(null); }} style={styles.switch}>
-          <Text style={{ color: theme.brand }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là Stylist"}</Text>
+          <Text style={{ color: theme.brand }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự"}</Text>
         </Pressable>
         {!staffMode ? <Text style={[styles.note, { color: theme.textMuted }]}>
           Lịch trên thiết bị cũ chỉ hiện sau khi khôi phục bằng OTP demo. OTP không gửi SMS.

@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createHttpBookingAdapter, loginStylist } from "../src/booking/http-adapter.ts";
-import { isTokenExpired } from "../src/providers/auth-utils.ts";
+import { isTokenExpired, isMobileStaffRole, staffLanding } from "../src/providers/auth-utils.ts";
+
+test("Manager can enter the mobile staff area while System Admin cannot", () => {
+  assert.equal(isMobileStaffRole("general_manager"), true);
+  assert.equal(isMobileStaffRole("system_admin"), false);
+  assert.equal(staffLanding("general_manager"), "/(manager)/overview");
+  assert.equal(staffLanding("stylist"), "/(stylist)/today");
+});
 
 function createJwt(payload) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
