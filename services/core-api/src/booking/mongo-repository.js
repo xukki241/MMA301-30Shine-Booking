@@ -1,5 +1,20 @@
 const mongoose = require("mongoose");
 const { ACTIVE_STATUSES, ACTIONS, BookingError } = require("./rules");
+const { dayRange, encodeCursor } = require("../manager/query");
+
+function cursorMatch(field, cursor) {
+  if (!cursor) return {};
+  return { $or: [
+    { [field]: { $lt: cursor.time } },
+    { [field]: cursor.time, _id: { $lt: new mongoose.Types.ObjectId(cursor.id) } },
+  ] };
+}
+
+function paged(rows, limit, timeField) {
+  const items = rows.slice(0, limit).map((row) => ({ ...row, id: String(row._id), _id: undefined }));
+  const last = rows.length > limit ? rows[limit - 1] : null;
+  return { items, nextCursor: last ? encodeCursor(last[timeField], last._id) : null };
+}
 
 function plain(appointment) {
   return {
@@ -194,6 +209,64 @@ function createBookingRepository(Calendar) {
       if (!calendar) return null;
       const result = plain(calendar.appointments[0]);
       return { appointment: result, attempt: result.paymentAttempts.find((item) => item.requestId === input.requestId) };
+    },
+
+    async managerOverview({ date, branchId }) {
+      const [start, end] = dayRange(date);
+      const match = { "appointments.startTime": { $gte: start, $lt: end },
+        ...(branchId ? { "appointments.branchId": new mongoose.Types.ObjectId(branchId) } : {}) };
+      const rows = await Calendar.aggregate([
+        { $unwind: "$appointments" }, { $match: match },
+        { $group: { _id: "$appointments.status", count: { $sum: 1 } } },
+      ]).exec();
+      const counts = { booked: 0, completed: 0, paid: 0, cancelled: 0 };
+      for (const row of rows) if (row._id in counts) counts[row._id] = row.count;
+      return { date, counts };
+    },
+
+    async managerAppointments({ date, branchId, stylistId, status, cursor, limit }) {
+      const [start, end] = dayRange(date);
+      const match = { startTime: { $gte: start, $lt: end },
+        ...(branchId ? { branchId: new mongoose.Types.ObjectId(branchId) } : {}),
+        ...(stylistId ? { stylistId: new mongoose.Types.ObjectId(stylistId) } : {}),
+        ...(status ? { status } : {}), ...cursorMatch("startTime", cursor) };
+      const rows = await Calendar.aggregate([
+        { $unwind: "$appointments" }, { $replaceRoot: { newRoot: "$appointments" } },
+        { $match: match }, { $sort: { startTime: -1, _id: -1 } }, { $limit: limit + 1 },
+        { $project: { customerName: 1, stylistId: 1, branchId: 1, serviceId: 1,
+          bookedPrice: 1, startTime: 1, endTime: 1, status: 1, createdAt: 1, updatedAt: 1 } },
+      ]).exec();
+      return paged(rows, limit, "startTime");
+    },
+
+    async managerAppointment(id) {
+      return this.findById(id);
+    },
+
+    async managerPayments({ branchId, from, to, cursor, limit }) {
+      const match = { branchId: new mongoose.Types.ObjectId(branchId) };
+      const attemptedAt = {};
+      if (from) attemptedAt.$gte = dayRange(from)[0];
+      if (to) attemptedAt.$lt = dayRange(to)[1];
+      if (Object.keys(attemptedAt).length) match.attemptedAt = attemptedAt;
+      const base = [
+        { $unwind: "$appointments" },
+        { $match: { "appointments.branchId": new mongoose.Types.ObjectId(branchId) } },
+        { $unwind: "$appointments.paymentAttempts" },
+        { $project: { appointmentId: "$appointments._id", customerName: "$appointments.customerName",
+          branchId: "$appointments.branchId", _id: "$appointments.paymentAttempts._id",
+          requestId: "$appointments.paymentAttempts.requestId",
+          amount: "$appointments.paymentAttempts.amount", provider: "$appointments.paymentAttempts.provider",
+          status: "$appointments.paymentAttempts.status", attemptedAt: "$appointments.paymentAttempts.attemptedAt" } },
+        { $match: match },
+      ];
+      const [rows, totals] = await Promise.all([
+        Calendar.aggregate([...base, { $match: cursorMatch("attemptedAt", cursor) },
+          { $sort: { attemptedAt: -1, _id: -1 } }, { $limit: limit + 1 }]).exec(),
+        Calendar.aggregate([...base, { $match: { status: "success" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } }]).exec(),
+      ]);
+      return { ...paged(rows, limit, "attemptedAt"), simulatedTotal: totals[0]?.total || 0 };
     },
   };
 }
