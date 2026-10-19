@@ -1,3 +1,4 @@
+// Customer home screen - service browser and booking entry point
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
