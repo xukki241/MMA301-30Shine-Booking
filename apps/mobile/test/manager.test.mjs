@@ -3,6 +3,7 @@ import test from "node:test";
 import { managerToday } from "../src/manager/date.ts";
 import { createManagerApi } from "../src/manager/api.ts";
 import { canSubmitMutation, validateServiceDraft, validateShiftDraft } from "../src/manager/operations-model.ts";
+import { buildAppointmentQuery, buildPaymentQuery } from "../src/manager/filters.ts";
 
 test("Manager date uses Vietnam timezone", () => {
   assert.equal(managerToday(new Date("2030-10-20T17:01:00Z")), "2030-10-21");
@@ -33,4 +34,11 @@ test("Manager operation drafts reject bad service and shift data offline", () =>
     date: "2030-01-01", startAt: "2030-01-01T10:00:00+07:00", endAt: "2030-01-01T09:00:00+07:00" }), /kết thúc/i);
   assert.equal(canSubmitMutation("offline"), false);
   assert.equal(canSubmitMutation("online"), true);
+});
+
+test("Manager pagination preserves filters and payment history requires a branch", () => {
+  assert.equal(buildAppointmentQuery({ date: "2030-10-21", branchId: "b1", status: "paid" }, "next"),
+    "date=2030-10-21&branchId=b1&status=paid&cursor=next");
+  assert.throws(() => buildPaymentQuery({ branchId: "", from: "2030-10-20", to: "2030-10-21" }), /chi nhánh/i);
+  assert.throws(() => buildPaymentQuery({ branchId: "b1", from: "2030-10-22", to: "2030-10-21" }), /ngày/i);
 });

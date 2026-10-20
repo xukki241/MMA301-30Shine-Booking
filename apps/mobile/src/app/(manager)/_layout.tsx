@@ -18,5 +18,6 @@ export default function ManagerLayout() {
     <Tabs.Screen name="appointments" options={{ title: "Lịch đặt" }} />
     <Tabs.Screen name="operations" options={{ title: "Vận hành" }} />
     <Tabs.Screen name="payments" options={{ title: "Thanh toán" }} />
+    <Tabs.Screen name="appointment-detail" options={{ title: "Chi tiết lịch", href: null }} />
   </Tabs>;
 }

@@ -1,16 +1,9 @@
 import type { AppointmentFilters, Branch, ManagerAppointment, Overview, Page, PaymentFilters,
   PaymentPage, Service, Shift, Stylist } from "./types";
+import { buildAppointmentQuery, buildPaymentQuery, queryString } from "./filters.ts";
 
 const host = typeof window !== "undefined" || typeof document !== "undefined" ? "localhost" : "10.0.2.2";
 const defaultBaseUrl = (process.env.EXPO_PUBLIC_CORE_API_URL || `http://${host}:4102`).replace(/\/$/, "");
-
-function queryString(filters: Record<string, string | number | undefined>): string {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(filters)) {
-    if (value !== undefined && value !== "") query.set(key, String(value));
-  }
-  return query.toString();
-}
 
 export function createManagerApi(getToken: () => string | null, onUnauthorized: () => void,
   baseUrl = defaultBaseUrl) {
@@ -37,11 +30,10 @@ export function createManagerApi(getToken: () => string | null, onUnauthorized: 
     overview: (filters: { date?: string; branchId?: string }) =>
       request<Overview>(`/manager/overview?${queryString(filters)}`),
     appointments: (filters: AppointmentFilters) =>
-      request<Page<ManagerAppointment>>(`/manager/appointments?${queryString(filters)}`),
+      request<Page<ManagerAppointment>>(`/manager/appointments?${buildAppointmentQuery(filters)}`),
     appointment: (id: string) => request<ManagerAppointment>(`/manager/appointments/${encodeURIComponent(id)}`),
     payments: (filters: PaymentFilters) => {
-      if (!filters.branchId) throw new Error("Vui lòng chọn chi nhánh.");
-      return request<PaymentPage>(`/manager/payments?${queryString(filters)}`);
+      return request<PaymentPage>(`/manager/payments?${buildPaymentQuery(filters)}`);
     },
     branches: async () => (await request<{ branches: Branch[] }>("/branches")).branches,
     createBranch: (value: Partial<Branch>) => request<{ branch: Branch }>("/branches", body("POST", value)),
