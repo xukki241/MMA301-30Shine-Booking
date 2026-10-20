@@ -1,3 +1,4 @@
+// Booking MongoDB repository - data access layer for appointment persistence
 const mongoose = require("mongoose");
 const { ACTIVE_STATUSES, ACTIONS, BookingError } = require("./rules");
 const { dayRange, encodeCursor } = require("../manager/query");
