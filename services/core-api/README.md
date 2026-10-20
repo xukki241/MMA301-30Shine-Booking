@@ -6,7 +6,7 @@ JWT từ Auth Service cho Guest Customer vẫn mang role `customer`, kèm tên, 
 
 ## Catalog, Work Shift và Time Slot
 
-Core API phục vụ Admin Web tại `apps/admin-web` và luồng đặt lịch mobile. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `general_manager`. API đọc Catalog và Time Slot yêu cầu JWT của Customer Guest hoặc `general_manager`; `system_admin` không có quyền đọc dữ liệu vận hành. Trước khi gán hồ sơ thợ hoặc tạo/sửa ca, Core kiểm tra tài khoản `stylist` đang hoạt động qua Auth Service.
+Core API phục vụ app mobile Customer/Stylist/General Manager. Admin Web chỉ gọi Auth Service cho chức năng System Admin. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `general_manager`. API đọc Catalog và Time Slot yêu cầu JWT của Customer Guest hoặc `general_manager`; `system_admin` không có quyền đọc dữ liệu vận hành. Trước khi gán hồ sơ thợ hoặc tạo/sửa ca, Core kiểm tra tài khoản `stylist` đang hoạt động qua Auth Service.
 
 ### Work Shift
 
@@ -74,7 +74,7 @@ hết hạn, nbf trong tương lai, sai thuật toán/role/claims và public hea
 Core API triển khai Catalog, Work Shift/Time Slot và booking. Khi Work Shift được cấu hình,
 POST /appointments xác thực stylist/branch/service assignment, Service duration và ca làm
 trước khi ghi lịch. Overlap appointment vẫn được chặn atomically trong stylist calendar.
-Pay là mock chuyển trạng thái, không thu tiền và không tạo payment gateway/refund.
+Pay là mô phỏng MoMo/VNPay, không thu tiền và không tạo payment gateway/refund. Mỗi lần thử lưu Payment Attempt; chỉ lần thành công chuyển lịch sang `paid`.
 
 Core dùng Mongoose cùng major version với Auth Service.
 Đặt MONGODB_URI trỏ đến database **Core** (ví dụ shine_core) trong .env.
@@ -84,8 +84,8 @@ Không có repository in-memory cho server.
 ### Model và chống double-book atomic
 
 Collection `stylist_calendars`: mỗi document có `_id = stylistId`.
-Mỗi phần tử `appointments` có `_id, customerId, stylistId, branchId, serviceId, startTime, endTime, status,
-createdAt, updatedAt`. Trạng thái chỉ gồm booked/completed/paid/cancelled.
+Mỗi phần tử `appointments` có `_id, customerId, stylistId, branchId, serviceId, startTime, endTime, bookedPrice, status,
+paymentAttempts, createdAt, updatedAt`. Trạng thái chỉ gồm booked/completed/paid/cancelled.
 Khoảng giờ phải có startTime < endTime.
 
 1. Bootstrap calendar rỗng bằng upsert trên `_id` (unique index có sẵn).
@@ -116,9 +116,13 @@ Mọi endpoint yêu cầu header `Authorization: Bearer <accessToken>`, dùng mi
 | POST | /appointments | customer; branchId, serviceId, stylistId, startTime, endTime khi Work Shift bật | 201 + appointment booked; outside shift/service hoặc overlap 409 |
 | POST | /appointments/:id/complete | stylist được gán; body rỗng | 200 + completed |
 | POST | /appointments/:id/cancel | customer sở hữu; body rỗng | 200 + cancelled |
-| POST | /appointments/:id/pay | customer sở hữu; body rỗng | 200 + paid mock |
+| POST | /appointments/:id/pay | customer sở hữu; `{provider, outcome, requestId}` | 200 + attempt; chỉ `outcome=success` chuyển `paid` |
+| GET | /manager/overview | general_manager; date, branchId tùy chọn | Tổng quan lịch và tổng thu mô phỏng |
+| GET | /manager/appointments | general_manager; lọc date/branchId/stylistId/status, phân trang | Danh sách lịch chỉ đọc |
+| GET | /manager/appointments/:id | general_manager | Chi tiết lịch chỉ đọc |
+| GET | /manager/payments | general_manager; branchId bắt buộc, `from`/`to` tùy chọn, phân trang | Payment Attempt thành công và thất bại, tổng thành công |
 
-Book không nhận customerId/status từ client; lấy customerId từ JWT. Branch/service/stylist ID và
+Book không nhận customerId/status/giá từ client; lấy customerId từ JWT và chốt giá hiện hành của Service tại lúc đặt. Branch/service/stylist ID và
 thời gian phải thuộc dữ liệu hiện hành; khi Work Shift bật, duration phải bằng Service duration.
 Datetime dùng ISO 8601 có timezone, ví dụ 2030-10-20T10:00:00Z hoặc 2030-10-20T17:00:00+07:00.
 ID là Mongo ObjectId dạng 24 ký tự hex. Field thừa bị từ chối.
@@ -150,7 +154,8 @@ booked -- assigned stylist complete --> completed -- owner customer pay --> paid
    +---- owner customer cancel ------> cancelled
 ```
 
-Mọi transition khác (kể cả lặp cùng action) trả 400 với actor hợp lệ.
+Thanh toán thất bại giữ lịch ở `completed` để Customer thử lại; requestId lặp lại trả cùng kết quả attempt. Lịch cũ thiếu `bookedPrice` không thể thanh toán mô phỏng và trả 409.
+Mọi transition khác (kể cả lặp cùng action, ngoại trừ requestId thanh toán lặp) trả 400 với actor hợp lệ.
 Mỗi update chứa cả id, owner và trạng thái nguồn trong filter (compare-and-set).
 Nếu complete và cancel chạy cùng lúc, chỉ một transition được lưu; request còn lại trả 400.
 Không có PATCH/PUT generic để bypass state machine.
@@ -166,9 +171,10 @@ npm run test:booking
 # Cấu hình TEST_MONGODB_URI trong .env trỏ Mongo test thật:
 npm run test:booking:integration
 npm run test:work-shifts:integration
+npm run test:manager:integration
 ```
 
-- npm test: SHINE-02 auth middleware, SHINE-03 booking và Work Shift contract.
+- npm test: auth middleware, booking/payment, Work Shift và Manager API contract.
 - test:booking: unit/service/HTTP với repository double và schema validation offline.
   Pass ở đây **không chứng minh** atomic concurrency Mongo.
 - test:booking:integration: hai kết nối Mongo, hai app instance, nhiều cặp POST đồng thời;
@@ -183,6 +189,7 @@ npm run test:work-shifts:integration
 ### Tái hiện 409 bằng HTTP
 
 Dùng Customer token từ /auth/login, stylistId là id của Stylist.
+Với Customer Guest mới, lấy token từ endpoint Guest Session của Auth Service.
 Trong PowerShell (thay placeholder bằng token/id demo thực tế):
 
 ```powershell

@@ -1,5 +1,4 @@
 const authBase = (import.meta.env.VITE_AUTH_API_URL || "http://localhost:4101").replace(/\/$/, "");
-const coreBase = (import.meta.env.VITE_CORE_API_URL || "http://localhost:4102").replace(/\/$/, "");
 
 async function request(base, path, { token, ...init } = {}) {
   let response;
@@ -38,16 +37,4 @@ export const api = {
   systemHealth: (token) => request(authBase, "/admin/health", { token }),
   auditEvents: (token, filters = {}) => request(authBase,
     `/admin/audit?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value)).toString()}`, { token }).then((data) => data.events),
-  listBranches: (token) => request(coreBase, "/branches", { token }).then((data) => data.branches),
-  saveBranch: (token, branch, id) => request(coreBase, id ? `/branches/${id}` : "/branches", { token, ...json(id ? "PUT" : "POST", branch) }),
-  deleteBranch: (token, id) => request(coreBase, `/branches/${id}`, { token, method: "DELETE" }),
-  listServices: (token, branchId) => request(coreBase, `/branches/${branchId}/services`, { token }).then((data) => data.services),
-  saveService: (token, branchId, service, id) => request(coreBase, id ? `/services/${id}` : `/branches/${branchId}/services`, { token, ...json(id ? "PUT" : "POST", service) }),
-  deleteService: (token, id) => request(coreBase, `/services/${id}`, { token, method: "DELETE" }),
-  listStylists: (token, branchId) => request(coreBase, `/branches/${branchId}/stylists`, { token }).then((data) => data.stylists),
-  saveStylist: (token, branchId, stylist, id) => request(coreBase, id ? `/stylists/${id}` : `/branches/${branchId}/stylists`, { token, ...json(id ? "PUT" : "POST", stylist) }),
-  deleteStylist: (token, id) => request(coreBase, `/stylists/${id}`, { token, method: "DELETE" }),
-  listShifts: (token, branchId, date) => request(coreBase, `/work-shifts?branchId=${encodeURIComponent(branchId)}&date=${encodeURIComponent(date)}`, { token }).then((data) => data.workShifts),
-  saveShift: (token, shift, id) => request(coreBase, id ? `/work-shifts/${id}` : "/work-shifts", { token, ...json(id ? "PUT" : "POST", shift) }),
-  deleteShift: (token, id) => request(coreBase, `/work-shifts/${id}`, { token, method: "DELETE" }),
 };

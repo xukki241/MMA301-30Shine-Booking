@@ -1,6 +1,6 @@
 # Chương 1. Giới thiệu đề tài
 
-> **Thiết kế mục tiêu:** bốn role và tách quản trị hệ thống khỏi vận hành chuỗi. SHINE-26 đã chuyển `shop_admin` cũ sang `system_admin`, cấp quyền catalog/ca cho `general_manager` và thêm màn System Admin. Màn Manager theo dõi lịch và thanh toán theo chi nhánh còn trong backlog; hiện trạng chi tiết ở [Chương 8](./08-admin-web.md).
+> **Thiết kế mục tiêu:** bốn role và tách quản trị hệ thống khỏi vận hành chuỗi. SHINE-26 đã chuyển `shop_admin` cũ sang `system_admin`, cấp quyền catalog/ca cho `general_manager` và thêm màn System Admin. Core API và app Expo đã có luồng Manager theo dõi lịch, giao dịch; cần kiểm thử hành trình trên thiết bị. Hiện trạng chi tiết ở [Chương 8](./08-admin-web.md).
 
 ## 1.1. Tên đề tài và bối cảnh
 

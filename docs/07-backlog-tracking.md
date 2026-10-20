@@ -19,21 +19,21 @@ Backlog SHINE-01–14 dưới đây phản ánh **phạm vi và tiến độ ban
 | SHINE-13 | Huy | Dễ | Stylist lịch hôm nay |
 | SHINE-14 | Kiên | Khó | E2E book→complete→pay |
 
-SHINE-12 admin-web CRUD/Work Shift và phần Work Shift/Time Slot của SHINE-06 đã chuyển quyền ghi sang **`general_manager`** trong SHINE-26; xem [08-admin-web.md](./08-admin-web.md) để biết hiện trạng. Mobile Booking Wizard dùng catalog/slot thật và tạo booking có Customer JWT; các phần còn lại cần xác nhận bằng code trước khi đánh dấu hoàn thành.
+SHINE-12 admin-web CRUD/Work Shift và phần Work Shift/Time Slot của SHINE-06 đã chuyển quyền ghi sang **`general_manager`** trong SHINE-26. Manager thao tác trên app Expo, còn Admin Web chỉ phục vụ System Admin; xem [08-admin-web.md](./08-admin-web.md). Mobile Booking Wizard dùng catalog/slot thật và tạo booking có Customer Guest JWT.
 
 Flow Customer nhập tên + số điện thoại đã có trong Auth Service, Core API và Mobile. Guest Session chỉ xem lịch của mình trên thiết bị hiện tại; OTP demo đọc từ console Auth Service mở quyền xem lịch guest cũ cùng số. OTP không gửi SMS. Xem [ADR 0007](./adr/0007-customer-name-phone-guest-session.md). Bản ghi tài khoản Customer email/mật khẩu cũ vẫn có thể nằm trong database nhưng endpoint đăng ký công khai đã đóng và login nhân sự từ chối chúng. Ranh giới `system_admin`/`general_manager` đã được triển khai trong SHINE-26.
 
 ## Phân quyền và System Admin (SHINE-26)
 
-Auth/Core/Admin Web đã có `system_admin` và `general_manager`, chuyển `shop_admin` cũ, tài khoản nhân sự CRUD qua khóa mềm, health và audit metadata. Customer Guest không nằm trong màn quản trị. Kiểm tra phiên nhân sự qua Auth khiến khóa/đổi role có hiệu lực ở Core. Test Auth, Work Shift và hợp đồng hai service với MongoDB thật đã qua; Admin Web đã được xem trong trình duyệt ở cả hai role trên dữ liệu thử.
+Auth/Core/Admin Web đã có `system_admin` và `general_manager`, chuyển `shop_admin` cũ, tài khoản nhân sự CRUD qua khóa mềm, health và audit metadata. Customer Guest không nằm trong màn quản trị. Kiểm tra phiên nhân sự qua Auth khiến khóa/đổi role có hiệu lực ở Core. Admin Web hiện chỉ nhận System Admin; Manager vào app Expo. Test Auth, Work Shift và hợp đồng hai service với MongoDB thật đã qua. UI mới cần kiểm thử trên thiết bị/emulator.
 
-## Backlog còn lại từ thiết kế mục tiêu
+## Trạng thái luồng Manager mobile và thanh toán mô phỏng
 
-| Hạng mục | Kết quả cần có |
+| Hạng mục | Trạng thái code |
 |---|---|
-| Manager web | Tổng quan/lọc lịch mọi Branch, tra cứu Appointment và Payment Attempt theo Branch; catalog/Stylist Profile/Work Shift đã thuộc quyền Manager |
-| Thanh toán có lịch sử | Giá chốt lúc đặt; Payment Attempt thành công/thất bại theo Branch; thống kê chỉ tính thành công; UI ghi không trừ tiền thật |
-| Kiểm thử tích hợp còn lại | Kiểm tra toàn bộ hành trình UI với dữ liệu nghiệp vụ thật và audit khi dịch vụ phụ thuộc lỗi |
-| Thanh toán mục tiêu | Test giá cũ sau sửa Service và thử lại Payment Attempt thất bại |
+| Manager mobile | Đã có Tổng quan, Lịch đặt chỉ đọc/lọc, Vận hành Branch/Service/Stylist/Work Shift và lịch sử Payment Attempt theo Branch |
+| Thanh toán có lịch sử | Core lưu giá chốt và attempt thành công/thất bại; tổng thu chỉ tính thành công; mobile ghi rõ không trừ tiền thật |
+| Giá cũ và thử lại | Test Core bao phủ thay đổi giá sau đặt và thanh toán thất bại rồi thử lại |
+| Kiểm thử thiết bị còn lại | Cần chạy hành trình Customer → Stylist → Manager và Admin trên emulator/thiết bị với Auth/Core/Mongo thật, gồm lỗi phụ thuộc và audit |
 
-Các hạng mục trong bảng cuối là **việc cần làm**, không phải tuyên bố đã triển khai. ADR 0006 và Chương 2–3 là nguồn yêu cầu; OpenAPI mô tả code đang chạy.
+Các mục đã có code là trạng thái triển khai, không thay cho kiểm thử UI trên thiết bị. ADR 0006 và Chương 2–3 là nguồn yêu cầu; OpenAPI mô tả API đang chạy.

@@ -2,7 +2,7 @@
 
 Ngày: 2026-10-20
 
-Trạng thái: Chờ duyệt đặc tả trước khi lập kế hoạch triển khai
+Trạng thái: Đã được duyệt ngày 2026-10-20; kế hoạch triển khai ở `docs/superpowers/plans/2026-10-20-manager-core-api.md` và `docs/superpowers/plans/2026-10-20-manager-mobile.md`.
 
 ## 1. Mục tiêu và quyết định
 

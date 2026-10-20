@@ -1,4 +1,4 @@
-# Mobile Expo — Customer + Stylist
+# Mobile Expo — Customer, Stylist và General Manager
 
 Customer nhập tên + số điện thoại ở màn bắt đầu, không cần email/mật khẩu. App nhận Guest Session từ Auth Service rồi chạy Booking Wizard Branch → Service → Stylist → date/slot → review → confirm. Lịch trên cùng thiết bị được giữ qua bí mật phiên; trên thiết bị mới, Customer có thể vào app ngay và dùng OTP demo để khôi phục lịch cũ cùng số.
 
@@ -19,13 +19,13 @@ npm ci
 npm run android
 ```
 
-Màn Customer không còn form email/mật khẩu. Màn Stylist vẫn đăng nhập tài khoản nhân sự bằng email/mật khẩu. OTP demo chỉ được ghi ở console Auth Service, không gửi SMS, không mất phí; để thử khôi phục, vào **Lịch hẹn → Lấy mã khôi phục**, đọc mã trên server rồi nhập vào app. Phiên chưa khôi phục chỉ thấy lịch do thiết bị đó đặt. `deviceSecret` hiện lưu trong AsyncStorage cho bản demo; cần storage bảo mật hơn trước khi phát hành công khai.
+Màn Customer không có form email/mật khẩu. Stylist và General Manager đăng nhập tài khoản nhân sự bằng email/mật khẩu; app chuyển đến khu vực theo role. OTP demo chỉ được ghi ở console Auth Service, không gửi SMS, không mất phí; để thử khôi phục, vào **Lịch hẹn → Lấy mã khôi phục**, đọc mã trên server rồi nhập vào app. Phiên chưa khôi phục chỉ thấy lịch do thiết bị đó đặt. `deviceSecret` hiện lưu trong AsyncStorage cho bản demo; cần storage bảo mật hơn trước khi phát hành công khai.
 
 ## Checks
 
 ```powershell
 npm run typecheck
-npm run test:appointments
+npm test
 npm run export:android
 ```
 
@@ -33,8 +33,10 @@ npm run export:android
 
 ## Current scope
 
-- Customer: real catalog, Work Shift-derived slots and booking POST.
-- Stylist schedule and Customer appointment list still use the existing demo/placeholder data sources.
+- Customer: catalog, slot từ Work Shift, đặt/hủy lịch, lịch sử của phiên Guest và thanh toán MoMo/VNPay mô phỏng sau khi Stylist hoàn thành. Mọi màn thanh toán ghi rõ không trừ tiền thật.
+- Stylist: đăng nhập nhân sự, xem lịch được giao và xác nhận hoàn thành.
+- General Manager: bốn khu vực **Tổng quan**, **Lịch đặt**, **Vận hành** và **Thanh toán**. Manager quản lý chi nhánh/dịch vụ/hồ sơ thợ/ca, chỉ xem và lọc lịch, xem các lần thanh toán thành công hoặc thất bại theo chi nhánh.
+- System Admin chỉ dùng Admin Web, không vào mobile.
 - Booking source is `src/booking/http-adapter.ts`; the interface is `src/booking/types.ts`.
 - Metro giữ cache cũ: `npm start -- --clear`.
 - Không thấy emulator: mở Android Studio > Device Manager và khởi động thiết bị.

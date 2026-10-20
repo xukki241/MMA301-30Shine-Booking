@@ -1,13 +1,13 @@
 # Chương 3. Thiết kế hệ thống — trạng thái mục tiêu
 
-> Sơ đồ liên vai trò là thiết kế đầy đủ. Core API đã lưu giá chốt, Payment Attempt mô phỏng và cung cấp API chỉ đọc cho Manager. Giao diện Manager trên mobile và việc thu hẹp Admin Web đang triển khai theo [kế hoạch](./superpowers/plans/2026-10-20-manager-mobile.md). Hợp đồng API hiện tại xem `/openapi.json` của Core.
+> Sơ đồ liên vai trò mô tả luồng mục tiêu. Core API đã lưu giá chốt, Payment Attempt mô phỏng và cung cấp API chỉ đọc cho Manager. Manager dùng app Expo chung với Customer/Stylist; Admin Web chỉ dành cho System Admin. Xem [kế hoạch](./superpowers/plans/2026-10-20-manager-mobile.md) và `/openapi.json` của Core để đối chiếu code.
 
 ## 3.1. Thành phần và ranh giới
 
 | Thành phần | Trách nhiệm mục tiêu |
 |---|---|
-| `apps/mobile` | UI Customer và Stylist |
-| `apps/admin-web` | UI riêng theo role: System Admin quản trị hệ thống, General Manager vận hành chuỗi |
+| `apps/mobile` | UI Customer, Stylist và General Manager |
+| `apps/admin-web` | UI System Admin quản trị tài khoản nhân sự, health và audit |
 | `services/auth-service` | Phiên Customer tên + số điện thoại; OTP demo khôi phục; tài khoản nhân sự và quyền |
 | `services/core-api` | Branch, Service, Stylist Profile, Work Shift, Appointment, Payment Attempt và tra cứu vận hành |
 | MongoDB | Lưu User và dữ liệu nghiệp vụ; audit log lưu bền vững |
@@ -39,8 +39,8 @@ Audit Log (metadata thao tác quan trọng)
 | Service | id, branchId, name, price, durationMinutes |
 | Stylist Profile | userId, branchId, displayName, isActive |
 | Work Shift | id, stylistId, branchId, date, startAt, endAt |
-| Appointment | id, customerId, customerName, customerPhone, branchId, serviceId, stylistId, startAt, endAt, **bookedPrice**, status |
-| Payment Attempt | id, appointmentId, branchId, amount, provider, status (success/failed), attemptedAt |
+| Appointment | id, customerId, customerName, customerPhone, branchId, serviceId, stylistId, startTime, endTime, **bookedPrice**, status |
+| Payment Attempt | id, appointmentId, branchId, amount, provider, status (success/failed), attemptedAt, requestId |
 | Audit Log | id, actorId (có thể rỗng khi đăng nhập thất bại), action, targetType, targetId, result, occurredAt |
 
 `bookedPrice` và `Payment Attempt.amount` là số tiền **mô phỏng**. Payment Attempt thất bại không làm đổi trạng thái Appointment. Các Payment Attempt của một lịch phải tham chiếu Branch của lịch đó; chỉ một lần thành công được ghi nhận và tính vào tổng tiền mô phỏng.
@@ -78,7 +78,7 @@ Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao v
 
 **Stylist:** Đăng nhập → xem lịch hôm nay theo ca → mở chi tiết lịch của mình → phục vụ → đánh dấu `completed`. Stylist không tạo Work Shift và không thanh toán thay Customer.
 
-**General Manager:** Đăng nhập web → tổng quan lịch hôm nay → lọc theo ngày/Branch/Stylist/trạng thái → quản lý Branch/Service/Stylist Profile → phân Work Shift → xem lịch sử Payment Attempt theo Branch (thành công và thất bại) cùng tổng thành công. Manager không tạo User; chỉ gán hồ sơ cho User `stylist` đã được Admin cấp.
+**General Manager:** Đăng nhập app Expo → tổng quan lịch hôm nay → lọc theo ngày/Branch/Stylist/trạng thái → quản lý Branch/Service/Stylist Profile → phân Work Shift → xem lịch sử Payment Attempt theo Branch (thành công và thất bại) cùng tổng thành công. Manager chỉ xem/tra cứu lịch, không đổi trạng thái; không tạo User mà chỉ gán hồ sơ cho User `stylist` đã được Admin cấp.
 
 **System Admin:** Đăng nhập web → quản lý tài khoản nhân sự/role → tạo, sửa, khóa mềm, khôi phục → xem health Auth/Core/database → lọc audit log. Customer Guest không nằm trong danh sách. Chặn khóa/đổi role Stylist nếu còn ca tương lai hoặc lịch chưa xử lý. Admin không vào màn lịch, catalog hay thanh toán.
 
@@ -96,4 +96,4 @@ Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao v
 
 ## 3.6. Chuyển đổi từ code hiện tại
 
-Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Core API hiện ghi Payment Attempt và chỉ đưa lịch sang `paid` sau attempt thành công; lịch cũ không có `bookedPrice` được giữ nguyên và không thể thanh toán mô phỏng. Giao diện mobile Manager vẫn đang triển khai.
+Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Core API ghi Payment Attempt và chỉ đưa lịch sang `paid` sau attempt thành công; lịch cũ không có `bookedPrice` được giữ nguyên và không thể thanh toán mô phỏng. Manager hiện dùng app Expo; cần kiểm thử toàn bộ hành trình trên thiết bị/emulator với các service đang chạy.
