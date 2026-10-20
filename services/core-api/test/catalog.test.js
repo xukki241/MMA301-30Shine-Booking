@@ -273,6 +273,24 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       const data = await res.json();
       assert.equal(data.service.price, 150000);
     });
+
+    await tService.test("service price must be a safe whole VND amount for mock payment", async () => {
+      const headers = { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" };
+      for (const price of [120000.5, Number.MAX_SAFE_INTEGER + 1]) {
+        const create = await fetch(`${base}/branches/${createdBranchId}/services`, {
+          method: "POST", headers,
+          body: JSON.stringify({ name: "Gia khong hop le", price, durationMinutes: 45 }),
+        });
+        assert.equal(create.status, 400, `create accepted ${price}`);
+        const update = await fetch(`${base}/services/${createdServiceId}`, {
+          method: "PUT", headers, body: JSON.stringify({ price }),
+        });
+        assert.equal(update.status, 400, `update accepted ${price}`);
+        await assert.rejects(Service.create({ branchId: createdBranchId, name: "Gia sai",
+          price, durationMinutes: 45 }), /Giá dịch vụ phải là số nguyên VND an toàn/);
+      }
+      assert.equal((await Service.findById(createdServiceId)).price, 150000);
+    });
   });
 
   // --- 3. Stylist Profile API Tests ---

@@ -130,7 +130,7 @@
           "id": { "type": "string", "example": "660c22223333444455556666" },
           "branchId": { "type": "string", "example": "660c11112222333344445555" },
           "name": { "type": "string", "example": "Combo Shine Master (Cắt, gội, vuốt sáp)" },
-          "price": { "type": "number", "example": 100000 },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "description": "Số nguyên VND an toàn", "example": 100000 },
           "durationMinutes": { "type": "integer", "example": 45 },
           "description": { "type": "string", "example": "Quy trình cắt gội 10 bước chuẩn phong cách quý ông" },
           "isActive": { "type": "boolean", "example": true },
@@ -143,7 +143,7 @@
         "required": ["name", "price", "durationMinutes"],
         "properties": {
           "name": { "type": "string", "minLength": 2, "example": "Uốn tóc phong cách Hàn Quốc" },
-          "price": { "type": "number", "minimum": 0, "example": 350000 },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "example": 350000 },
           "durationMinutes": { "type": "integer", "minimum": 5, "maximum": 480, "example": 90 },
           "description": { "type": "string", "example": "Định hình form tóc tự nhiên" },
           "isActive": { "type": "boolean", "default": true, "example": true }
@@ -153,7 +153,7 @@
         "type": "object",
         "properties": {
           "name": { "type": "string", "minLength": 2, "example": "Uốn tóc phong cách Hàn Quốc" },
-          "price": { "type": "number", "minimum": 0, "example": 350000 },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "example": 350000 },
           "durationMinutes": { "type": "integer", "minimum": 5, "maximum": 480, "example": 90 },
           "description": { "type": "string", "example": "Định hình form tóc tự nhiên" },
           "isActive": { "type": "boolean", "example": true }

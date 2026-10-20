@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
 import { useConnectivity } from "@/offline/network-provider";
 import { managerToday } from "@/manager/date";
-import { canSubmitMutation, localTime, validateServiceDraft, validateShiftDraft } from "@/manager/operations-model";
+import { canSubmitMutation, createLatestRequestGate, localTime, validateServiceDraft, validateShiftDraft } from "@/manager/operations-model";
 import type { Branch, Service, Shift, Stylist } from "@/manager/types";
 import { useManagerApi } from "@/manager/use-manager-api";
 
@@ -22,6 +22,7 @@ export default function ManagerOperations() {
   const [stylists, setStylists] = useState<Stylist[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [branchId, setBranchId] = useState("");
+  const [shiftStylistId, setShiftStylistId] = useState("");
   const [date, setDate] = useState(managerToday);
   const [editing, setEditing] = useState<{ id?: string; draft: Record<string, string> } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -29,24 +30,31 @@ export default function ManagerOperations() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0);
+  const requestGate = useRef(createLatestRequestGate());
 
   const load = useCallback(async () => {
-    setLoading(true); setError("");
+    const request = requestGate.current.begin();
+    setLoading(true); setError(""); setServices([]); setStylists([]); setShifts([]);
     try {
       const next = await api.branches();
+      if (!requestGate.current.isCurrent(request)) return;
       setBranches(next);
       const selected = next.some((branch) => branch.id === branchId) ? branchId : next[0]?.id || "";
-      if (selected !== branchId) setBranchId(selected);
+      if (selected !== branchId) { setBranchId(selected); setShiftStylistId(""); return; }
       if (selected) {
         const [nextServices, nextStylists, nextShifts] = await Promise.all([
-          api.services(selected), api.stylists(selected), api.shifts(selected, date),
+          api.services(selected), api.stylists(selected), api.shifts(selected, date, shiftStylistId || undefined),
         ]);
+        if (!requestGate.current.isCurrent(request)) return;
         setServices(nextServices); setStylists(nextStylists); setShifts(nextShifts);
       } else { setServices([]); setStylists([]); setShifts([]); }
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không tải được dữ liệu."); }
-    finally { setLoading(false); }
-  }, [api, branchId, date]);
-  useEffect(() => { void load(); }, [load, revision]);
+    } catch (cause) { if (requestGate.current.isCurrent(request)) setError(cause instanceof Error ? cause.message : "Không tải được dữ liệu."); }
+    finally { if (requestGate.current.isCurrent(request)) setLoading(false); }
+  }, [api, branchId, date, shiftStylistId]);
+  useEffect(() => {
+    void load();
+    return () => requestGate.current.invalidate();
+  }, [load, revision]);
 
   function open(item?: Item) {
     const value = item as unknown as Record<string, string | number | boolean> | undefined;
@@ -127,8 +135,14 @@ export default function ManagerOperations() {
     <View style={styles.row}>{(Object.keys(labels) as Kind[]).map((value) => <Action key={value}
       label={labels[value]} onPress={() => { setKind(value); setEditing(null); setError(""); }} selected={kind === value} />)}</View>
     {kind !== "branch" && <Card><CardTitle>Chi nhánh</CardTitle><View style={styles.row}>{branches.map((branch) =>
-      <Action key={branch.id} label={branch.name} selected={branch.id === branchId} onPress={() => setBranchId(branch.id)} />)}</View>
-      {kind === "shift" && <Field label="Lọc ngày YYYY-MM-DD" value={date} onChange={setDate} />}</Card>}
+      <Action key={branch.id} label={branch.name} selected={branch.id === branchId}
+        onPress={() => { setBranchId(branch.id); setShiftStylistId(""); }} />)}</View>
+      {kind === "shift" && <><Field label="Lọc ngày YYYY-MM-DD" value={date} onChange={setDate} />
+        <CardText>Lọc theo thợ</CardText><View style={styles.row}>
+          <Action label="Tất cả" selected={!shiftStylistId} onPress={() => setShiftStylistId("")} />
+          {stylists.map((stylist) => <Action key={stylist.id} label={stylist.displayName}
+            selected={shiftStylistId === stylist.userId} onPress={() => setShiftStylistId(stylist.userId)} />)}
+        </View></>}</Card>}
     <Action label="Tải lại" onPress={() => { void load(); }} disabled={loading} />
     {loading && <Text style={{ color: theme.textMuted }}>Đang tải...</Text>}
     {!!error && <Text style={{ color: theme.danger }}>{error}</Text>}

@@ -2,6 +2,15 @@ export function canSubmitMutation(connectivity: "online" | "offline" | "unknown"
   return connectivity !== "offline";
 }
 
+export function createLatestRequestGate() {
+  let current = 0;
+  return {
+    begin: () => ++current,
+    isCurrent: (request: number) => request === current,
+    invalidate: () => { current += 1; },
+  };
+}
+
 export function validateServiceDraft(draft: { name: string; price: number; durationMinutes: number }): string | null {
   if (draft.name.trim().length < 2) return "Cần tên dịch vụ ít nhất 2 ký tự.";
   if (!Number.isSafeInteger(draft.price) || draft.price < 0) return "Giá dịch vụ không hợp lệ.";

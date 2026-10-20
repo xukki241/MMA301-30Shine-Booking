@@ -84,6 +84,11 @@ test("Work Shift repository persists local-day shifts and computes appointment-a
   const available = await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date });
   assert.equal(available.length, 3);
   await repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(initialSlots[1].endTime) });
+  await Service.collection.updateOne({ _id: service._id }, { $set: { price: 10.5 } });
+  await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id),
+    stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(initialSlots[1].endTime) }),
+  (error) => error instanceof BookingError && error.status === 409);
+  await Service.collection.updateOne({ _id: service._id }, { $set: { price: 10 } });
   await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(new Date(initialSlots[1].startTime).getTime() + 30 * 60000) }), (error) => error instanceof BookingError && error.status === 409);
   await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date("2030-10-20T02:15:00Z"), endTime: new Date("2030-10-20T03:00:00Z") }), (error) => error instanceof BookingError && error.status === 409);
 

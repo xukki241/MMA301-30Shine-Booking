@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { managerToday } from "../src/manager/date.ts";
 import { createManagerApi } from "../src/manager/api.ts";
-import { canSubmitMutation, validateServiceDraft, validateShiftDraft } from "../src/manager/operations-model.ts";
+import { canSubmitMutation, createLatestRequestGate, validateServiceDraft, validateShiftDraft } from "../src/manager/operations-model.ts";
 import { buildAppointmentQuery, buildPaymentQuery } from "../src/manager/filters.ts";
 
 test("Manager date uses Vietnam timezone", () => {
@@ -34,6 +34,16 @@ test("Manager operation drafts reject bad service and shift data offline", () =>
     date: "2030-01-01", startAt: "2030-01-01T10:00:00+07:00", endAt: "2030-01-01T09:00:00+07:00" }), /kết thúc/i);
   assert.equal(canSubmitMutation("offline"), false);
   assert.equal(canSubmitMutation("online"), true);
+});
+
+test("Operations ignores an older branch response after a faster branch selection", () => {
+  const gate = createLatestRequestGate();
+  const branchA = gate.begin();
+  const branchB = gate.begin();
+  assert.equal(gate.isCurrent(branchB), true);
+  assert.equal(gate.isCurrent(branchA), false);
+  gate.invalidate();
+  assert.equal(gate.isCurrent(branchB), false);
 });
 
 test("Manager pagination preserves filters and payment history requires a branch", () => {

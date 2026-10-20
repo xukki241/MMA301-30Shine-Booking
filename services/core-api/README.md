@@ -7,6 +7,7 @@ JWT từ Auth Service cho Guest Customer vẫn mang role `customer`, kèm tên, 
 ## Catalog, Work Shift và Time Slot
 
 Core API phục vụ app mobile Customer/Stylist/General Manager. Admin Web chỉ gọi Auth Service cho chức năng System Admin. Catalog CRUD Branch/Service/Stylist hiện có; API ghi chỉ cho `general_manager`. API đọc Catalog và Time Slot yêu cầu JWT của Customer Guest hoặc `general_manager`; `system_admin` không có quyền đọc dữ liệu vận hành. Trước khi gán hồ sơ thợ hoặc tạo/sửa ca, Core kiểm tra tài khoản `stylist` đang hoạt động qua Auth Service.
+Giá Service là số nguyên VND không âm trong giới hạn số nguyên an toàn của JavaScript; cùng ràng buộc này được dùng cho `bookedPrice` và Payment Attempt.
 
 ### Work Shift
 
