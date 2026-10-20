@@ -1,3 +1,4 @@
+// Booking routes - Express router for customer and stylist booking endpoints
 const { Router } = require("express");
 const { BookingError, validateBooking } = require("./rules");
 const { createBookingService } = require("./service");
