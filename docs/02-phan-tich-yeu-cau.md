@@ -1,6 +1,6 @@
 # Chương 2. Phân tích yêu cầu — thiết kế mục tiêu
 
-> Ma trận là thiết kế đầy đủ. SHINE-26 đã triển khai ranh giới quyền và System Admin; màn Manager theo dõi lịch/thanh toán và Payment Attempt theo Branch chưa triển khai. Xem `08-admin-web.md`.
+> Ma trận là thiết kế đầy đủ. SHINE-26 đã triển khai ranh giới quyền và System Admin; Core API và app Expo có màn Manager theo dõi lịch và Payment Attempt theo Branch. Cần kiểm thử hành trình UI trên thiết bị. Xem [Chương 8](./08-admin-web.md).
 
 ## 2.1. Ma trận quyền
 

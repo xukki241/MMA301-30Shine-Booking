@@ -19,4 +19,4 @@ MVP ban đầu có `customer`, `stylist`, `shop_admin`; đăng ký công khai t�
 
 - Quyền vận hành Work Shift trong ADR 0005 đã chuyển từ role code cũ `shop_admin` sang `general_manager`; Stylist vẫn không tự khai báo ca.
 - Luồng đặt lịch và thời điểm thanh toán trong ADR 0002–0004 giữ nguyên. Giá được chốt lúc đặt; mọi lần thanh toán mô phỏng được lưu để Manager tra cứu, chỉ lần thành công đưa lịch sang `paid`.
-- Auth, Core API và Admin Web đã tách role; Manager hiện có màn catalog/Work Shift, còn tổng quan lịch và Payment Attempt theo Branch thuộc phần vận hành triển khai sau. `08-admin-web.md` và OpenAPI mô tả code hiện tại.
+- Auth, Core API và Admin Web đã tách role; Manager có các màn catalog/Work Shift, tổng quan lịch và Payment Attempt theo Branch trong app Expo. Admin Web chỉ dành cho System Admin. [Chương 8](../08-admin-web.md) và OpenAPI mô tả code hiện tại.
