@@ -9,11 +9,17 @@ export type CustomerAppointment = {
   startTime: string;
   endTime?: string;
   status: AppointmentStatus;
+  bookedPrice?: number;
 };
+
+export type PaymentInput = { provider: "momo" | "vnpay"; outcome: "success" | "failed"; requestId: string };
+export type PaymentAttempt = { id: string; requestId: string; amount: number; provider: PaymentInput["provider"];
+  status: PaymentInput["outcome"]; attemptedAt: string };
+export type PaymentResult = { appointment: CustomerAppointment; attempt: PaymentAttempt };
 
 export interface CustomerAppointmentDataSource {
   list(): Promise<CustomerAppointment[]>;
   cancel(id: string): Promise<CustomerAppointment>;
-  pay?(id: string): Promise<CustomerAppointment>;
+  pay?(id: string, input: PaymentInput): Promise<PaymentResult>;
 }
 

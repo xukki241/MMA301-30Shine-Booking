@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
+import type { PaymentInput } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
 import { Card, CardText, CardTitle, PrimaryButton, Screen } from "@/components/screen";
 import { EmptyState, LoadingState } from "@/components/states";
@@ -51,6 +52,10 @@ export default function CustomerAppointmentsScreen() {
 
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [provider, setProvider] = useState<PaymentInput["provider"]>("momo");
+  const [outcome, setOutcome] = useState<PaymentInput["outcome"]>("success");
+  const [paymentMessage, setPaymentMessage] = useState("");
+  const pendingPayment = useRef<(PaymentInput & { appointmentId: string }) | null>(null);
   const [revision, setRevision] = useState(0);
 
   const [recoveryCode, setRecoveryCode] = useState("");
@@ -73,6 +78,7 @@ export default function CustomerAppointmentsScreen() {
       id: item.id,
       startTime: item.startTime,
       status: item.status,
+      bookedPrice: item.bookedPrice,
     }));
   }, [dataSource, token, isDemo]);
 
@@ -157,13 +163,21 @@ export default function CustomerAppointmentsScreen() {
 
   async function handlePay(id: string) {
     if (!dataSource.pay) return;
+    if (connectivity === "offline") { setActionError("Bạn đang ngoại tuyến. Kết nối mạng rồi thử lại."); return; }
     setProcessingId(id);
     setActionError(null);
+    setPaymentMessage("");
+    const prior = pendingPayment.current;
+    const input: PaymentInput = prior && prior.appointmentId === id && prior.provider === provider && prior.outcome === outcome
+      ? prior : { provider, outcome, requestId: `pay-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}` };
+    pendingPayment.current = { appointmentId: id, ...input };
     try {
-      const updated = await dataSource.pay(id);
+      const result = await dataSource.pay(id, input);
       setAppointments((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status: updated.status } : item))
+        prev.map((item) => (item.id === id ? { ...item, status: result.appointment.status } : item))
       );
+      setPaymentMessage(result.attempt.status === "failed" ? "Lần thử thanh toán mô phỏng thất bại. Bạn có thể thử lại." : "Thanh toán mô phỏng thành công.");
+      pendingPayment.current = null;
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : "Không thể thanh toán.");
     } finally {
@@ -262,6 +276,7 @@ export default function CustomerAppointmentsScreen() {
               </View>
             </View>
             <CardText>Mã lịch: {item.id}</CardText>
+            {item.bookedPrice !== undefined ? <CardText>Giá chốt: {new Intl.NumberFormat("vi-VN").format(item.bookedPrice)} ₫</CardText> : null}
             {item.stylistId ? <CardText>Stylist ID: {item.stylistId}</CardText> : null}
 
             {/* Cancel flow for booked appointments */}
@@ -315,12 +330,21 @@ export default function CustomerAppointmentsScreen() {
             {/* Payment button for completed appointments */}
             {item.status === "completed" ? (
               <View style={styles.actionWrap}>
+                <CardText>Thanh toán mô phỏng, không trừ tiền thật.</CardText>
+                <View style={styles.actionWrap}><Pressable onPress={() => { setProvider("momo"); pendingPayment.current = null; }}>
+                  <Text style={[styles.actionText, { color: provider === "momo" ? theme.brand : theme.textMuted }]}>MoMo {provider === "momo" ? "✓" : ""}</Text></Pressable>
+                  <Pressable onPress={() => { setProvider("vnpay"); pendingPayment.current = null; }}>
+                    <Text style={[styles.actionText, { color: provider === "vnpay" ? theme.brand : theme.textMuted }]}>VNPay {provider === "vnpay" ? "✓" : ""}</Text></Pressable></View>
+                <View style={styles.actionWrap}><Pressable onPress={() => { setOutcome("success"); pendingPayment.current = null; }}>
+                  <Text style={[styles.actionText, { color: outcome === "success" ? theme.brand : theme.textMuted }]}>Giả lập thành công {outcome === "success" ? "✓" : ""}</Text></Pressable>
+                  <Pressable onPress={() => { setOutcome("failed"); pendingPayment.current = null; }}>
+                    <Text style={[styles.actionText, { color: outcome === "failed" ? theme.brand : theme.textMuted }]}>Giả lập thất bại {outcome === "failed" ? "✓" : ""}</Text></Pressable></View>
                 <WizardAction
-                  label="Thanh toán mô phỏng (MoMo / VNPay)"
+                  label="Thử thanh toán mô phỏng"
                   onPress={() => { void handlePay(item.id); }}
                   loading={processingId === item.id}
                 />
-                <CardText>Chế độ demo, không trừ tiền thật.</CardText>
+                {!!paymentMessage && <CardText>{paymentMessage}</CardText>}
               </View>
             ) : null}
 
@@ -332,6 +356,7 @@ export default function CustomerAppointmentsScreen() {
           </Card>
         ))
       )}
+      {actionError ? <Text style={[styles.actionText, { color: theme.danger }]}>{actionError}</Text> : null}
       </>}
     </Screen>
   );
