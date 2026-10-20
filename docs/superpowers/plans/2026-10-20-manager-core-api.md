@@ -1,5 +1,7 @@
 # Manager Core API Implementation Plan
 
+> **Trạng thái:** Code và kiểm thử Core/Mongo của kế hoạch đã triển khai trên nhánh `shine-26-role-based-access-system-administration`. Checklist bên dưới giữ nguyên như bản kế hoạch ban đầu.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Chốt giá lúc đặt, ghi mọi lần thanh toán mô phỏng và cung cấp API chỉ đọc cho Manager trên mọi chi nhánh.

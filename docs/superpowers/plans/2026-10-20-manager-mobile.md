@@ -1,5 +1,7 @@
 # Manager Mobile and Admin Web Implementation Plan
 
+> **Trạng thái:** Code mobile và Admin Web đã triển khai trên nhánh `shine-26-role-based-access-system-administration`; unit test, typecheck, Android export và web build đã qua. Kiểm thử thao tác trên emulator/thiết bị còn cần thực hiện. Checklist bên dưới giữ nguyên như bản kế hoạch ban đầu.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Cùng một app Expo phục vụ Customer, Stylist và General Manager; Admin Web chỉ phục vụ System Admin.
