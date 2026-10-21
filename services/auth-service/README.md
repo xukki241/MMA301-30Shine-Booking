@@ -1,6 +1,6 @@
-# Auth Service — Customer Guest và tài khoản nhân sự
+# Auth Service — Customer Account và tài khoản nhân sự
 
-Auth Service chạy ở `:4101`, dùng MongoDB và cùng `JWT_SECRET` với Core API. Customer nhập tên + số điện thoại để nhận Guest Session; nhân sự đăng nhập bằng email/mật khẩu. User nhân sự có đúng một role: `stylist`, `system_admin`, hoặc `general_manager`.
+Auth Service chạy ở `:4101`, dùng MongoDB và cùng `JWT_SECRET` với Core API. Customer mới đăng ký bằng số điện thoại, OTP demo, mật khẩu 6 số và họ tên; Customer cũ đăng nhập bằng số điện thoại và mật khẩu. Nhân sự đăng nhập bằng email/mật khẩu. User nhân sự có đúng một role: `stylist`, `system_admin`, hoặc `general_manager`.
 
 ## Cấu hình và chạy
 
@@ -21,16 +21,21 @@ npm run bootstrap:admin
 
 Sau khi tạo thành công, xóa hai biến bootstrap khỏi `.env`. System Admin đăng nhập Admin Web và tạo General Manager đầu tiên. Không có tài khoản demo mặc định. Endpoint công khai `/auth/register` trả 410; không thể tự đăng ký tài khoản nhân sự.
 
-## Customer Guest Session
+## Customer Account và hồ sơ
 
 | Method | Path | Nội dung |
 |---|---|---|
-| POST | `/auth/customer/start` | `{name, phone}` → JWT, `deviceSecret`, user |
-| POST | `/auth/customer/resume` | `{deviceSecret}` → JWT mới cùng phiên |
-| POST | `/auth/customer/recovery/request` | `{phone}` → OTP demo ghi ở console Auth |
-| POST | `/auth/customer/recovery/verify` | `{phone, code, deviceSecret}` → JWT khôi phục lịch guest cùng số |
+| POST | `/auth/customer/lookup` | `{phone}` → số đã có tài khoản hay chưa |
+| POST | `/auth/customer/register/request`, `/verify`, `/complete` | OTP demo, mật khẩu 6 số, họ tên → JWT Customer |
+| POST | `/auth/customer/login` | `{phone, password}` → JWT Customer |
+| POST | `/auth/customer/reset/request`, `/verify`, `/complete` | Đặt lại mật khẩu bằng OTP demo |
+| GET | `/auth/customer/introspect` | Kiểm tra phiên Customer hiện hành |
+| GET | `/auth/customer/profile` | JWT Customer → `id`, `name`, `phone`, `email`, `birthDate`, `avatar`, `homeAddress` |
+| PATCH | `/auth/customer/profile` | JWT Customer → cập nhật các trường hồ sơ cho chính tài khoản đó |
 
-OTP demo hết hạn sau 5 phút, dùng một lần, tối đa 5 lần sai và yêu cầu lại sau 60 giây. **Không gửi SMS, không mất phí và không chứng minh quyền sở hữu số thật.** Bật/tắt bằng `DEMO_OTP_ENABLED`. `deviceSecret` cần được bảo vệ như mật khẩu. Dữ liệu tài khoản Customer email/mật khẩu cũ không được chuyển và không bị xóa tự động; các tài khoản này không đăng nhập qua flow nhân sự.
+OTP demo hết hạn sau 5 phút, dùng một lần, tối đa 5 lần sai và yêu cầu lại sau 60 giây. **Không gửi SMS, không mất phí và không chứng minh quyền sở hữu số thật.** Bật/tắt bằng `DEMO_OTP_ENABLED`. Endpoint Guest cũ trả 410 khi Customer Account đang bật.
+
+Email, ngày sinh, ảnh đại diện và địa chỉ nhà không bắt buộc. `homeAddress` là `null` hoặc đủ bốn trường `province`, `district`, `ward`, `streetAddress` (số nhà và tên đường), mỗi phần tối đa 120 ký tự. `birthDate` dùng `YYYY-MM-DD`, là ngày hợp lệ không ở tương lai; email được chuẩn hóa chữ thường. `avatar` là `null` hoặc data URI JPEG/PNG tối đa 200 KiB ảnh giải mã. PATCH từ chối trường lạ, số điện thoại không sửa được ở hồ sơ. GET/PATCH yêu cầu Bearer JWT Customer hiện hành, trả `Cache-Control: no-store`, không trả mật khẩu/OTP và không có địa chỉ nhận hàng.
 
 ## Nhân sự và System Admin
 

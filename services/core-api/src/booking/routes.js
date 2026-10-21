@@ -54,6 +54,10 @@ function bookingRoutes(repository, workShiftRepository) {
   router.post("/:id/pay", handle(async (req, res) => {
     res.json(await service.pay(req.auth, req.params.id, req.body));
   }));
+  router.post("/:id/reschedule", handle(async (req, res) => {
+    const appointment = await service.reschedule(req.auth, req.params.id, req.body, workShiftRepository);
+    res.json({ appointment });
+  }));
   for (const action of ["complete", "cancel"]) {
     router.post("/:id/" + action, handle(async (req, res) => {
       if (req.body && (Array.isArray(req.body) || typeof req.body !== "object" || Object.keys(req.body).length)) {

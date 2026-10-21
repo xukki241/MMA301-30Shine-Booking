@@ -47,7 +47,7 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
-  app.use(express.json({ limit: "16kb" }));
+  app.use(express.json({ limit: "512kb" }));
   if (audit) {
     app.use(auditMutations(audit));
     app.use("/internal", createInternalAuditRouter({ audit, secret }));

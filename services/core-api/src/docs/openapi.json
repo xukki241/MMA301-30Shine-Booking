@@ -215,7 +215,8 @@
         "properties": {
           "id": { "type": "string", "example": "65f1234567890abcdef12345-2026-10-06-2026-10-06T09:00:00.000Z" },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
-          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" }
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
+          "available": { "type": "boolean", "description": "false nếu giờ đã bị lịch hẹn khác chiếm; vẫn hiển thị để làm mờ và không cho chọn" }
         }
       },
       "Appointment": {
@@ -229,6 +230,7 @@
           "branchId": { "type": "string" },
           "serviceId": { "type": "string" },
           "bookedPrice": { "type": "integer", "description": "Giá VND chốt lúc đặt; lịch cũ có thể thiếu" },
+          "wishes": { "$ref": "#/components/schemas/BookingWishes" },
           "paymentAttempts": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentAttempt" } },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
           "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
@@ -264,6 +266,15 @@
           "requestId": { "type": "string", "minLength": 8, "maxLength": 100 }
         }
       },
+      "BookingWishes": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stylistPreference": { "type": "string", "maxLength": 100 },
+          "specialRequest": { "type": "string", "maxLength": 500 },
+          "referenceImages": { "type": "array", "maxItems": 3, "items": { "type": "string", "description": "JPEG data URI, tối đa 140000 ký tự" } }
+        }
+      },
       "BookingCreateRequest": {
         "type": "object",
         "required": ["branchId", "serviceId", "stylistId", "startTime", "endTime"],
@@ -272,7 +283,8 @@
           "serviceId": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
           "stylistId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
           "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
-          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" }
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
+          "wishes": { "$ref": "#/components/schemas/BookingWishes" }
         }
       }
     }
@@ -855,17 +867,18 @@
     "/time-slots": {
       "get": {
         "tags": ["SHINE-06 · Work Shift & Time Slot"],
-        "summary": "Tra cứu các khung giờ trống có thể đặt lịch",
-        "description": "Yêu cầu Customer Guest hoặc general_manager. Tính slot tương lai từ ca, lịch đang chiếm chỗ và thời lượng dịch vụ.",
+        "summary": "Tra cứu khung giờ theo thời lượng dịch vụ",
+        "description": "Yêu cầu Customer hoặc general_manager. Giờ bắt đầu tính từ đầu ca và cách nhau theo thời lượng dịch vụ; sau một lịch đã đặt, mốc mới có thể bắt đầu ngay lúc lịch đó kết thúc. Slot trùng lịch được trả về với available=false. Khi đổi lịch, excludeAppointmentId chỉ được dùng cho lịch của chính khách đang đăng nhập.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "stylistId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ID stylist cần đặt" },
           { "name": "date", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Ngày muốn cắt (YYYY-MM-DD)" },
-          { "name": "serviceId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ID dịch vụ để tính thời lượng" }
+          { "name": "serviceId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ID dịch vụ để tính thời lượng" },
+          { "name": "excludeAppointmentId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Chỉ dùng khi đổi lịch: loại lịch hiện tại của chính Customer khỏi phép tính giờ trống" }
         ],
         "responses": {
           "200": {
-            "description": "Danh sách khung giờ khả dụng",
+            "description": "Danh sách khung giờ tương lai và trạng thái còn chỗ",
             "content": {
               "application/json": {
                 "schema": {
@@ -948,6 +961,24 @@
         "security": [{ "bearerAuth": [] }],
         "parameters": [{ "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" } }],
         "responses": { "200": { "description": "Danh sách appointments" }, "401": { "description": "Chưa xác thực" }, "403": { "description": "Không có quyền" } }
+      }
+    },
+    "/appointments/{id}/reschedule": {
+      "post": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Khách hàng đổi ngày giờ lịch hẹn đã đặt",
+        "description": "Giữ nguyên salon, stylist, dịch vụ, giá và mong muốn. Kiểm tra ca làm, thời lượng dịch vụ và trùng lịch trước khi cập nhật.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": {
+          "type": "object", "required": ["startTime", "endTime"], "additionalProperties": false,
+          "properties": { "startTime": { "type": "string", "format": "date-time" },
+            "endTime": { "type": "string", "format": "date-time" } }
+        } } } },
+        "responses": { "200": { "description": "Lịch hẹn đã cập nhật" },
+          "400": { "description": "Thời gian hoặc trạng thái không hợp lệ" },
+          "403": { "description": "Không phải chủ lịch hẹn" },
+          "409": { "description": "Giờ mới không khả dụng" } }
       }
     },
     "/appointments/{id}/complete": {

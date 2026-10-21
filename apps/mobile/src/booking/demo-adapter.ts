@@ -47,7 +47,7 @@ export const demoBookingAdapter: BookingWizardDataSource = {
   },
   async listStylists(branchId, serviceId) {
     return stylists
-      .filter((stylist) => stylist.branchId === branchId && stylist.serviceIds.includes(serviceId))
+      .filter((stylist) => stylist.branchId === branchId && (!serviceId || stylist.serviceIds.includes(serviceId)))
       .map(publicStylist);
   },
   async listTimeSlots({ branchId, serviceId, stylistId, date }: TimeSlotQuery): Promise<TimeSlot[]> {

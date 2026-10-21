@@ -45,7 +45,7 @@ function createWorkShiftRouter({ repository, secret, verifyStaff, verifyCustomer
 function createTimeSlotRouter({ repository, secret, verifyStaff, verifyCustomer }) {
   const router = express.Router();
   router.get("/", authenticate(secret, verifyStaff, verifyCustomer), requireRole("customer", "general_manager"), async (req, res, next) => {
-    try { res.json({ slots: await repository.availableSlots(req.query) }); }
+    try { res.json({ slots: await repository.availableSlots(req.query, req.auth) }); }
     catch (error) {
       if (error instanceof BookingError) return res.status(error.status).json({ error: error.message });
       return next(error);

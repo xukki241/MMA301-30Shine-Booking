@@ -5,16 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/booking-wizard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/booking-wizard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/role-reset-button.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/role-reset-button.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/screen.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/constants/theme.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/constants/theme.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/providers/auth-provider.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/providers/auth-provider.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/http-adapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/http-adapter.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/types.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/customer/booking-flow-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/customer/booking-flow-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/test/booking-flow.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/test/booking-flow.test.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/mongo-repository.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/mongo-repository.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/rules.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/rules.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/service.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/service.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/docs/openapi.json" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/docs/openapi.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/routes/work-shift.routes.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/routes/work-shift.routes.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/test/booking-wishes-reschedule.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/booking-wishes-reschedule.test.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,29 +33,29 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8,
-  "fromUser": false
-}]]></component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8,
+  &quot;fromUser&quot;: false
+}</component>
   <component name="ProjectId" id="3Kywhe1LuID9BBKfNEhFzVxWaeU" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.cidr.known.project.marker": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.readMode.enableVisualFormatting": "true",
-    "cf.first.check.clang-format": "false",
-    "cidr.known.project.marker": "true",
-    "git-widget-placeholder": "shine-26-role-based-access-system-administration",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "E:/project/MMA301-30Shine-Booking"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;shine-26-role-based-access-system-administration&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;E:/project/MMA301-30Shine-Booking&quot;
   }
-}]]></component>
+}</component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="" />

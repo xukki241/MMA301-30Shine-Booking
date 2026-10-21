@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
-import { Platform, StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 
 import { RoleResetButton } from "@/components/role-reset-button";
 import { useAppTheme } from "@/constants/theme";
@@ -62,16 +62,13 @@ export default function CustomerLayout() {
         options={{
           headerShown: false,
           tabBarLabel: "Đặt lịch",
-          tabBarIcon: ({ focused }) => (
-            <View style={[styles.centerTabButton, { backgroundColor: theme.brand }]}>
-              <Ionicons
-                name="calendar"
-                size={22}
-                color="#FFFFFF"
-              />
-            </View>
-          ),
-          tabBarLabelStyle: [styles.tabBarLabel, { fontWeight: "800", color: theme.brand }]
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "calendar" : "calendar-outline"}
+              size={22}
+              color={color}
+            />
+          )
         }}
       />
       <Tabs.Screen
@@ -88,24 +85,14 @@ export default function CustomerLayout() {
           )
         }}
       />
+      <Tabs.Screen name="account" options={{ title: "Tài khoản", tabBarLabel: "Tài khoản",
+        tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} /> }} />
+      <Tabs.Screen name="profile" options={{ href: null, headerShown: false, tabBarStyle: { display: "none" } }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  centerTabButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-    shadowColor: "#1B2A4A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4
-  },
   tabBarLabel: {
     fontSize: 11,
     fontWeight: "700"

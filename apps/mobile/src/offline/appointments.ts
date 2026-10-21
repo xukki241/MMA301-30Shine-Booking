@@ -3,6 +3,13 @@ export type AppointmentSummary = {
   startTime: string;
   status: "booked" | "completed" | "paid" | "cancelled";
   bookedPrice?: number;
+  branchId?: string;
+  branchName?: string;
+  branchAddress?: string;
+  serviceId?: string;
+  serviceName?: string;
+  stylistId?: string;
+  stylistName?: string;
 };
 
 export function isAppointmentSummary(value: unknown): value is AppointmentSummary {
@@ -11,5 +18,7 @@ export function isAppointmentSummary(value: unknown): value is AppointmentSummar
   return typeof item.id === "string" && item.id.length > 0 &&
     typeof item.startTime === "string" && !Number.isNaN(Date.parse(item.startTime)) &&
     (item.status === "booked" || item.status === "completed" || item.status === "paid" || item.status === "cancelled") &&
-    (item.bookedPrice === undefined || (typeof item.bookedPrice === "number" && Number.isSafeInteger(item.bookedPrice) && item.bookedPrice >= 0));
+    (item.bookedPrice === undefined || (typeof item.bookedPrice === "number" && Number.isSafeInteger(item.bookedPrice) && item.bookedPrice >= 0)) &&
+    ["branchId", "branchName", "branchAddress", "serviceId", "serviceName", "stylistId", "stylistName"]
+      .every((key) => item[key] === undefined || typeof item[key] === "string");
 }

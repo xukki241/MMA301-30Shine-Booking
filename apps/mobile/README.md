@@ -1,6 +1,6 @@
 # Mobile Expo — Customer, Stylist và General Manager
 
-Customer nhập tên + số điện thoại ở màn bắt đầu, không cần email/mật khẩu. App nhận Guest Session từ Auth Service rồi chạy Booking Wizard Branch → Service → Stylist → date/slot → review → confirm. Lịch trên cùng thiết bị được giữ qua bí mật phiên; trên thiết bị mới, Customer có thể vào app ngay và dùng OTP demo để khôi phục lịch cũ cùng số.
+Customer có thể khám phá Home trước khi đăng nhập. Đặt lịch cần tài khoản số điện thoại: số mới đi qua OTP demo, mật khẩu 6 số và họ tên; số đã đăng ký dùng mật khẩu. Giao diện đặt lịch chạy Salon → Stylist/ngày/giờ → Dịch vụ → xác nhận. Ứng dụng xem trước giờ trống theo các dịch vụ của salon và kiểm tra lại giờ cho dịch vụ đã chọn trước khi xác nhận.
 
 ## Environment and run
 
@@ -19,7 +19,7 @@ npm ci
 npm run android
 ```
 
-Màn Customer không có form email/mật khẩu. Stylist và General Manager đăng nhập tài khoản nhân sự bằng email/mật khẩu; app chuyển đến khu vực theo role. OTP demo chỉ được ghi ở console Auth Service, không gửi SMS, không mất phí; để thử khôi phục, vào **Lịch hẹn → Lấy mã khôi phục**, đọc mã trên server rồi nhập vào app. Phiên chưa khôi phục chỉ thấy lịch do thiết bị đó đặt. `deviceSecret` hiện lưu trong AsyncStorage cho bản demo; cần storage bảo mật hơn trước khi phát hành công khai.
+Stylist và General Manager đăng nhập tài khoản nhân sự bằng email/mật khẩu; app chuyển đến khu vực theo role. OTP demo chỉ được ghi ở console Auth Service, không gửi SMS, không mất phí. Khách chưa đăng nhập nhấn tên/avatar trên Home để vào **Tài khoản**, rồi chọn **Thông tin tài khoản** để đăng nhập/đăng ký; thành công sẽ trở về hồ sơ. Khách đã đăng nhập có thể chỉnh sửa họ tên, email, ngày sinh, ảnh đại diện và một địa chỉ nhà tùy chọn. Số điện thoại chỉ đọc. Ngày sinh chọn và hiển thị theo DD-MM-YYYY. Địa chỉ nhà chọn từ 34 tỉnh/thành phố và phường/xã tương ứng, sau đó nhập số nhà/tên đường; không có địa chỉ nhận hàng hoặc nút xóa tài khoản. Ảnh được chọn từ thư viện, thu nhỏ dưới 200 KiB và lưu ở Auth Service cho bản demo.
 
 ## Checks
 
@@ -33,7 +33,7 @@ npm run export:android
 
 ## Current scope
 
-- Customer: catalog, slot từ Work Shift, đặt/hủy lịch, lịch sử của phiên Guest và thanh toán MoMo/VNPay mô phỏng sau khi Stylist hoàn thành. Mọi màn thanh toán ghi rõ không trừ tiền thật.
+- Customer: Home công khai, trang Tài khoản và hồ sơ, catalog, slot từ Work Shift, đặt/hủy lịch, lịch sử tài khoản và thanh toán MoMo/VNPay mô phỏng sau khi Stylist hoàn thành. Mọi màn thanh toán ghi rõ không trừ tiền thật.
 - Stylist: đăng nhập nhân sự, xem lịch được giao và xác nhận hoàn thành.
 - General Manager: bốn khu vực **Tổng quan**, **Lịch đặt**, **Vận hành** và **Thanh toán**. Manager quản lý chi nhánh/dịch vụ/hồ sơ thợ/ca, chỉ xem và lọc lịch, xem các lần thanh toán thành công hoặc thất bại theo chi nhánh.
 - System Admin chỉ dùng Admin Web, không vào mobile.

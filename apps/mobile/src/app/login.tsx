@@ -6,6 +6,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
 import { staffLanding } from "@/providers/auth-utils";
 import { useAppTheme } from "@/constants/theme";
+import { customerLanding } from "@/customer/profile-navigation";
 
 type Step = "phone" | "login" | "registerOtp" | "registerDetails" | "resetOtp" | "resetPassword";
 const labels: Record<Step, [string, string]> = {
@@ -34,7 +35,7 @@ export default function EntryScreen() {
   useEffect(() => {
     if (hydrated && token && role) {
       selectRole(role);
-      router.replace(role === "customer" ? (next === "book" ? "/(customer)/book" : "/(customer)/home") : staffLanding(role));
+      router.replace(role === "customer" ? customerLanding(next) : staffLanding(role));
     }
   }, [hydrated, token, role, selectRole, next]);
 
@@ -51,16 +52,16 @@ export default function EntryScreen() {
       else { await requestCustomerCode("register", phone); setStep("registerOtp"); }
     } else if (step === "login") {
       await loginCustomer(phone, password); selectRole("customer");
-      router.replace(next === "book" ? "/(customer)/book" : "/(customer)/home");
+      router.replace(customerLanding(next));
     } else if (step === "registerOtp" || step === "resetOtp") {
       await verifyCustomerCode(step === "registerOtp" ? "register" : "reset", phone, code);
       setStep(step === "registerOtp" ? "registerDetails" : "resetPassword");
     } else if (step === "registerDetails") {
       await completeCustomerRegistration(phone, code, password, name); selectRole("customer");
-      router.replace(next === "book" ? "/(customer)/book" : "/(customer)/home");
+      router.replace(customerLanding(next));
     } else {
       await resetCustomerPassword(phone, code, password); selectRole("customer");
-      router.replace(next === "book" ? "/(customer)/book" : "/(customer)/home");
+      router.replace(customerLanding(next));
     }
   }
 

@@ -137,7 +137,7 @@ export default function CustomerHomeScreen() {
           </View>
 
           {/* User Profile Overview */}
-          <View style={styles.userSection}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Mở trang Tài khoản" onPress={() => router.push("/(customer)/account")} style={styles.userSection}>
             <View style={styles.avatarWrap}>
               <Ionicons name="person" size={26} color="#FFFFFF" />
               {token ? <View style={styles.verifiedBadge}>
@@ -161,16 +161,14 @@ export default function CustomerHomeScreen() {
                   ? "Tích điểm & nhận ưu đãi thành viên"
                   : "Đăng nhập để nhận ngập tràn ưu đãi"}
               </Text>
-              {!token ? <Pressable accessibilityRole="button" onPress={() => router.push("/login")}>
-                <Text style={{ color: "#FFFFFF", fontWeight: "800", marginTop: 6 }}>Đăng nhập / Đăng ký ›</Text>
-              </Pressable> : null}
+              {!token ? <Text style={{ color: "#FFFFFF", fontWeight: "800", marginTop: 6 }}>Xem tài khoản ›</Text> : null}
             </View>
 
             <View style={styles.shinePointBadge}>
               <Text style={styles.pointLabel}>ĐIỂM SHINE</Text>
               <Text style={styles.pointValue}>0 Shine</Text>
             </View>
-          </View>
+          </Pressable>
         </SafeAreaView>
       </View>
 

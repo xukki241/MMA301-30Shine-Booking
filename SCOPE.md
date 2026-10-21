@@ -8,6 +8,7 @@ Chi tiết: `docs/01-gioi-thieu.md`, `docs/02-phan-tich-yeu-cau.md` và ADR 0006
 
 - Customer có thể khám phá Home không cần đăng nhập; đặt lịch cần tài khoản số điện thoại và mật khẩu 6 chữ số theo ADR 0008. Mỗi tài khoản nhân sự có đúng một role: `stylist`, `system_admin` hoặc `general_manager`.
 - Customer mới xác minh OTP mô phỏng trước khi tạo tài khoản; Customer cũ đăng nhập bằng số điện thoại và mật khẩu. System Admin tạo, phân quyền, khóa mềm và khôi phục tài khoản nhân sự; xem health và audit log, không xem dữ liệu vận hành.
+- Customer có trang Tài khoản công khai và hồ sơ cá nhân sau đăng nhập; email, ngày sinh, ảnh đại diện và địa chỉ nhà đều tùy chọn. Chỉ có một địa chỉ nhà gồm tỉnh/quận/phường/số nhà và tên đường, không có địa chỉ nhận hàng hoặc nút xóa tài khoản.
 - General Manager vận hành **tất cả chi nhánh**: danh mục, hồ sơ thợ, Work Shift, lịch đặt và lịch sử thanh toán theo chi nhánh; không quản lý tài khoản/quyền.
 - Customer: Branch → Service → Stylist → Slot → Appointment (`booked`); giá dịch vụ được chốt lúc đặt.
 - Stylist: xem lịch ngày và đánh dấu `completed`.

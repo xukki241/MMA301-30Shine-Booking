@@ -34,7 +34,7 @@ function parseTime(value) {
 
 function validateBooking(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((k) => !["stylistId", "startTime", "endTime", "branchId", "serviceId"].includes(k))) {
+      Object.keys(body).some((k) => !["stylistId", "startTime", "endTime", "branchId", "serviceId", "wishes"].includes(k))) {
     throw new BookingError(400, "Expected stylistId, startTime and endTime");
   }
   const startTime = parseTime(body.startTime);
@@ -49,7 +49,36 @@ function validateBooking(body) {
   return {
     stylistId: body.stylistId.toLowerCase(), startTime, endTime,
     ...(body.branchId ? { branchId: body.branchId.toLowerCase(), serviceId: body.serviceId.toLowerCase() } : {}),
+    ...(body.wishes === undefined ? {} : { wishes: validateWishes(body.wishes) }),
   };
+}
+
+function validateWishes(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value) ||
+      Object.keys(value).some((key) => !["stylistPreference", "specialRequest", "referenceImages"].includes(key)) ||
+      (value.stylistPreference !== undefined && (typeof value.stylistPreference !== "string" || value.stylistPreference.length > 100)) ||
+      (value.specialRequest !== undefined && (typeof value.specialRequest !== "string" || value.specialRequest.length > 500)) ||
+      (value.referenceImages !== undefined && (!Array.isArray(value.referenceImages) || value.referenceImages.length > 3 ||
+        value.referenceImages.some((image) => typeof image !== "string" || image.length > 140000 ||
+          !/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(image))))) {
+    throw new BookingError(400, "Invalid booking wishes");
+  }
+  return value;
+}
+
+function validateReschedule(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      Object.keys(body).some((key) => !["startTime", "endTime", "serviceId"].includes(key)) ||
+      (body.serviceId !== undefined && !isId(body.serviceId))) {
+    throw new BookingError(400, "Invalid reschedule request");
+  }
+  const startTime = parseTime(body.startTime);
+  const endTime = parseTime(body.endTime);
+  if (!startTime || !endTime || startTime >= endTime || startTime.getTime() <= Date.now()) {
+    throw new BookingError(400, "Invalid reschedule request");
+  }
+  return { startTime, endTime,
+    ...(body.serviceId ? { serviceId: body.serviceId.toLowerCase() } : {}) };
 }
 
 function validatePayment(body) {
@@ -74,4 +103,4 @@ function validateDayRange(query) {
   return { from, to };
 }
 
-module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validatePayment, validateDayRange };
+module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validateReschedule, validatePayment, validateDayRange };

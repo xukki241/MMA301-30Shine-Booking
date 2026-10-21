@@ -28,7 +28,7 @@ function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, ot
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
-  app.use(express.json({ limit: "16kb" }));
+  app.use(express.json({ limit: "300kb" }));
   app.get("/health", (_req, res) => res.json({ ok: true, service: "auth-service" }));
   installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger, allowNewGuests: !customers });
   installCustomerAccountRoutes(app, { customers, secret, expiresIn, otpEnabled, otpLogger });

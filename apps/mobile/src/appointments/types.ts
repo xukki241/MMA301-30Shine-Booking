@@ -3,7 +3,10 @@ export type AppointmentStatus = "booked" | "completed" | "paid" | "cancelled";
 export type CustomerAppointment = {
   id: string;
   branchName?: string;
+  branchAddress?: string;
+  branchId?: string;
   serviceName?: string;
+  serviceId?: string;
   stylistName?: string;
   stylistId?: string;
   startTime: string;
