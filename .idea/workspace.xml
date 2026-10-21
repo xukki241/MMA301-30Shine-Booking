@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/booking-wizard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/booking-wizard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/role-reset-button.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/role-reset-button.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/components/screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/components/screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/constants/theme.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/constants/theme.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/providers/auth-provider.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/providers/auth-provider.tsx" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 8,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3Kywhe1LuID9BBKfNEhFzVxWaeU" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "shine-26-role-based-access-system-administration",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "E:/project/MMA301-30Shine-Booking"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="" />
+      <created>1792543236941</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1792543236941</updated>
+    </task>
+    <servers />
+  </component>
+</project>
