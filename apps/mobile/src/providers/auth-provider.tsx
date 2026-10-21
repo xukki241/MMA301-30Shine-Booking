@@ -28,6 +28,12 @@ export type AuthContextValue = {
   hydrated: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
   enterCustomer: (name: string, phone: string) => Promise<AuthUser>;
+  lookupCustomer: (phone: string) => Promise<boolean>;
+  requestCustomerCode: (purpose: "register" | "reset", phone: string) => Promise<void>;
+  verifyCustomerCode: (purpose: "register" | "reset", phone: string, code: string) => Promise<void>;
+  completeCustomerRegistration: (phone: string, code: string, password: string, name: string) => Promise<AuthUser>;
+  loginCustomer: (phone: string, password: string) => Promise<AuthUser>;
+  resetCustomerPassword: (phone: string, code: string, password: string) => Promise<AuthUser>;
   requestCustomerRecovery: () => Promise<void>;
   verifyCustomerRecovery: (code: string) => Promise<void>;
   logout: () => Promise<void> | void;
@@ -50,17 +56,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
     let active = true;
     void (async () => {
       try {
-        const [savedToken, savedUserJson, deviceSecret] = await Promise.all([
+        const [savedToken, savedUserJson] = await Promise.all([
           AsyncStorage.getItem(TOKEN_STORAGE_KEY),
           AsyncStorage.getItem(USER_STORAGE_KEY),
-          AsyncStorage.getItem(CUSTOMER_DEVICE_KEY),
         ]);
         if (!active) return;
         if (savedToken && savedUserJson && !isTokenExpired(savedToken)) {
             const parsedUser = JSON.parse(savedUserJson) as AuthUser;
             if (parsedUser.role === "customer") {
-              setToken(savedToken);
-              setUser(parsedUser);
+              const response = await fetch(`${AUTH_SERVICE_URL}/auth/customer/introspect`, {
+                headers: { Authorization: `Bearer ${savedToken}` },
+              });
+              if (response.ok) {
+                const data = await response.json() as { user: AuthUser };
+                if (active) { setToken(savedToken); setUser({ ...data.user, phoneVerified: true }); }
+              } else if (response.status === 401) {
+                await Promise.all([AsyncStorage.removeItem(TOKEN_STORAGE_KEY), AsyncStorage.removeItem(USER_STORAGE_KEY)]);
+              }
             } else if (isMobileStaffRole(parsedUser.role)) {
               const response = await fetch(`${AUTH_SERVICE_URL}/auth/introspect`, {
                 headers: { Authorization: `Bearer ${savedToken}` },
@@ -77,24 +89,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
             } else {
               await Promise.all([AsyncStorage.removeItem(TOKEN_STORAGE_KEY), AsyncStorage.removeItem(USER_STORAGE_KEY)]);
             }
-        } else if (deviceSecret) {
-          const response = await fetch(`${AUTH_SERVICE_URL}/auth/customer/resume`, {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ deviceSecret }),
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (active) {
-              setToken(data.accessToken);
-              setUser(data.user);
-              await Promise.all([
-                AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.accessToken),
-                AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user)),
-              ]);
-            }
-          } else if (response.status === 401) {
-            await AsyncStorage.removeItem(CUSTOMER_DEVICE_KEY);
-          }
         }
       } catch {
         // Safe fallback if storage fails
@@ -108,29 +102,47 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  // Keep a guest session usable when the app stays open beyond the JWT lifetime.
-  useEffect(() => {
-    if (user?.role !== "customer" || !user.phone) return;
-    const timer = setInterval(() => {
-      void (async () => {
-        const deviceSecret = await AsyncStorage.getItem(CUSTOMER_DEVICE_KEY);
-        if (!deviceSecret) return;
-        const response = await fetch(`${AUTH_SERVICE_URL}/auth/customer/resume`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deviceSecret }),
-        });
-        if (!response.ok) return;
-        const data = await response.json();
-        await Promise.all([
-          AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.accessToken),
-          AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(data.user)),
-        ]);
-        setToken(data.accessToken);
-        setUser(data.user);
-      })().catch(() => { /* Retry on the next interval after a network failure. */ });
-    }, 30 * 60 * 1000);
-    return () => clearInterval(timer);
-  }, [user?.role, user?.phone]);
+  const customerRequest = useCallback(async (path: string, body: object) => {
+    let response: Response;
+    try {
+      response = await fetch(`${AUTH_SERVICE_URL}/auth/customer/${path}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+    } catch { throw new Error("Không kết nối được Auth Service."); }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Yêu cầu thất bại (${response.status}).`);
+    return data;
+  }, []);
+
+  const acceptCustomerSession = useCallback(async (data: { accessToken: string; user: AuthUser }) => {
+    const account = { ...data.user, phoneVerified: true };
+    await Promise.all([
+      AsyncStorage.setItem(TOKEN_STORAGE_KEY, data.accessToken),
+      AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(account)),
+      AsyncStorage.removeItem(CUSTOMER_DEVICE_KEY),
+    ]);
+    setToken(data.accessToken);
+    setUser(account);
+    return account;
+  }, []);
+
+  const lookupCustomer = useCallback(async (phone: string): Promise<boolean> =>
+    Boolean((await customerRequest("lookup", { phone })).exists), [customerRequest]);
+  const requestCustomerCode = useCallback(async (purpose: "register" | "reset", phone: string) => {
+    await customerRequest(`${purpose}/request`, { phone });
+  }, [customerRequest]);
+  const verifyCustomerCode = useCallback(async (purpose: "register" | "reset", phone: string, code: string) => {
+    await customerRequest(`${purpose}/verify`, { phone, code });
+  }, [customerRequest]);
+  const completeCustomerRegistration = useCallback(async (phone: string, code: string, password: string, name: string) =>
+    acceptCustomerSession(await customerRequest("register/complete", { phone, code, password, name })),
+  [acceptCustomerSession, customerRequest]);
+  const loginCustomer = useCallback(async (phone: string, password: string) =>
+    acceptCustomerSession(await customerRequest("login", { phone, password })),
+  [acceptCustomerSession, customerRequest]);
+  const resetCustomerPassword = useCallback(async (phone: string, code: string, password: string) =>
+    acceptCustomerSession(await customerRequest("reset/complete", { phone, code, password })),
+  [acceptCustomerSession, customerRequest]);
 
   const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
     const trimmedEmail = email.trim().toLowerCase();
@@ -248,12 +260,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       hydrated,
       login,
       enterCustomer,
+      lookupCustomer, requestCustomerCode, verifyCustomerCode, completeCustomerRegistration, loginCustomer, resetCustomerPassword,
       requestCustomerRecovery,
       verifyCustomerRecovery,
       logout,
       setAuth,
     }),
-    [token, user, role, hydrated, login, enterCustomer, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
+    [token, user, role, hydrated, login, enterCustomer, lookupCustomer, requestCustomerCode, verifyCustomerCode, completeCustomerRegistration, loginCustomer, resetCustomerPassword, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

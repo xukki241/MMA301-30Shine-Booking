@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -48,6 +48,12 @@ const initialDraft: BookingDraft = {
 };
 
 export default function CustomerBookingScreen() {
+  const { token } = useAuth();
+  if (!token) return <Redirect href="/login?next=book" />;
+  return <AuthenticatedBookingScreen />;
+}
+
+function AuthenticatedBookingScreen() {
   const theme = useAppTheme();
   const { token: authToken, user } = useAuth();
   const dates = useMemo(() => upcomingDates(), []);
@@ -117,7 +123,7 @@ export default function CustomerBookingScreen() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      if (!tokenRef.current) throw new Error("Vui lòng nhập tên và số điện thoại để tiếp tục.");
+      if (!tokenRef.current) throw new Error("Vui lòng đăng nhập để đặt lịch.");
       const appointment = await bookingAdapter.confirmBooking(draft);
       setResult(appointment);
     } catch (cause) {
@@ -250,7 +256,7 @@ export default function CustomerBookingScreen() {
           </View>
           <Pressable
             style={styles.loginSmallBtn}
-            onPress={() => router.push("/login")}
+            onPress={() => router.push("/login?next=book")}
           >
             <Text style={styles.loginSmallBtnText}>Đăng nhập</Text>
           </Pressable>

@@ -7,6 +7,7 @@ const jwt = require("jsonwebtoken");
 const { createApp: createAuthApp } = require("../src/app");
 const { createUserModel, createUserRepository } = require("../src/models/user");
 const { createGuestModels, createGuestRepository } = require("../src/customer-guest");
+const { createCustomerModels, createCustomerRepository } = require("../src/customer-account");
 const { createAuditLogModel, createAuditRepository } = require("../src/audit-log");
 const { bootstrapSystemAdmin } = require("../src/staff-migration");
 const { createCoreAuditProbe } = require("../src/staff-admin");
@@ -48,17 +49,19 @@ test("SHINE-26: Auth and Core enforce staff roles against real MongoDB", async (
 
   const User = createUserModel(authDb);
   const guests = createGuestModels(authDb);
+  const customers = createCustomerModels(authDb);
   const authAudit = createAuditLogModel(authDb);
   const coreModels = createModels(coreDb);
-  await Promise.all([User.init(), guests.Guest.init(), guests.Recovery.init(), authAudit.init(),
+  await Promise.all([User.init(), guests.Guest.init(), guests.Recovery.init(), customers.Account.init(), customers.Challenge.init(), authAudit.init(),
     ...Object.values(coreModels).map((model) => model.init())]);
   await bootstrapSystemAdmin(User, "root@example.test", "Password123!");
 
   let authBase;
   let coreBase;
+  let demoOtp = "";
   const authApp = createAuthApp({ users: createUserRepository(User),
-    guests: createGuestRepository(guests), audit: createAuditRepository(authAudit),
-    secret, expiresIn: 3600, otpEnabled: false,
+    guests: createGuestRepository(guests), customers: createCustomerRepository(customers), audit: createAuditRepository(authAudit),
+    secret, expiresIn: 3600, otpEnabled: true, otpLogger: (value) => { demoOtp = value; },
     staffChangeGuard: (id) => createStylistChangeGuard({ coreApiUrl: coreBase, secret })(id),
     coreHealthProbe: async () => (await fetch(`${coreBase}/health`)).json(),
     coreAuditProbe: (filters) => createCoreAuditProbe(coreBase, secret)(filters) });
@@ -115,13 +118,21 @@ test("SHINE-26: Auth and Core enforce staff roles against real MongoDB", async (
   assert.equal((await request(authBase, `/admin/users/${stylistId}`, { token: admin,
     method: "PATCH", body: { role: "general_manager" } })).status, 409);
 
-  const guest = await request(authBase, "/auth/customer/start", { method: "POST",
-    body: { name: "Khách thử nghiệm", phone: "0912345678" } });
-  assert.equal(guest.status, 201);
+  assert.equal((await request(authBase, "/auth/customer/start", { method: "POST",
+    body: { name: "Khách thử nghiệm", phone: "0912345678" } })).status, 410);
+  assert.equal((await request(authBase, "/auth/customer/register/request", { method: "POST",
+    body: { phone: "0912345678" } })).status, 200);
+  const code = demoOtp.match(/: (\d{6})$/)?.[1];
+  assert.ok(code);
+  assert.equal((await request(authBase, "/auth/customer/register/verify", { method: "POST",
+    body: { phone: "0912345678", code } })).status, 200);
+  const customer = await request(authBase, "/auth/customer/register/complete", { method: "POST",
+    body: { name: "Khách thử nghiệm", phone: "0912345678", code, password: "123456" } });
+  assert.equal(customer.status, 201);
   const staffList = await request(authBase, "/admin/users", { token: admin });
   assert.equal(staffList.status, 200);
   assert.equal(staffList.body.users.length, 4);
-  assert.equal(staffList.body.users.some((user) => user.id === guest.body.user.id), false);
+  assert.equal(staffList.body.users.some((user) => user.id === customer.body.user.id), false);
   const health = await request(authBase, "/admin/health", { token: admin });
   assert.equal(health.status, 200);
   assert.equal(health.body.ok, true);
@@ -142,5 +153,5 @@ test("SHINE-26: Auth and Core enforce staff roles against real MongoDB", async (
   assert.equal(sameDay.status, 200);
   assert.ok(sameDay.body.events.some((event) => event.action === "staff.lock"));
   assert.equal((await request(authBase, "/admin/audit?to=2030-02-31", { token: admin })).status, 400);
-  assert.equal(jwt.decode(guest.body.accessToken).role, "customer");
+  assert.equal(jwt.decode(customer.body.accessToken).role, "customer");
 });

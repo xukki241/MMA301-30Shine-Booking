@@ -1,5 +1,7 @@
 # Chương 6. Hướng dẫn phát triển và triển khai — code hiện tại
 
+> **Customer mới:** `POST /auth/customer/lookup`, `/register/request`, `/register/verify`, `/register/complete`, `/login`, `/reset/request`, `/reset/verify`, `/reset/complete`; `GET /auth/customer/introspect`. OTP mô phỏng ghi trong log Auth khi `DEMO_OTP_ENABLED=true`; không gửi SMS. Core cho khách vãng lai đọc `GET /public/branches` và `/public/branches/:id/services`. Các endpoint Guest `start`, `resume`, `recovery` trả 410 khi hệ thống dùng CustomerAccount; Guest JWT không còn truy cập Core. Các endpoint Guest bên dưới chỉ mô tả dữ liệu cũ. Xem [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md).
+
 > Các lệnh và quyền API ở chương này áp dụng cho SHINE-26: `system_admin` quản trị hệ thống, `general_manager` ghi catalog/Work Shift. Các màn Manager theo dõi lịch/thanh toán ở [Chương 2](./02-phan-tich-yeu-cau.md) vẫn là mục tiêu.
 
 ## 6.1. Môi trường

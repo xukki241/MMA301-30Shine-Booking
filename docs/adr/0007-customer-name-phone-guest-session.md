@@ -1,5 +1,7 @@
 # ADR 0007 — Customer vào app bằng tên và số điện thoại
 
+> **Đã thay thế cho lịch mới bởi [ADR 0008](./0008-customer-phone-account-and-public-home.md).** Phần dưới mô tả các phiên Guest và lịch đã tạo trước khi chuyển sang tài khoản Customer.
+
 **Trạng thái:** Flow Customer đã có trong mobile/Auth/Core; SHINE-26 đã triển khai ranh giới role và System Admin của ADR 0006.
 
 ## Bối cảnh

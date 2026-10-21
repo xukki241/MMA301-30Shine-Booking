@@ -22,7 +22,7 @@ test("Core startup fails before opening HTTP without JWT_SECRET", () => {
 });
 
 test("Core JWT middleware", async (t) => {
-  const server = createApp({ secret, verifyStaff: async () => true }).listen(0, "127.0.0.1");
+  const server = createApp({ secret, verifyStaff: async () => true, verifyCustomer: async () => true }).listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const base = "http://127.0.0.1:" + server.address().port;
@@ -30,9 +30,7 @@ test("Core JWT middleware", async (t) => {
   for (const role of ["customer", "stylist", "system_admin", "general_manager"]) {
     await t.test("accepts valid " + role, async () => {
       const response = await fetch(base + "/auth/me", {
-        headers: { Authorization: "Bearer " + sign(role === "customer" ?
-          { sub, role, guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
-          { sub, role, authVersion: 0 }) },
+        headers: { Authorization: "Bearer " + sign({ sub, role, authVersion: 0 }) },
       });
       assert.equal(response.status, 200);
       assert.equal((await response.json()).user.role, role);
@@ -51,6 +49,7 @@ test("Core JWT middleware", async (t) => {
     "missing subject": "Bearer " + sign({ role: "customer" }),
     "invalid subject": "Bearer " + sign({ sub: "not-an-id", role: "customer" }),
     "missing expiry": "Bearer " + jwt.sign({ sub, role: "customer" }, secret),
+    "legacy guest": "Bearer " + sign({ sub, role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: true }),
   };
   for (const [name, Authorization] of Object.entries(invalid)) {
     await t.test("rejects " + name, async () => {
