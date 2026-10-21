@@ -1,3 +1,4 @@
+// Reschedule draft - holds pending reschedule state before confirmation
 import type { CustomerAppointmentItem } from "./http-adapter";
 import type { BookingDraft, BookingWizardDataSource } from "./types";
 
