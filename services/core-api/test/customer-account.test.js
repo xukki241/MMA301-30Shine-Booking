@@ -1,3 +1,4 @@
+// Customer account tests - profile fetch and phone number updates
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
