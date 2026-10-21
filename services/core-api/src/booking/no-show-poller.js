@@ -1,3 +1,4 @@
+// No-show poller - background job that marks missed appointments after timeout
 function createNoShowPoller(repository, timers = globalThis) {
   let interval;
   let running = false;
