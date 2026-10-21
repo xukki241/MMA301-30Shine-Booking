@@ -1,3 +1,4 @@
+// Stylist today view - current day appointments queue
 import { useCallback, useEffect, useState } from "react";
 import {
   Pressable,
