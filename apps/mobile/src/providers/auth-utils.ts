@@ -1,6 +1,14 @@
 export const TOKEN_STORAGE_KEY = "@shine:auth:token";
 export const USER_STORAGE_KEY = "@shine:auth:user";
 
+export function isMobileStaffRole(role: string): role is "stylist" | "general_manager" {
+  return role === "stylist" || role === "general_manager";
+}
+
+export function staffLanding(role: "stylist" | "general_manager"): "/(stylist)/today" | "/(manager)/overview" {
+  return role === "stylist" ? "/(stylist)/today" : "/(manager)/overview";
+}
+
 export function isTokenExpired(token: string): boolean {
   try {
     const parts = token.split(".");

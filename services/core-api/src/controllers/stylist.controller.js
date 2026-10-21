@@ -1,6 +1,6 @@
 const { isValidObjectId } = require("../middleware/validation");
 
-function createStylistController({ Branch, StylistProfile, WorkShift }) {
+function createStylistController({ Branch, StylistProfile, WorkShift }, verifyActiveStylist) {
   return {
     async assignToBranch(req, res, next) {
       try {
@@ -17,6 +17,11 @@ function createStylistController({ Branch, StylistProfile, WorkShift }) {
         if (!displayName || typeof displayName !== "string" || displayName.trim().length < 2) {
           return res.status(400).json({ error: "Tên hiển thị là bắt buộc và phải có ít nhất 2 ký tự" });
         }
+        if (!verifyActiveStylist) return res.status(503).json({ error: "Stylist verification unavailable" });
+        let active;
+        try { active = await verifyActiveStylist(userId); }
+        catch { return res.status(503).json({ error: "Stylist verification unavailable" }); }
+        if (!active) return res.status(409).json({ error: "Active Stylist staff account required" });
 
         const existing = await StylistProfile.findOne({ userId, branchId });
         if (existing) {

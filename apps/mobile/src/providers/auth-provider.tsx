@@ -10,7 +10,7 @@ import {
 } from "react";
 import { AUTH_SERVICE_URL } from "@/constants/config";
 
-export type AuthRole = "customer" | "stylist" | "shop_admin";
+export type AuthRole = "customer" | "stylist" | "system_admin" | "general_manager";
 
 export type AuthUser = {
   id: string;
@@ -24,18 +24,17 @@ export type AuthUser = {
 export type AuthContextValue = {
   token: string | null;
   user: AuthUser | null;
-  role: "customer" | "stylist" | null;
+  role: "customer" | "stylist" | "general_manager" | null;
   hydrated: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (email: string, password: string, role: "customer" | "stylist") => Promise<AuthUser>;
   enterCustomer: (name: string, phone: string) => Promise<AuthUser>;
   requestCustomerRecovery: () => Promise<void>;
   verifyCustomerRecovery: (code: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void> | void;
   setAuth: (token: string, user: AuthUser) => void;
 };
 
-import { isTokenExpired, TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "./auth-utils";
+import { isMobileStaffRole, isTokenExpired, TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from "./auth-utils";
 export { isTokenExpired, TOKEN_STORAGE_KEY, USER_STORAGE_KEY };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -59,8 +58,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (!active) return;
         if (savedToken && savedUserJson && !isTokenExpired(savedToken)) {
             const parsedUser = JSON.parse(savedUserJson) as AuthUser;
-            setToken(savedToken);
-            setUser(parsedUser);
+            if (parsedUser.role === "customer") {
+              setToken(savedToken);
+              setUser(parsedUser);
+            } else if (isMobileStaffRole(parsedUser.role)) {
+              const response = await fetch(`${AUTH_SERVICE_URL}/auth/introspect`, {
+                headers: { Authorization: `Bearer ${savedToken}` },
+              });
+              if (response.ok) {
+                const data = await response.json() as { user: AuthUser };
+                if (active && data.user.role === parsedUser.role && data.user.id === parsedUser.id) {
+                  setToken(savedToken);
+                  setUser(data.user);
+                }
+              } else if (response.status === 401) {
+                await Promise.all([AsyncStorage.removeItem(TOKEN_STORAGE_KEY), AsyncStorage.removeItem(USER_STORAGE_KEY)]);
+              }
+            } else {
+              await Promise.all([AsyncStorage.removeItem(TOKEN_STORAGE_KEY), AsyncStorage.removeItem(USER_STORAGE_KEY)]);
+            }
         } else if (deviceSecret) {
           const response = await fetch(`${AUTH_SERVICE_URL}/auth/customer/resume`, {
             method: "POST", headers: { "Content-Type": "application/json" },
@@ -141,8 +157,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const nextUser: AuthUser = data.user;
 
     // Customer sessions use name + phone. Staff credentials remain separate.
-    if (nextUser.role !== "stylist") {
-      throw new Error("Màn đăng nhập này chỉ dành cho Stylist.");
+    if (!isMobileStaffRole(nextUser.role)) {
+      throw new Error("App nhân sự chỉ dành cho Stylist và General Manager.");
     }
 
     // Persist JWT token and user info (NEVER persist raw password)
@@ -155,41 +171,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(nextUser);
     return nextUser;
   }, []);
-
-  const register = useCallback(
-    async (email: string, password: string, role: "customer" | "stylist"): Promise<AuthUser> => {
-      const trimmedEmail = email.trim().toLowerCase();
-      if (password.length < 8) {
-        throw new Error("Mật khẩu phải chứa ít nhất 8 ký tự.");
-      }
-      if (role !== "customer" && role !== "stylist") {
-        throw new Error("Vai trò không hợp lệ trên ứng dụng Mobile.");
-      }
-
-      let response: Response;
-      try {
-        response = await fetch(`${AUTH_SERVICE_URL}/auth/register`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: trimmedEmail, password, role }),
-        });
-      } catch {
-        throw new Error("Không kết nối được Auth Service. Vui lòng kiểm tra mạng.");
-      }
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (response.status === 409) {
-          throw new Error("Email này đã được đăng ký. Vui lòng đăng nhập hoặc dùng email khác.");
-        }
-        throw new Error(data.error || `Đăng ký thất bại (${response.status})`);
-      }
-
-      // Automatically login to receive JWT and establish session
-      return login(trimmedEmail, password);
-    },
-    [login]
-  );
 
   const enterCustomer = useCallback(async (name: string, phone: string): Promise<AuthUser> => {
     let response: Response;
@@ -257,7 +238,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(newUser);
   }, []);
 
-  const role = user?.role === "customer" || user?.role === "stylist" ? user.role : null;
+  const role = user?.role === "customer" || user?.role === "stylist" || user?.role === "general_manager" ? user.role : null;
 
   const value = useMemo(
     () => ({
@@ -266,14 +247,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       role,
       hydrated,
       login,
-      register,
       enterCustomer,
       requestCustomerRecovery,
       verifyCustomerRecovery,
       logout,
       setAuth,
     }),
-    [token, user, role, hydrated, login, register, enterCustomer, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
+    [token, user, role, hydrated, login, enterCustomer, requestCustomerRecovery, verifyCustomerRecovery, logout, setAuth]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

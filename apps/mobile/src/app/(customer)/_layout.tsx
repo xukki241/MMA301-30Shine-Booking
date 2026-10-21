@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 
 import { RoleResetButton } from "@/components/role-reset-button";
 import { useAppTheme } from "@/constants/theme";
@@ -11,7 +11,7 @@ export default function CustomerLayout() {
   const { role } = useRole();
 
   if (role !== "customer") {
-    return <Redirect href="/" />;
+    return <Redirect href="/login" />;
   }
 
   return (
@@ -19,12 +19,12 @@ export default function CustomerLayout() {
       screenOptions={{
         headerRight: () => <RoleResetButton />,
         headerStyle: {
-          backgroundColor: theme.surface,
+          backgroundColor: theme.brand,
           shadowColor: "transparent",
           elevation: 0
         },
-        headerTintColor: theme.text,
-        headerTitleStyle: { fontWeight: "800" },
+        headerTintColor: "#FFFFFF",
+        headerTitleStyle: { fontWeight: "800", fontSize: 17 },
         sceneStyle: { backgroundColor: theme.background },
         tabBarActiveTintColor: theme.brand,
         tabBarInactiveTintColor: theme.textMuted,
@@ -32,28 +32,26 @@ export default function CustomerLayout() {
         tabBarStyle: {
           backgroundColor: theme.surface,
           borderTopColor: theme.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6
+          height: Platform.OS === "ios" ? 78 : 68,
+          paddingBottom: Platform.OS === "ios" ? 22 : 10,
+          paddingTop: 8,
+          elevation: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 8
         }
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          headerTitle: () => (
-            <View style={styles.brandContainer}>
-              <View style={[styles.brandBadge, { backgroundColor: theme.brand }]}>
-                <Text style={styles.brandBadgeText}>30</Text>
-              </View>
-              <Text style={[styles.brandText, { color: theme.text }]}>30Shine</Text>
-            </View>
-          ),
+          headerShown: false,
           tabBarLabel: "Trang chủ",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "cut" : "cut-outline"}
-              size={21}
+              name={focused ? "home" : "home-outline"}
+              size={22}
               color={color}
             />
           )
@@ -61,17 +59,30 @@ export default function CustomerLayout() {
       />
       <Tabs.Screen
         name="book"
-        options={{ title: "Đặt lịch", href: null }}
+        options={{
+          headerShown: false,
+          tabBarLabel: "Đặt lịch",
+          tabBarIcon: ({ focused }) => (
+            <View style={[styles.centerTabButton, { backgroundColor: theme.brand }]}>
+              <Ionicons
+                name="calendar"
+                size={22}
+                color="#FFFFFF"
+              />
+            </View>
+          ),
+          tabBarLabelStyle: [styles.tabBarLabel, { fontWeight: "800", color: theme.brand }]
+        }}
       />
       <Tabs.Screen
         name="appointments"
         options={{
-          title: "Lịch hẹn của tôi",
-          tabBarLabel: "Lịch hẹn",
+          headerShown: false,
+          tabBarLabel: "Lịch sử cắt",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "calendar" : "calendar-outline"}
-              size={21}
+              name={focused ? "time" : "time-outline"}
+              size={22}
               color={color}
             />
           )
@@ -82,26 +93,18 @@ export default function CustomerLayout() {
 }
 
 const styles = StyleSheet.create({
-  brandContainer: {
-    flexDirection: "row",
-    alignItems: "center"
-  },
-  brandBadge: {
-    borderRadius: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    marginRight: 8
-  },
-  brandBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.5
-  },
-  brandText: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.2
+  centerTabButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 4,
+    shadowColor: "#1B2A4A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4
   },
   tabBarLabel: {
     fontSize: 11,

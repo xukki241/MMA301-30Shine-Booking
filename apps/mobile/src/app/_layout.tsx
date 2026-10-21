@@ -22,6 +22,7 @@ export default function RootLayout() {
                 <Stack.Screen name="register" />
                 <Stack.Screen name="(customer)" />
                 <Stack.Screen name="(stylist)" />
+                <Stack.Screen name="(manager)" />
               </Stack>
             </View>
           </RoleProvider>

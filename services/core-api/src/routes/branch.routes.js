@@ -8,14 +8,16 @@ function createBranchRouter({
   serviceController,
   stylistController,
   secret,
+  verifyStaff,
 }) {
   const router = express.Router();
-  const requireAdmin = [authenticate(secret), requireRole("shop_admin")];
+  const requireAdmin = [authenticate(secret, verifyStaff), requireRole("general_manager")];
+  const canBrowse = [authenticate(secret, verifyStaff), requireRole("customer", "general_manager")];
 
   // Branch CRUD
-  router.get("/", branchController.list);
+  router.get("/", ...canBrowse, branchController.list);
   router.post("/", ...requireAdmin, branchController.create);
-  router.get("/:id", validateObjectIdParam("id"), branchController.getById);
+  router.get("/:id", ...canBrowse, validateObjectIdParam("id"), branchController.getById);
   router.put(
     "/:id",
     ...requireAdmin,
@@ -33,6 +35,7 @@ function createBranchRouter({
   if (serviceController) {
     router.get(
       "/:branchId/services",
+      ...canBrowse,
       validateObjectIdParam("branchId"),
       serviceController.listByBranch,
     );
@@ -48,6 +51,7 @@ function createBranchRouter({
   if (stylistController) {
     router.get(
       "/:branchId/stylists",
+      ...canBrowse,
       validateObjectIdParam("branchId"),
       stylistController.listByBranch,
     );

@@ -17,7 +17,7 @@ function memoryDouble() {
         ACTIVE_STATUSES.includes(r.status) && overlaps(data.startTime, data.endTime, r.startTime, r.endTime))) {
         throw new BookingError(409, "Overlap");
       }
-      const appointment = { ...data, id: id(), status: "booked" };
+      const appointment = { ...data, id: id(), status: "booked", paymentAttempts: [] };
       records.set(appointment.id, appointment);
       return structuredClone(appointment);
     },
@@ -29,6 +29,18 @@ function memoryDouble() {
         current[rule.owner] !== actor.userId) return null;
       current.status = rule.to;
       return structuredClone(current);
+    },
+    async recordPayment(key, actor, input) {
+      const current = records.get(key);
+      if (!current || current.status !== "completed" ||
+          (current.customerId !== actor.userId && current.customerPhone !== actor.authorizedPhone) ||
+          current.paymentAttempts.some((attempt) => attempt.requestId === input.requestId)) return null;
+      const attempt = { id: id(), requestId: input.requestId, branchId: current.branchId,
+        amount: current.bookedPrice, provider: input.provider, status: input.outcome,
+        attemptedAt: new Date() };
+      current.paymentAttempts.push(attempt);
+      if (input.outcome === "success") current.status = "paid";
+      return { appointment: structuredClone(current), attempt: structuredClone(attempt) };
     },
   };
 }
@@ -59,7 +71,7 @@ test("Appointment schema rejects invalid interval/status (offline)", async () =>
 test("missing Mongo repository returns 503; no in-memory production fallback", async (t) => {
   const secret = randomBytes(32).toString("hex");
   const base = await startHttp(t, createApp(secret));
-  const token = jwt.sign({ role: "customer" }, secret, { subject: id(), expiresIn: 60 });
+  const token = jwt.sign({ role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false }, secret, { subject: id(), expiresIn: 60 });
   const response = await fetch(base + "/appointments", {
     method: "POST", headers: { Authorization: "Bearer " + token },
   });
@@ -71,7 +83,7 @@ test("database failures return generic 500 without internal details", async (t) 
   const base = await startHttp(t, createApp(secret, {
     book: async () => { throw new Error("private mongo credentials"); },
   }));
-  const token = jwt.sign({ role: "customer" }, secret, { subject: id(), expiresIn: 60 });
+  const token = jwt.sign({ role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false }, secret, { subject: id(), expiresIn: 60 });
   const response = await fetch(base + "/appointments", {
     method: "POST",
     headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },

@@ -1,9 +1,9 @@
 # Các task backend có API để kiểm thử
 
-> Các hợp đồng API dưới đây ghi lại task/code hiện tại với `shop_admin`; backlog cho thiết kế bốn role ở [07-backlog-tracking.md](./07-backlog-tracking.md).
+> Tài liệu này lưu **hợp đồng API lịch sử trước SHINE-26**. Các dòng `shop_admin` và đăng ký tài khoản công khai bên dưới không còn phản ánh code hiện tại. Xem [OpenAPI hiện tại](../services/core-api/src/docs/openapi.json), [Admin Web](./08-admin-web.md) và [backlog](./07-backlog-tracking.md).
 
-Tài liệu này chỉ liệt kê các task backend đã có endpoint trong source code. Giao diện
-Mobile, Admin Web và các task tài liệu không nằm trong danh sách API Reference.
+Tài liệu này ghi lại task backend tại thời điểm lập kế hoạch ban đầu. Giao diện
+Mobile, Admin Web và các task tài liệu không nằm trong danh sách API Reference lịch sử này.
 
 ## Danh sách task
 

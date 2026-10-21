@@ -22,18 +22,20 @@ test("Core startup fails before opening HTTP without JWT_SECRET", () => {
 });
 
 test("Core JWT middleware", async (t) => {
-  const server = createApp(secret).listen(0, "127.0.0.1");
+  const server = createApp({ secret, verifyStaff: async () => true }).listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const base = "http://127.0.0.1:" + server.address().port;
   const sign = (claims, options = {}) => jwt.sign(claims, secret, { algorithm: "HS256", expiresIn: 3600, ...options });
-  for (const role of ["customer", "stylist", "shop_admin"]) {
+  for (const role of ["customer", "stylist", "system_admin", "general_manager"]) {
     await t.test("accepts valid " + role, async () => {
       const response = await fetch(base + "/auth/me", {
-        headers: { Authorization: "Bearer " + sign({ sub, role }) },
+        headers: { Authorization: "Bearer " + sign(role === "customer" ?
+          { sub, role, guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
+          { sub, role, authVersion: 0 }) },
       });
       assert.equal(response.status, 200);
-      assert.deepEqual(await response.json(), { user: { userId: sub, role } });
+      assert.equal((await response.json()).user.role, role);
     });
   }
   const invalid = {

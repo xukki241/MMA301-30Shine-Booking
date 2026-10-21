@@ -21,7 +21,7 @@
 | 0003 | Thanh toán **sau** hoàn thành dịch vụ |
 | 0004 | Customer là người bấm thanh toán mô phỏng trên app |
 | 0005 | Role `shop_admin` sở hữu Work Shift trong MVP ban đầu; Stylist không tự khai báo ca |
-| 0006 | Thiết kế mục tiêu 4 role: System Admin quản trị hệ thống, General Manager vận hành mọi Branch; quy tắc chuyển đổi từ `shop_admin` |
+| 0006 | Đã triển khai ranh giới 4 role và System Admin trong SHINE-26; Manager theo dõi lịch/thanh toán theo Branch còn trong backlog |
 | 0007 | Customer vào app bằng tên + số điện thoại, phiên thiết bị; OTP demo chỉ để khôi phục lịch trên thiết bị khác |
 
 Chi tiết trong `docs/adr/`.
@@ -29,4 +29,4 @@ Chi tiết trong `docs/adr/`.
 ## 4.3. Định hướng sản phẩm
 
 - Đề tài tham chiếu trải nghiệm đặt lịch của chuỗi salon; flow của nhóm được chốt riêng là Branch → Service → Stylist → Slot theo ADR 0002.
-- Mô hình xếp ca tập trung: ở thiết kế mục tiêu, General Manager sở hữu Work Shift; Stylist chỉ xem lịch. Đây là định hướng thiết kế, không phải mô tả code hiện tại.
+- Mô hình xếp ca tập trung: General Manager hiện sở hữu Work Shift; Stylist chỉ xem lịch được giao.

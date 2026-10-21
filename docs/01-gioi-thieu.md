@@ -1,6 +1,6 @@
 # Chương 1. Giới thiệu đề tài
 
-> **Thiết kế mục tiêu:** bốn role và tách quản trị hệ thống khỏi vận hành chuỗi. Code hiện tại vẫn dùng `shop_admin`; hiện trạng triển khai ở `08-admin-web.md`.
+> **Thiết kế mục tiêu:** bốn role và tách quản trị hệ thống khỏi vận hành chuỗi. SHINE-26 đã chuyển `shop_admin` cũ sang `system_admin`, cấp quyền catalog/ca cho `general_manager` và thêm màn System Admin. Core API và app Expo đã có luồng Manager theo dõi lịch, giao dịch; cần kiểm thử hành trình trên thiết bị. Hiện trạng chi tiết ở [Chương 8](./08-admin-web.md).
 
 ## 1.1. Tên đề tài và bối cảnh
 
@@ -20,16 +20,16 @@
 
 | Role | Trách nhiệm |
 |---|---|
-| `customer` | Chọn Branch → Service → Stylist → Slot; hủy khi `booked`; trả tiền mô phỏng sau `completed` |
+| `customer` | Guest Session theo tên + số điện thoại; chọn Branch → Service → Stylist → Slot, hủy khi `booked`, trả tiền mô phỏng sau `completed` |
 | `stylist` | Xem lịch được giao và hoàn thành dịch vụ |
 | `general_manager` | Điều hành **tất cả chi nhánh**, gồm danh mục, phân ca, lịch và lịch sử thanh toán |
 | `system_admin` | CRUD tài khoản theo cơ chế khóa mềm, phân quyền, xem health và audit log |
 
-Mỗi User chỉ có một role. Manager không quản lý tài khoản; Admin không xem hay sửa dữ liệu kinh doanh.
+Mỗi tài khoản nhân sự chỉ có một role. Customer dùng Guest Session, không có tài khoản nhân sự để Admin quản lý. Manager không quản lý tài khoản; Admin không xem hay sửa dữ liệu kinh doanh.
 
 ## 1.4. Phạm vi MVP mục tiêu
 
-1. Customer chỉ nhập tên + số điện thoại để vào app; phiên thiết bị cho phép quản lý lịch vừa đặt. OTP demo chỉ dùng khi khôi phục lịch trên thiết bị khác. System Admin cấp tài khoản nhân sự và phân quyền ở thiết kế mục tiêu.
+1. Customer chỉ nhập tên + số điện thoại để vào app; phiên thiết bị cho phép quản lý lịch vừa đặt. OTP demo chỉ dùng khi khôi phục lịch trên thiết bị khác. System Admin cấp tài khoản nhân sự và phân quyền.
 2. General Manager tạo Branch/Service, quản lý hồ sơ Stylist và xếp Work Shift.
 3. Customer chọn Branch → Service → Stylist → Slot và xác nhận `booked`; giá được chốt tại thời điểm đặt.
 4. Stylist đánh dấu `completed`; Customer thanh toán MoMo/VNPay **mô phỏng, không trừ tiền thật**. Lần thành công chuyển `paid`; lần thất bại được lưu và có thể thử lại.
