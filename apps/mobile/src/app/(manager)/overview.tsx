@@ -1,17 +1,21 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Text } from "react-native";
+import { Alert, Text } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
 import { managerToday } from "@/manager/date";
 import { ManagerAction, ManagerField, ManagerRow } from "@/manager/ui";
 import type { Branch, Overview } from "@/manager/types";
 import { useManagerApi } from "@/manager/use-manager-api";
+import { useAuth } from "@/providers/auth-provider";
+import { useRole } from "@/providers/role-provider";
 
 const labels = { booked: "Đã đặt", completed: "Đã hoàn thành", paid: "Đã thanh toán", cancelled: "Đã hủy" };
 export default function ManagerOverview() {
   const api = useManagerApi();
   const theme = useAppTheme();
+  const { logout } = useAuth();
+  const { clearRole } = useRole();
   const [date, setDate] = useState(managerToday);
   const [branchId, setBranchId] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -19,6 +23,26 @@ export default function ManagerOverview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+
+  function handleLogout() {
+    Alert.alert(
+      "Đăng xuất",
+      "Bạn có chắc muốn đăng xuất khỏi tài khoản General Manager?",
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Đăng xuất",
+          style: "destructive",
+          onPress: async () => {
+            await logout();
+            clearRole();
+            router.replace("/login");
+          }
+        }
+      ]
+    );
+  }
+
   useFocusEffect(useCallback(() => {
     let active = true;
     setLoading(true); setError("");
@@ -38,7 +62,10 @@ export default function ManagerOverview() {
     {!!error && <Text style={{ color: theme.danger }}>{error}</Text>}
     {overview && <>{(Object.entries(labels) as Array<[keyof Overview["counts"], string]>).map(([status, label]) =>
       <Card key={status}><CardTitle>{overview.counts[status] ?? 0}</CardTitle><CardText>{label}</CardText></Card>)}</>}
-    <ManagerRow><ManagerAction label="Xem lịch đặt" onPress={() => router.push("/(manager)/appointments")} />
-      <ManagerAction label="Xếp ca" onPress={() => router.push("/(manager)/operations")} /></ManagerRow>
+    <ManagerRow>
+      <ManagerAction label="Xem lịch đặt" onPress={() => router.push("/(manager)/appointments")} />
+      <ManagerAction label="Xếp ca" onPress={() => router.push("/(manager)/operations")} />
+      <ManagerAction label="Đăng xuất" danger onPress={handleLogout} />
+    </ManagerRow>
   </Screen>;
 }

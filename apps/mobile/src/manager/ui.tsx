@@ -9,14 +9,44 @@ export function ManagerField({ label, value, onChange, placeholder }: { label: s
       style={[styles.input, { borderColor: theme.border, color: theme.text }]} /></View>;
 }
 
-export function ManagerAction({ label, onPress, selected = false, disabled = false }: { label: string;
-  onPress: () => void; selected?: boolean; disabled?: boolean }) {
+export function ManagerAction({
+  label,
+  onPress,
+  selected = false,
+  disabled = false,
+  danger = false
+}: {
+  label: string;
+  onPress: () => void;
+  selected?: boolean;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
   const theme = useAppTheme();
-  return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}
-    style={[styles.action, { borderColor: theme.brand, backgroundColor: selected ? theme.brand : theme.surface,
-      opacity: disabled ? 0.5 : 1 }]}>
-    <Text style={{ color: selected ? "white" : theme.brand, fontWeight: "700" }}>{label}</Text>
-  </Pressable>;
+  const activeColor = danger ? theme.danger : theme.brand;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.action,
+        {
+          borderColor: activeColor,
+          backgroundColor: selected
+            ? activeColor
+            : danger
+            ? theme.isDark
+              ? "rgba(220, 38, 38, 0.15)"
+              : "rgba(220, 38, 38, 0.08)"
+            : theme.surface,
+          opacity: disabled ? 0.5 : 1
+        }
+      ]}
+    >
+      <Text style={{ color: selected ? "white" : activeColor, fontWeight: "700" }}>{label}</Text>
+    </Pressable>
+  );
 }
 
 export function ManagerRow({ children }: { children: React.ReactNode }) {

@@ -30,7 +30,7 @@ export type AuthContextValue = {
   enterCustomer: (name: string, phone: string) => Promise<AuthUser>;
   requestCustomerRecovery: () => Promise<void>;
   verifyCustomerRecovery: (code: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void> | void;
   setAuth: (token: string, user: AuthUser) => void;
 };
 

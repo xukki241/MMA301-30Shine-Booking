@@ -80,6 +80,16 @@ export function Screen({
   );
 }
 
+/** Navy-blue branded header banner */
+export function BrandHeader({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+  const theme = useAppTheme();
+  return (
+    <View style={[styles.brandHeader, { backgroundColor: theme.brand }, style]}>
+      {children}
+    </View>
+  );
+}
+
 export function Card({ children, style, highlighted = false }: CardProps) {
   const theme = useAppTheme();
 
@@ -129,7 +139,7 @@ export function PrimaryButton({
       onPress={onPress}
       style={({ pressed }) => [
         styles.primaryButton,
-        { backgroundColor: pressed ? theme.brandPressed : theme.brand },
+        { backgroundColor: pressed ? theme.accentPressed : theme.accent },
         style
       ]}
     >
@@ -175,6 +185,35 @@ export function SecondaryButton({
   );
 }
 
+/** Navy-blue branded button (white text on navy) */
+export function BrandButton({
+  label,
+  onPress,
+  accessibilityHint,
+  style,
+  icon
+}: PrimaryButtonProps) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.primaryButton,
+        { backgroundColor: pressed ? theme.brandPressed : theme.brand },
+        style
+      ]}
+    >
+      <View style={styles.buttonInner}>
+        {icon ? <View style={styles.buttonIcon}>{icon}</View> : null}
+        <Text style={styles.primaryButtonText}>{label}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export function Badge({ label, variant = "brand" }: BadgeProps) {
   const theme = useAppTheme();
   const palette = {
@@ -191,38 +230,86 @@ export function Badge({ label, variant = "brand" }: BadgeProps) {
   );
 }
 
+/** Menu list item with icon, title, subtitle, and chevron */
+export function MenuItem({
+  icon,
+  title,
+  subtitle,
+  onPress
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle?: string;
+  onPress: () => void;
+}) {
+  const theme = useAppTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuItem,
+        {
+          backgroundColor: pressed ? theme.surfaceHighlight : theme.surface,
+          borderBottomColor: theme.border
+        }
+      ]}
+    >
+      <View style={styles.menuIconWrap}>{icon}</View>
+      <View style={styles.menuTextCol}>
+        <Text style={[styles.menuTitle, { color: theme.text }]}>{title}</Text>
+        {subtitle ? (
+          <Text style={[styles.menuSubtitle, { color: theme.textMuted }]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={[styles.menuChevron, { color: theme.textDim }]}>›</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
-    padding: 20,
     paddingBottom: 40
   },
   eyebrow: {
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 1.2,
-    textTransform: "uppercase"
+    textTransform: "uppercase",
+    paddingHorizontal: 20
   },
   title: {
     fontSize: 28,
     fontWeight: "800",
     lineHeight: 36,
-    marginTop: 6
+    marginTop: 6,
+    paddingHorizontal: 20
   },
   description: {
     fontSize: 15,
     lineHeight: 22,
-    marginTop: 6
+    marginTop: 6,
+    paddingHorizontal: 20
   },
   body: {
-    gap: 16,
-    marginTop: 20
+    gap: 12,
+    marginTop: 16
+  },
+  brandHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingTop: 8
   },
   card: {
     borderRadius: 16,
     borderWidth: 1,
     gap: 10,
     padding: 18,
+    marginHorizontal: 16,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 10,
@@ -279,5 +366,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.4,
     textTransform: "uppercase"
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth
+  },
+  menuIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14
+  },
+  menuTextCol: {
+    flex: 1,
+    gap: 2
+  },
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: "600"
+  },
+  menuSubtitle: {
+    fontSize: 12
+  },
+  menuChevron: {
+    fontSize: 22,
+    fontWeight: "300",
+    marginLeft: 8
   }
 });

@@ -3,22 +3,21 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  Linking,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import type { CustomerAppointment } from "@/appointments/types";
-import {
-  Badge,
-  Card,
-  PrimaryButton,
-  Screen,
-  SecondaryButton
-} from "@/components/screen";
+import { RoleResetButton } from "@/components/role-reset-button";
+import { Badge, BrandButton, Card, PrimaryButton } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -72,7 +71,6 @@ export default function CustomerHomeScreen() {
           setUpcoming(next || null);
         })
         .catch(() => {
-          // Graceful fallback when network or mock fails
           if (active) setUpcoming(null);
         });
 
@@ -84,768 +82,891 @@ export default function CustomerHomeScreen() {
 
   function showGuaranteeAlert() {
     Alert.alert(
-      "Cam kết bảo hành 7 ngày",
+      "Cam kết bảo hành tóc 7 ngày",
       "30Shine cam kết bảo hành form tóc trong 7 ngày miễn phí 100%. Nếu bạn chưa thực sự ưng ý với kiểu tóc vừa cắt, hãy ghé bất kỳ chi nhánh nào để stylist căn chỉnh lại ngay.",
       [{ text: "Đã hiểu", style: "default" }]
     );
   }
 
-  const displayName = user?.email
+  function showPricingAlert() {
+    Alert.alert(
+      "Bảng giá niêm yết 30Shine",
+      "• Shine Combo 10 bước: 100.000đ - 120.000đ\n• Uốn định hình chuẩn Hàn: Từ 386.000đ\n• Nhuộm thời trang: Từ 299.000đ\n• Chăm sóc da & Lấy ráy tai: Từ 59.000đ\n\nCam kết: Không chèo kéo dịch vụ, bảo vệ khách hàng.",
+      [{ text: "Đóng", style: "default" }]
+    );
+  }
+
+  function handleCallHotline() {
+    Linking.openURL("tel:1900272703").catch(() => {
+      Alert.alert("Hotline 30Shine", "Tổng đài CSKH: 1900.27.27.03 (8h00 - 21h30 hàng ngày)");
+    });
+  }
+
+  const displayName = user?.name
+    ? user.name.toUpperCase()
+    : user?.email
     ? user.email.split("@")[0].toUpperCase()
-    : "QUÝ KHÁCH";
+    : "GUEST";
 
   return (
-    <Screen contentContainerStyle={styles.screenContainer}>
-      {/* 1. Header Greeting & User Tier */}
-      <View style={styles.greetingSection}>
-        <View style={styles.greetingTextContainer}>
-          <Text style={[styles.greetingSubtitle, { color: theme.textMuted }]}>
-            Xin chào,
-          </Text>
-          <Text style={[styles.greetingTitle, { color: theme.text }]}>
-            {displayName}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.membershipPill,
-            {
-              backgroundColor: theme.goldMuted,
-              borderColor: theme.gold
-            }
-          ]}
-        >
-          <Ionicons
-            name="star"
-            size={12}
-            color={theme.gold}
-            style={styles.starIcon}
-          />
-          <Text style={[styles.membershipText, { color: theme.gold }]}>
-            Shine Member
-          </Text>
-        </View>
-      </View>
+    <View style={[styles.root, { backgroundColor: theme.background }]}>
+      {/* 1. Deep Navy Header Section (Stitch Style) */}
+      <View style={[styles.navyHeader, { backgroundColor: theme.brand }]}>
+        <SafeAreaView edges={["top"]} style={styles.safeAreaHeader}>
+          {/* Top Brand & Hotline Bar */}
+          <View style={styles.topBar}>
+            <View style={styles.logoRow}>
+              <View style={styles.logoCircle}>
+                <Ionicons name="cut" size={16} color={theme.brand} />
+              </View>
+              <Text style={styles.brandTitleText}>30SHINE MEMBER</Text>
+            </View>
 
-      {/* 2. Upcoming Appointment Banner (Context-aware) */}
-      {upcoming ? (
-        <Card highlighted style={styles.upcomingCard}>
-          <View style={styles.upcomingHeaderRow}>
-            <View style={styles.liveIndicatorRow}>
-              <View
-                style={[
-                  styles.statusPulseDot,
-                  { backgroundColor: theme.brand }
-                ]}
-              />
-              <Text
-                style={[styles.upcomingLabelText, { color: theme.brand }]}
+            <View style={styles.topRightActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Gọi hotline"
+                onPress={handleCallHotline}
+                style={styles.hotlinePill}
               >
-                LỊCH HẸN SẮP TỚI
+                <Text style={styles.hotlineText}>Hotline</Text>
+                <Ionicons name="call" size={14} color="#FFFFFF" />
+              </Pressable>
+              <RoleResetButton variant="onBrand" />
+            </View>
+          </View>
+
+          {/* User Profile Overview */}
+          <View style={styles.userSection}>
+            <View style={styles.avatarWrap}>
+              <Ionicons name="person" size={26} color="#FFFFFF" />
+              <View style={styles.verifiedBadge}>
+                <Ionicons name="checkmark" size={10} color="#FFFFFF" />
+              </View>
+            </View>
+
+            <View style={styles.userInfoCol}>
+              <View style={styles.userNameRow}>
+                <Text style={styles.userNameText} numberOfLines={1}>
+                  {displayName}
+                </Text>
+                <View style={styles.guestTag}>
+                  <Text style={styles.guestTagText}>
+                    {user?.phone ? user.phone : "Khách vãng lai"}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.userSubtitle}>
+                {user?.phone
+                  ? "Tích điểm & nhận ưu đãi thành viên"
+                  : "Đăng nhập để nhận ngập tràn ưu đãi"}
               </Text>
             </View>
-            <Badge label="ĐÃ XÁC NHẬN" variant="success" />
+
+            <View style={styles.shinePointBadge}>
+              <Text style={styles.pointLabel}>ĐIỂM SHINE</Text>
+              <Text style={styles.pointValue}>0 Shine</Text>
+            </View>
           </View>
-          <Text style={[styles.upcomingTime, { color: theme.text }]}>
-            {formatDateTime(upcoming.startTime)}
+        </SafeAreaView>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* 2. Upcoming Appointment Banner (if any) */}
+        {upcoming ? (
+          <View style={[styles.upcomingCard, { backgroundColor: theme.surface, borderColor: theme.brand }]}>
+            <View style={styles.upcomingHeaderRow}>
+              <View style={styles.liveBadgeRow}>
+                <View style={[styles.pulseDot, { backgroundColor: theme.success }]} />
+                <Text style={[styles.upcomingTag, { color: theme.brand }]}>
+                  LỊCH HẸN SẮP TỚI
+                </Text>
+              </View>
+              <View style={[styles.statusPill, { backgroundColor: theme.successMuted }]}>
+                <Text style={[styles.statusPillText, { color: theme.success }]}>ĐÃ XÁC NHẬN</Text>
+              </View>
+            </View>
+
+            <Text style={[styles.upcomingTime, { color: theme.text }]}>
+              {formatDateTime(upcoming.startTime)}
+            </Text>
+            <Text style={[styles.upcomingDesc, { color: theme.textMuted }]}>
+              Stylist và chi nhánh đã sẵn sàng đón tiếp bạn. Vui lòng đến trước 5 phút để được phục vụ chu đáo nhất.
+            </Text>
+
+            <Pressable
+              style={[styles.upcomingButton, { backgroundColor: theme.brand }]}
+              onPress={() => router.push("/(customer)/appointments")}
+            >
+              <Text style={styles.upcomingButtonText}>Xem chi tiết & đổi lịch</Text>
+              <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* 3. Welcome / Booking Hero Box (Matching Stitch Screen 1) */}
+        <View style={[styles.welcomeBox, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.welcomeTitle, { color: theme.text }]}>
+            Chào Mừng Quý Khách Đến 30Shine
           </Text>
-          <Text style={[styles.upcomingSubtext, { color: theme.textMuted }]}>
-            Stylist và chi nhánh đã sẵn sàng đón tiếp bạn. Vui lòng đến trước 5
-            phút để được phục vụ chu đáo nhất.
+          <Text style={[styles.welcomeDesc, { color: theme.textMuted }]}>
+            Đăng nhập số điện thoại để nâng hạng thành viên, tích điểm giảm giá và lưu trữ hình ảnh kiểu tóc sau mỗi lần cắt.
           </Text>
-          <SecondaryButton
-            label="Xem chi tiết & đổi lịch"
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đặt lịch ngay"
+            onPress={() => router.push("/(customer)/book")}
+            style={[styles.heroBookingBtn, { backgroundColor: theme.brand }]}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#FFFFFF" style={styles.btnIcon} />
+            <Text style={styles.heroBookingBtnText}>
+              {token ? "ĐẶT LỊCH CẮT NGAY" : "ĐĂNG NHẬP / ĐẶT LỊCH NGAY"}
+            </Text>
+          </Pressable>
+
+          <View style={styles.trustBadgesRow}>
+            <View style={styles.trustItem}>
+              <Ionicons name="checkmark-circle" size={14} color={theme.success} />
+              <Text style={[styles.trustText, { color: theme.textMuted }]}>Nhanh gọn 30 giây</Text>
+            </View>
+            <Text style={[styles.trustDot, { color: theme.textDim }]}>•</Text>
+            <View style={styles.trustItem}>
+              <Ionicons name="shield-checkmark" size={14} color="#3B82F6" />
+              <Text style={[styles.trustText, { color: theme.textMuted }]}>Bảo mật thông tin</Text>
+            </View>
+            <Text style={[styles.trustDot, { color: theme.textDim }]}>•</Text>
+            <View style={styles.trustItem}>
+              <Ionicons name="sparkles" size={14} color={theme.gold} />
+              <Text style={[styles.trustText, { color: theme.textMuted }]}>Bảo hành 7 ngày</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 4. Shine Member Privileges Card (Matching Stitch Screen 1) */}
+        <View style={styles.privilegeCard}>
+          <View style={styles.privilegeTopRow}>
+            <View style={styles.crownRow}>
+              <Ionicons name="ribbon" size={18} color={theme.gold} />
+              <Text style={[styles.privilegeHeaderTitle, { color: theme.gold }]}>
+                ĐẶC QUYỀN SHINE MEMBER 2025
+              </Text>
+            </View>
+            <Pressable onPress={() => router.push("/(customer)/book")}>
+              <Text style={[styles.privilegeDetailsLink, { color: theme.gold }]}>Chi tiết ›</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.privilegeSubheader}>Tích lũy & Đổi dịch vụ cao cấp</Text>
+
+          {/* Member Tiers Row */}
+          <View style={styles.tiersRow}>
+            <View style={styles.tierItem}>
+              <View style={[styles.tierCircle, { backgroundColor: "#B45309" }]}>
+                <Text style={styles.tierLetter}>Đ</Text>
+              </View>
+              <Text style={styles.tierName}>Đồng</Text>
+            </View>
+
+            <View style={styles.tierItem}>
+              <View style={[styles.tierCircle, { backgroundColor: "#64748B" }]}>
+                <Text style={styles.tierLetter}>B</Text>
+              </View>
+              <Text style={styles.tierName}>Bạc</Text>
+            </View>
+
+            <View style={styles.tierItem}>
+              <View style={[styles.tierCircle, { backgroundColor: theme.gold }]}>
+                <Text style={[styles.tierLetter, { color: "#1B2A4A" }]}>V</Text>
+              </View>
+              <Text style={[styles.tierName, { color: theme.gold, fontWeight: "800" }]}>Vàng</Text>
+            </View>
+
+            <View style={styles.tierItem}>
+              <View style={[styles.tierCircle, { backgroundColor: "#06B6D4" }]}>
+                <Text style={styles.tierLetter}>KC</Text>
+              </View>
+              <Text style={styles.tierName}>Kim Cương</Text>
+            </View>
+          </View>
+
+          {/* Benefits bullets */}
+          <View style={styles.benefitsList}>
+            <View style={styles.benefitRow}>
+              <Ionicons name="checkmark" size={14} color={theme.gold} />
+              <Text style={styles.benefitText}>
+                Hoàn tới <Text style={{ fontWeight: "800", color: "#FFFFFF" }}>10%</Text> giá trị hóa đơn quy đổi ra Shine Point
+              </Text>
+            </View>
+            <View style={styles.benefitRow}>
+              <Ionicons name="checkmark" size={14} color={theme.gold} />
+              <Text style={styles.benefitText}>Miễn phí cắt tóc tháng sinh nhật của bạn</Text>
+            </View>
+            <View style={styles.benefitRow}>
+              <Ionicons name="checkmark" size={14} color={theme.gold} />
+              <Text style={styles.benefitText}>Ưu tiên chọn Stylist Top 1 & Phục vụ không chờ đợi</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 5. Signature Hair Services Section (From Screenshot 4 & code) */}
+        <View style={styles.sectionHeadingRow}>
+          <View style={styles.sectionTitleWithBar}>
+            <View style={[styles.verticalBar, { backgroundColor: theme.brand }]} />
+            <Text style={[styles.sectionTitleText, { color: theme.text }]}>DỊCH VỤ TÓC</Text>
+          </View>
+          <Pressable onPress={() => router.push("/(customer)/book")}>
+            <Text style={[styles.viewAllText, { color: theme.brand }]}>Đặt lịch ngay ›</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.servicesGrid}>
+          {/* Service 1: Combo 10 bước */}
+          <Pressable
+            style={[styles.serviceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => router.push("/(customer)/book")}
+          >
+            <View style={[styles.serviceBadge, { backgroundColor: "#EF4444" }]}>
+              <Text style={styles.serviceBadgeText}>TOP 1</Text>
+            </View>
+            <View style={[styles.serviceIconContainer, { backgroundColor: theme.brandMuted }]}>
+              <Ionicons name="cut" size={32} color={theme.brand} />
+            </View>
+            <Text style={[styles.serviceNameText, { color: theme.text }]}>Shine Combo 10 bước</Text>
+            <Text style={[styles.servicePriceText, { color: theme.brand }]}>100.000 VNĐ</Text>
+            <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>
+              Cắt gội, massage bấm huyệt, vuốt sáp tạo kiểu chuẩn men
+            </Text>
+            <View style={styles.serviceSelectRow}>
+              <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn dịch vụ ›</Text>
+            </View>
+          </Pressable>
+
+          {/* Service 2: Uốn tóc */}
+          <Pressable
+            style={[styles.serviceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={() => router.push("/(customer)/book")}
+          >
+            <View style={[styles.serviceBadge, { backgroundColor: "#F59E0B" }]}>
+              <Text style={styles.serviceBadgeText}>HOT</Text>
+            </View>
+            <View style={[styles.serviceIconContainer, { backgroundColor: theme.goldMuted }]}>
+              <Ionicons name="sparkles" size={32} color={theme.gold} />
+            </View>
+            <Text style={[styles.serviceNameText, { color: theme.text }]}>Uốn định hình Hàn Quốc</Text>
+            <Text style={[styles.servicePriceText, { color: theme.brand }]}>Từ 386.000 VNĐ</Text>
+            <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>
+              Giữ form 3-4 tháng, bồng bềnh tự nhiên, dễ sấy tạo kiểu
+            </Text>
+            <View style={styles.serviceSelectRow}>
+              <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn dịch vụ ›</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        {/* 6. Menu List Items (Matching Stitch Screen 1) */}
+        <View style={[styles.menuContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {/* Salon System */}
+          <Pressable
+            style={[styles.menuRow, { borderBottomColor: theme.border }]}
+            onPress={() => router.push("/(customer)/book")}
+          >
+            <View style={[styles.menuIconBg, { backgroundColor: "#EBF5FF" }]}>
+              <Ionicons name="location-outline" size={20} color="#2563EB" />
+            </View>
+            <View style={styles.menuTextCol}>
+              <Text style={[styles.menuMainTitle, { color: theme.text }]}>
+                Hệ thống gần 100 Salon 30Shine
+              </Text>
+              <Text style={[styles.menuSubTitle, { color: theme.textMuted }]}>
+                Tìm salon gần nhất, đặt lịch và chỉ dẫn đường đi
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textDim} />
+          </Pressable>
+
+          {/* Pricing & Commitments */}
+          <Pressable
+            style={[styles.menuRow, { borderBottomColor: theme.border }]}
+            onPress={showPricingAlert}
+          >
+            <View style={[styles.menuIconBg, { backgroundColor: "#F0FDF4" }]}>
+              <Ionicons name="shield-checkmark-outline" size={20} color="#16A34A" />
+            </View>
+            <View style={styles.menuTextCol}>
+              <Text style={[styles.menuMainTitle, { color: theme.text }]}>
+                Bảng giá niêm yết & Cam kết 30Shine
+              </Text>
+              <Text style={[styles.menuSubTitle, { color: theme.textMuted }]}>
+                Không chèo kéo dịch vụ, bảo vệ khách hàng
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textDim} />
+          </Pressable>
+
+          {/* 7-day Warranty */}
+          <Pressable
+            style={[styles.menuRow, { borderBottomColor: theme.border }]}
+            onPress={showGuaranteeAlert}
+          >
+            <View style={[styles.menuIconBg, { backgroundColor: "#FEF2F2" }]}>
+              <Ionicons name="refresh-outline" size={20} color="#DC2626" />
+            </View>
+            <View style={styles.menuTextCol}>
+              <Text style={[styles.menuMainTitle, { color: theme.text }]}>
+                Chính sách bảo hành tóc 7 ngày
+              </Text>
+              <Text style={[styles.menuSubTitle, { color: theme.textMuted }]}>
+                Chỉnh sửa tóc hoặc uốn/nhuộm lại 100% miễn phí
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textDim} />
+          </Pressable>
+
+          {/* Review & Feedback */}
+          <Pressable
+            style={[styles.menuRow, { borderBottomWidth: 0 }]}
             onPress={() => router.push("/(customer)/appointments")}
-            icon={
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color={theme.text}
-              />
-            }
-          />
-        </Card>
-      ) : null}
-
-      {/* 3. Hero Booking Card (Primary CTA Engine) */}
-      <Card style={styles.heroCard}>
-        <View style={styles.heroBadgeRow}>
-          <Badge label="ĐẶT LỊCH NHANH 30S" variant="brand" />
-          <Ionicons name="sparkles" size={16} color={theme.brand} />
+          >
+            <View style={[styles.menuIconBg, { backgroundColor: "#FFFBEB" }]}>
+              <Ionicons name="star-outline" size={20} color="#D97706" />
+            </View>
+            <View style={styles.menuTextCol}>
+              <Text style={[styles.menuMainTitle, { color: theme.text }]}>
+                Đánh giá dịch vụ & Góp ý
+              </Text>
+              <Text style={[styles.menuSubTitle, { color: theme.textMuted }]}>
+                Giúp 30Shine nâng cao trải nghiệm của bạn
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.textDim} />
+          </Pressable>
         </View>
 
-        <Text style={[styles.heroHeadline, { color: theme.text }]}>
-          Tút lại vẻ đẹp trai cùng 30Shine
+        {/* 7. Hotline & Support Bar (Matching Stitch Screen 1 Bottom) */}
+        <View style={[styles.hotlineBanner, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={styles.hotlineLeft}>
+            <View style={[styles.headphoneCircle, { backgroundColor: "#EFF6FF" }]}>
+              <Ionicons name="headset" size={22} color={theme.brand} />
+            </View>
+            <View style={styles.hotlineTextCol}>
+              <Text style={[styles.hotlineLabel, { color: theme.textMuted }]}>Tổng đài CSKH miễn cước</Text>
+              <Text style={[styles.hotlineNumber, { color: theme.text }]}>1900.27.27.03</Text>
+              <Text style={[styles.hotlineHours, { color: theme.textDim }]}>Hỗ trợ từ 8h00 - 21h30 hàng ngày</Text>
+            </View>
+          </View>
+          <Pressable
+            style={[styles.callNowBtn, { backgroundColor: theme.brand }]}
+            onPress={handleCallHotline}
+          >
+            <Text style={styles.callNowBtnText}>Gọi ngay</Text>
+          </Pressable>
+        </View>
+
+        {/* Copyright info */}
+        <Text style={[styles.footerText, { color: theme.textDim }]}>
+          Phiên bản 30Shine 4.2.0 • 2025 30Shine Joint Stock Company
         </Text>
-        <Text style={[styles.heroDescription, { color: theme.textMuted }]}>
-          Chủ động giữ chỗ chỉ với 4 bước đơn giản. Đến đúng giờ, cắt đúng hẹn,
-          không lo chờ đợi.
-        </Text>
-
-        {/* 4-Step Process Bar */}
-        <View
-          style={[
-            styles.stepsContainer,
-            {
-              backgroundColor: theme.surfaceHighlight,
-              borderColor: theme.borderLight
-            }
-          ]}
-        >
-          <View style={styles.stepItem}>
-            <View
-              style={[styles.stepCircle, { backgroundColor: theme.brand }]}
-            >
-              <Text style={styles.stepCircleNumber}>1</Text>
-            </View>
-            <Text style={[styles.stepLabel, { color: theme.text }]}>
-              Chi nhánh
-            </Text>
-          </View>
-          <Text style={[styles.stepArrow, { color: theme.textMuted }]}>→</Text>
-
-          <View style={styles.stepItem}>
-            <View
-              style={[styles.stepCircle, { backgroundColor: theme.brand }]}
-            >
-              <Text style={styles.stepCircleNumber}>2</Text>
-            </View>
-            <Text style={[styles.stepLabel, { color: theme.text }]}>
-              Dịch vụ
-            </Text>
-          </View>
-          <Text style={[styles.stepArrow, { color: theme.textMuted }]}>→</Text>
-
-          <View style={styles.stepItem}>
-            <View
-              style={[styles.stepCircle, { backgroundColor: theme.brand }]}
-            >
-              <Text style={styles.stepCircleNumber}>3</Text>
-            </View>
-            <Text style={[styles.stepLabel, { color: theme.text }]}>
-              Stylist
-            </Text>
-          </View>
-          <Text style={[styles.stepArrow, { color: theme.textMuted }]}>→</Text>
-
-          <View style={styles.stepItem}>
-            <View
-              style={[styles.stepCircle, { backgroundColor: theme.brand }]}
-            >
-              <Text style={styles.stepCircleNumber}>4</Text>
-            </View>
-            <Text style={[styles.stepLabel, { color: theme.text }]}>
-              Giờ cắt
-            </Text>
-          </View>
-        </View>
-
-        {/* Hero Primary Action Button */}
-        <PrimaryButton
-          label="Đặt lịch cắt tóc ngay"
-          accessibilityHint="Mở luồng đặt lịch 4 bước tại chi nhánh mong muốn"
-          onPress={() => router.push("/(customer)/book")}
-          icon={<Ionicons name="calendar" size={17} color="#FFFFFF" />}
-        />
-
-        {/* Hero reassurance checklist */}
-        <View style={styles.heroCheckRow}>
-          <View style={styles.checkItem}>
-            <Ionicons
-              name="checkmark-circle"
-              size={13}
-              color={theme.success}
-              style={styles.checkIcon}
-            />
-            <Text style={[styles.checkText, { color: theme.textDim }]}>
-              Giữ chỗ 30s
-            </Text>
-          </View>
-          <Text style={[styles.checkDot, { color: theme.textDim }]}>•</Text>
-          <View style={styles.checkItem}>
-            <Ionicons
-              name="checkmark-circle"
-              size={13}
-              color={theme.success}
-              style={styles.checkIcon}
-            />
-            <Text style={[styles.checkText, { color: theme.textDim }]}>
-              Miễn phí hủy lịch
-            </Text>
-          </View>
-          <Text style={[styles.checkDot, { color: theme.textDim }]}>•</Text>
-          <View style={styles.checkItem}>
-            <Ionicons
-              name="checkmark-circle"
-              size={13}
-              color={theme.success}
-              style={styles.checkIcon}
-            />
-            <Text style={[styles.checkText, { color: theme.textDim }]}>
-              Bảo hành 7 ngày
-            </Text>
-          </View>
-        </View>
-      </Card>
-
-      {/* 4. Quick Action Shortcuts Grid */}
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>
-          Thao tác nhanh
-        </Text>
-      </View>
-
-      <View style={styles.quickActionsGrid}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Đặt lịch cắt"
-          onPress={() => router.push("/(customer)/book")}
-          style={({ pressed }) => [
-            styles.quickActionTile,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-              opacity: pressed ? 0.75 : 1
-            }
-          ]}
-        >
-          <View
-            style={[
-              styles.quickActionIconWrap,
-              { backgroundColor: theme.brandMuted }
-            ]}
-          >
-            <Ionicons name="cut" size={20} color={theme.brand} />
-          </View>
-          <Text style={[styles.quickActionTitle, { color: theme.text }]}>
-            Đặt lịch cắt
-          </Text>
-          <Text
-            style={[styles.quickActionSubtitle, { color: theme.textMuted }]}
-          >
-            Chọn chi nhánh & giờ
-          </Text>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Lịch hẹn của tôi"
-          onPress={() => router.push("/(customer)/appointments")}
-          style={({ pressed }) => [
-            styles.quickActionTile,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-              opacity: pressed ? 0.75 : 1
-            }
-          ]}
-        >
-          <View
-            style={[
-              styles.quickActionIconWrap,
-              { backgroundColor: theme.surfaceHighlight }
-            ]}
-          >
-            <Ionicons name="calendar-outline" size={20} color={theme.text} />
-          </View>
-          <Text style={[styles.quickActionTitle, { color: theme.text }]}>
-            Lịch hẹn của tôi
-          </Text>
-          <Text
-            style={[styles.quickActionSubtitle, { color: theme.textMuted }]}
-          >
-            Quản lý & thanh toán
-          </Text>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Shine Combo 10 bước"
-          onPress={() => router.push("/(customer)/book")}
-          style={({ pressed }) => [
-            styles.quickActionTile,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-              opacity: pressed ? 0.75 : 1
-            }
-          ]}
-        >
-          <View
-            style={[
-              styles.quickActionIconWrap,
-              { backgroundColor: theme.goldMuted }
-            ]}
-          >
-            <Ionicons name="sparkles" size={20} color={theme.gold} />
-          </View>
-          <Text style={[styles.quickActionTitle, { color: theme.text }]}>
-            Shine Combo
-          </Text>
-          <Text
-            style={[styles.quickActionSubtitle, { color: theme.textMuted }]}
-          >
-            10 bước cắt gội chuẩn
-          </Text>
-        </Pressable>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chính sách bảo hành 7 ngày"
-          onPress={showGuaranteeAlert}
-          style={({ pressed }) => [
-            styles.quickActionTile,
-            {
-              backgroundColor: theme.surface,
-              borderColor: theme.border,
-              opacity: pressed ? 0.75 : 1
-            }
-          ]}
-        >
-          <View
-            style={[
-              styles.quickActionIconWrap,
-              { backgroundColor: theme.successMuted }
-            ]}
-          >
-            <Ionicons
-              name="shield-checkmark"
-              size={20}
-              color={theme.success}
-            />
-          </View>
-          <Text style={[styles.quickActionTitle, { color: theme.text }]}>
-            Bảo hành 7 ngày
-          </Text>
-          <Text
-            style={[styles.quickActionSubtitle, { color: theme.textMuted }]}
-          >
-            Chỉnh sửa 100% free
-          </Text>
-        </Pressable>
-      </View>
-
-      {/* 5. Signature Services Showcase */}
-      <View style={styles.sectionHeaderRow}>
-        <View>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Dịch vụ nổi bật
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: theme.textMuted }]}>
-            Trải nghiệm dịch vụ chăm sóc tóc nam hàng đầu Việt Nam
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.servicesList}>
-        <Card style={styles.serviceCard}>
-          <View style={styles.serviceHeader}>
-            <View style={styles.serviceTitleCol}>
-              <View style={styles.serviceBadgeRow}>
-                <Badge label="SIGNATURE" variant="brand" />
-                <Text style={[styles.servicePrice, { color: theme.brand }]}>
-                  120.000đ
-                </Text>
-              </View>
-              <Text style={[styles.serviceName, { color: theme.text }]}>
-                Shine Combo 10 bước
-              </Text>
-            </View>
-          </View>
-          <Text
-            style={[styles.serviceDescription, { color: theme.textMuted }]}
-          >
-            Cắt tạo kiểu chuyên sâu, gội đầu thư giãn, massage bấm huyệt cổ vai
-            gáy, rửa mặt sáng da và vuốt sáp tạo kiểu chuẩn men.
-          </Text>
-          <SecondaryButton
-            label="Chọn combo này"
-            onPress={() => router.push("/(customer)/book")}
-            icon={<Ionicons name="cut-outline" size={15} color={theme.text} />}
-          />
-        </Card>
-
-        <Card style={styles.serviceCard}>
-          <View style={styles.serviceHeader}>
-            <View style={styles.serviceTitleCol}>
-              <View style={styles.serviceBadgeRow}>
-                <Badge label="XU HƯỚNG" variant="gold" />
-                <Text style={[styles.servicePrice, { color: theme.gold }]}>
-                  Từ 260.000đ
-                </Text>
-              </View>
-              <Text style={[styles.serviceName, { color: theme.text }]}>
-                Uốn định hình chuẩn Hàn
-              </Text>
-            </View>
-          </View>
-          <Text
-            style={[styles.serviceDescription, { color: theme.textMuted }]}
-          >
-            Uốn phồng chân tóc, Side part, Layer tạo độ bồng bềnh tự nhiên. Giữ
-            nếp lâu, dễ sấy tạo kiểu tại nhà mỗi sáng.
-          </Text>
-          <SecondaryButton
-            label="Chọn dịch vụ uốn"
-            onPress={() => router.push("/(customer)/book")}
-            icon={<Ionicons name="sparkles-outline" size={15} color={theme.text} />}
-          />
-        </Card>
-      </View>
-
-      {/* 6. 30Shine Quality & Payment Commitments */}
-      <Card style={styles.guaranteeCard}>
-        <View style={styles.guaranteeTitleRow}>
-          <Ionicons
-            name="checkmark-circle"
-            size={20}
-            color={theme.success}
-            style={styles.guaranteeIcon}
-          />
-          <Text style={[styles.guaranteeCardTitle, { color: theme.text }]}>
-            Cam kết dịch vụ & thanh toán
-          </Text>
-        </View>
-
-        <View style={styles.guaranteeItems}>
-          <View style={styles.guaranteeItem}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={18}
-              color={theme.brand}
-              style={styles.guaranteeItemIcon}
-            />
-            <View style={styles.guaranteeTextCol}>
-              <Text style={[styles.guaranteeHeading, { color: theme.text }]}>
-                Bảo hành 7 ngày miễn phí
-              </Text>
-              <Text
-                style={[
-                  styles.guaranteeDetail,
-                  { color: theme.textMuted }
-                ]}
-              >
-                Chỉnh sửa tóc hoặc gội lại hoàn toàn miễn phí nếu bạn chưa vừa ý.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.guaranteeItem}>
-            <Ionicons
-              name="time-outline"
-              size={18}
-              color={theme.gold}
-              style={styles.guaranteeItemIcon}
-            />
-            <View style={styles.guaranteeTextCol}>
-              <Text style={[styles.guaranteeHeading, { color: theme.text }]}>
-                Cắt đúng giờ - Không chờ đợi
-              </Text>
-              <Text
-                style={[
-                  styles.guaranteeDetail,
-                  { color: theme.textMuted }
-                ]}
-              >
-                Chỗ ngồi luôn được giữ riêng cho bạn đúng khung giờ đã đặt.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.guaranteeItem}>
-            <Ionicons
-              name="card-outline"
-              size={18}
-              color={theme.success}
-              style={styles.guaranteeItemIcon}
-            />
-            <View style={styles.guaranteeTextCol}>
-              <Text style={[styles.guaranteeHeading, { color: theme.text }]}>
-                Thanh toán sau khi hài lòng
-              </Text>
-              <Text
-                style={[
-                  styles.guaranteeDetail,
-                  { color: theme.textMuted }
-                ]}
-              >
-                Chỉ thanh toán khi Stylist hoàn tất dịch vụ. Hỗ trợ tiền mặt,
-                chuyển khoản và ví điện tử.
-              </Text>
-            </View>
-          </View>
-        </View>
-      </Card>
-    </Screen>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screenContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 40
+  root: {
+    flex: 1
   },
-  greetingSection: {
+  navyHeader: {
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28
+  },
+  safeAreaHeader: {
+    paddingHorizontal: 16
+  },
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingTop: Platform.OS === "android" ? 10 : 4,
     marginBottom: 16
   },
-  greetingTextContainer: {
-    flex: 1
-  },
-  greetingSubtitle: {
-    fontSize: 13,
-    fontWeight: "500"
-  },
-  greetingTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.2,
-    marginTop: 2
-  },
-  membershipPill: {
+  logoRow: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 999,
+    gap: 8
+  },
+  logoCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  brandTitleText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+    letterSpacing: 0.8
+  },
+  topRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  hotlinePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 10,
-    paddingVertical: 5
+    paddingVertical: 5,
+    borderRadius: 999,
+    gap: 5
   },
-  starIcon: {
-    marginRight: 4
+  hotlineText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700"
   },
-  membershipText: {
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.3
+  userSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4
+  },
+  avatarWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+    position: "relative"
+  },
+  verifiedBadge: {
+    position: "absolute",
+    bottom: -1,
+    right: -1,
+    backgroundColor: "#F59E0B",
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#1B2A4A"
+  },
+  userInfoCol: {
+    flex: 1
+  },
+  userNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  userNameText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  guestTag: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  guestTagText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  userSubtitle: {
+    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    marginTop: 2
+  },
+  shinePointBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)"
+  },
+  pointLabel: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 9,
+    fontWeight: "800"
+  },
+  pointValue: {
+    color: "#F5B731",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 1
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+    gap: 16
   },
   upcomingCard: {
-    marginBottom: 16,
-    gap: 10
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 16,
+    gap: 8,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6
   },
   upcomingHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  liveIndicatorRow: {
-    flexDirection: "row",
-    alignItems: "center"
-  },
-  statusPulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6
-  },
-  upcomingLabelText: {
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.8
-  },
-  upcomingTime: {
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 2
-  },
-  upcomingSubtext: {
-    fontSize: 13,
-    lineHeight: 19
-  },
-  heroCard: {
-    marginBottom: 20,
-    gap: 12,
-    padding: 20
-  },
-  heroBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  heroHeadline: {
-    fontSize: 22,
-    fontWeight: "800",
-    lineHeight: 28,
-    marginTop: 2
-  },
-  heroDescription: {
-    fontSize: 14,
-    lineHeight: 20
-  },
-  stepsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 4,
-    marginBottom: 4
-  },
-  stepItem: {
     alignItems: "center"
   },
-  stepCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4
-  },
-  stepCircleNumber: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "800"
-  },
-  stepLabel: {
-    fontSize: 11,
-    fontWeight: "600"
-  },
-  stepArrow: {
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  heroCheckRow: {
+  liveBadgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "wrap",
-    marginTop: 4,
-    gap: 8
-  },
-  checkItem: {
-    flexDirection: "row",
-    alignItems: "center"
-  },
-  checkIcon: {
-    marginRight: 4
-  },
-  checkDot: {
-    fontSize: 10,
-    marginHorizontal: 2
-  },
-  checkText: {
-    fontSize: 12,
-    fontWeight: "500"
-  },
-  sectionHeaderRow: {
-    marginBottom: 12,
-    marginTop: 8
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 0.2
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    marginTop: 3,
-    lineHeight: 18
-  },
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 12
-  },
-  quickActionTile: {
-    width: "48%",
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
     gap: 6
   },
-  quickActionIconWrap: {
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  upcomingTag: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  upcomingTime: {
+    fontSize: 17,
+    fontWeight: "800",
+    marginTop: 2
+  },
+  upcomingDesc: {
+    fontSize: 12,
+    lineHeight: 18
+  },
+  upcomingButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    gap: 6,
+    marginTop: 4
+  },
+  upcomingButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  welcomeBox: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 18,
+    gap: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6
+  },
+  welcomeTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  welcomeDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center"
+  },
+  heroBookingBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 14,
+    height: 48,
+    gap: 8,
+    marginTop: 2
+  },
+  btnIcon: {
+    marginRight: 2
+  },
+  heroBookingBtnText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  trustBadgesRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4
+  },
+  trustItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4
+  },
+  trustText: {
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  trustDot: {
+    fontSize: 10
+  },
+  privilegeCard: {
+    backgroundColor: "#111827",
+    borderRadius: 18,
+    padding: 18,
+    gap: 12
+  },
+  privilegeTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  crownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  privilegeHeaderTitle: {
+    fontSize: 12,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  privilegeDetailsLink: {
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  privilegeSubheader: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  tiersRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 4
+  },
+  tierItem: {
+    alignItems: "center",
+    gap: 4
+  },
+  tierCircle: {
     width: 38,
     height: 38,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  tierLetter: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  tierName: {
+    color: "#94A3B8",
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  benefitsList: {
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 10
+  },
+  benefitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  benefitText: {
+    color: "#E2E8F0",
+    fontSize: 12,
+    flex: 1
+  },
+  sectionHeadingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4
+  },
+  sectionTitleWithBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  verticalBar: {
+    width: 4,
+    height: 18,
+    borderRadius: 2
+  },
+  sectionTitleText: {
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 0.5
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  servicesGrid: {
+    flexDirection: "row",
+    gap: 12
+  },
+  serviceCard: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    gap: 6,
+    position: "relative"
+  },
+  serviceBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    zIndex: 1
+  },
+  serviceBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900"
+  },
+  serviceIconContainer: {
+    width: "100%",
+    height: 80,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 2
+    marginBottom: 4
   },
-  quickActionTitle: {
-    fontSize: 14,
-    fontWeight: "700"
+  serviceNameText: {
+    fontSize: 13,
+    fontWeight: "800"
   },
-  quickActionSubtitle: {
+  servicePriceText: {
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  serviceSubtext: {
     fontSize: 11,
     lineHeight: 15
   },
-  servicesList: {
-    gap: 14,
-    marginBottom: 20
+  serviceSelectRow: {
+    marginTop: 4
   },
-  serviceCard: {
-    gap: 10,
-    padding: 16
+  serviceSelectLink: {
+    fontSize: 12,
+    fontWeight: "700"
   },
-  serviceHeader: {
+  menuContainer: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: "hidden"
+  },
+  menuRow: {
     flexDirection: "row",
-    justifyContent: "space-between"
+    alignItems: "center",
+    padding: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12
   },
-  serviceTitleCol: {
-    flex: 1
+  menuIconBg: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center"
   },
-  serviceBadgeRow: {
+  menuTextCol: {
+    flex: 1,
+    gap: 2
+  },
+  menuMainTitle: {
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  menuSubTitle: {
+    fontSize: 11,
+    lineHeight: 16
+  },
+  hotlineBanner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 6
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14
   },
-  servicePrice: {
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  serviceName: {
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  serviceDescription: {
-    fontSize: 13,
-    lineHeight: 19
-  },
-  guaranteeCard: {
-    padding: 18,
-    gap: 14,
-    marginBottom: 10
-  },
-  guaranteeTitleRow: {
+  hotlineLeft: {
     flexDirection: "row",
-    alignItems: "center"
-  },
-  guaranteeIcon: {
-    marginRight: 8
-  },
-  guaranteeCardTitle: {
-    fontSize: 16,
-    fontWeight: "800"
-  },
-  guaranteeItems: {
-    gap: 12
-  },
-  guaranteeItem: {
-    flexDirection: "row",
-    alignItems: "flex-start"
-  },
-  guaranteeItemIcon: {
-    marginRight: 10,
-    marginTop: 2
-  },
-  guaranteeTextCol: {
+    alignItems: "center",
+    gap: 12,
     flex: 1
   },
-  guaranteeHeading: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 2
+  headphoneCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center"
   },
-  guaranteeDetail: {
-    fontSize: 12,
-    lineHeight: 17
+  hotlineTextCol: {
+    flex: 1,
+    gap: 1
+  },
+  hotlineLabel: {
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  hotlineNumber: {
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  hotlineHours: {
+    fontSize: 10
+  },
+  callNowBtn: {
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+  callNowBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  footerText: {
+    fontSize: 11,
+    textAlign: "center",
+    marginVertical: 12
   }
 });
