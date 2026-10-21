@@ -14,18 +14,20 @@ async function startHttp(t, app) {
 
 async function bookingContract(t, firstRepository, secondRepository = firstRepository) {
   const secret = randomBytes(32).toString("hex");
-  const base = await startHttp(t, createApp(secret, firstRepository));
-  const secondBase = await startHttp(t, createApp(secret, secondRepository));
+  const workShiftRepository = { validateBooking: async () => ({ bookedPrice: 120000 }) };
+  const base = await startHttp(t, createApp({ secret, bookingRepository: firstRepository, workShiftRepository, verifyStaff: async () => true, verifyCustomer: async () => true }));
+  const secondBase = await startHttp(t, createApp({ secret, bookingRepository: secondRepository, workShiftRepository, verifyStaff: async () => true, verifyCustomer: async () => true }));
   const customer = { userId: id(), role: "customer" };
   const stranger = { userId: id(), role: "customer" };
   const bodyFor = (stylistId = id(), startTime = "2030-10-20T10:00:00Z", endTime = "2030-10-20T11:00:00Z") =>
-    ({ stylistId, startTime, endTime });
+    ({ stylistId, startTime, endTime, branchId: id(), serviceId: id() });
   async function post(path, actor, body, target = base, method = "POST") {
     const response = await fetch(target + path, {
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(actor ? { Authorization: "Bearer " + jwt.sign({ role: actor.role }, secret, {
+        ...(actor ? { Authorization: "Bearer " + jwt.sign(
+          { role: actor.role, authVersion: 0 }, secret, {
           subject: actor.userId, expiresIn: 3600, algorithm: "HS256",
         }) } : {}),
       },
@@ -39,7 +41,39 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
     assert.equal(response.status, 201, JSON.stringify(response.body));
     return response.body.appointment;
   }
-  const act = (appointment, action, actor) => post("/appointments/" + appointment.id + "/" + action, actor);
+  const act = (appointment, action, actor) => post("/appointments/" + appointment.id + "/" + action, actor,
+    action === "pay" ? { provider: "momo", outcome: "success", requestId: id() } : undefined);
+
+  await t.test("mock payment records failed and successful attempts with idempotent retry", async () => {
+    const appointment = await book();
+    await act(appointment, "complete", { userId: appointment.stylistId, role: "stylist" });
+    const path = `/appointments/${appointment.id}/pay`;
+    const failedBody = { provider: "momo", outcome: "failed", requestId: id() };
+    const failed = await post(path, customer, failedBody);
+    assert.equal(failed.status, 200);
+    assert.equal(failed.body.appointment.status, "completed");
+    assert.equal(failed.body.attempt.amount, 120000);
+    const replay = await post(path, customer, failedBody);
+    assert.equal(replay.body.attempt.id, failed.body.attempt.id);
+    const paid = await post(path, customer, { provider: "vnpay", outcome: "success", requestId: id() });
+    assert.equal(paid.status, 200);
+    assert.equal(paid.body.appointment.status, "paid");
+    assert.equal(paid.body.appointment.paymentAttempts.length, 2);
+    assert.equal((await post(path, customer, { ...failedBody, outcome: "success" })).status, 409);
+    assert.equal((await post(path, customer, { provider: "cash", outcome: "success", requestId: id() })).status, 400);
+  });
+  await t.test("two concurrent successful mock payments create one success attempt", async () => {
+    const appointment = await book();
+    await act(appointment, "complete", { userId: appointment.stylistId, role: "stylist" });
+    const path = `/appointments/${appointment.id}/pay`;
+    const results = await Promise.all([
+      post(path, customer, { provider: "momo", outcome: "success", requestId: id() }),
+      post(path, customer, { provider: "vnpay", outcome: "success", requestId: id() }, secondBase),
+    ]);
+    assert.deepEqual(results.map((result) => result.status).sort(), [200, 409]);
+    const saved = await firstRepository.findById(appointment.id);
+    assert.equal(saved.paymentAttempts.filter((attempt) => attempt.status === "success").length, 1);
+  });
 
   await t.test("book -> 201 + booked; JWT determines customer ownership", async () => {
     const appointment = await book();
@@ -88,7 +122,7 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
   });
   await t.test("correct stylist complete; wrong stylist/customer/admin -> 403", async () => {
     const appointment = await book();
-    for (const actor of [{ userId: id(), role: "stylist" }, customer, { userId: id(), role: "shop_admin" }]) {
+    for (const actor of [{ userId: id(), role: "stylist" }, customer, { userId: id(), role: "system_admin" }]) {
       assert.equal((await act(appointment, "complete", actor)).status, 403);
     }
     const completed = await act(appointment, "complete", { userId: appointment.stylistId, role: "stylist" });
@@ -115,7 +149,7 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
           if (state === "cancelled") assert.equal((await act(appointment, "cancel", customer)).status, 200);
           const expected = { "booked/complete": "completed", "booked/cancel": "cancelled", "completed/pay": "paid" }[state + "/" + action];
           const response = await act(appointment, action, action === "complete" ? stylist : customer);
-          assert.equal(response.status, expected ? 200 : 400);
+          assert.equal(response.status, expected ? 200 : state === "paid" && action === "pay" ? 409 : 400);
           if (expected) assert.equal(response.body.appointment.status, expected);
           const saved = await firstRepository.findById(appointment.id);
           assert.equal(saved.status, expected || state);
@@ -159,8 +193,9 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
   });
   await t.test("not found=404; invalid id=400; generic updates cannot bypass states", async () => {
     for (const action of ["complete", "cancel", "pay"]) {
-      assert.equal((await post("/appointments/" + id() + "/" + action, customer)).status, 404);
-      assert.equal((await post("/appointments/bad-id/" + action, customer)).status, 400);
+      const body = action === "pay" ? { provider: "momo", outcome: "success", requestId: id() } : undefined;
+      assert.equal((await post("/appointments/" + id() + "/" + action, customer, body)).status, 404);
+      assert.equal((await post("/appointments/bad-id/" + action, customer, body)).status, 400);
     }
     const appointment = await book();
     assert.equal((await post("/appointments/" + appointment.id + "/cancel", customer, { status: "paid" })).status, 400);

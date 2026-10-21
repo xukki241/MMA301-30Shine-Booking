@@ -20,6 +20,10 @@ function createServiceModel(connection, collection = "services") {
         type: Number,
         required: [true, "Giá dịch vụ là bắt buộc"],
         min: [0, "Giá dịch vụ không được âm"],
+        validate: {
+          validator: Number.isSafeInteger,
+          message: "Giá dịch vụ phải là số nguyên VND an toàn",
+        },
       },
       durationMinutes: {
         type: Number,

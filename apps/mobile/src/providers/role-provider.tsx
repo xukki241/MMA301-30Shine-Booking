@@ -6,7 +6,7 @@ import {
   useState
 } from "react";
 
-export type MobileRole = "customer" | "stylist";
+export type MobileRole = "customer" | "stylist" | "general_manager";
 
 type RoleContextValue = {
   role: MobileRole | null;

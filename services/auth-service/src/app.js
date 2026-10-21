@@ -4,6 +4,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { ROLES } = require("./models/user");
 const { installCustomerGuestRoutes } = require("./customer-guest");
+const { installCustomerAccountRoutes } = require("./customer-account");
+const { installStaffAdminRoutes, createCoreHealthProbe, createCoreAuditProbe } = require("./staff-admin");
 
 function credentials(body, register) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
@@ -22,30 +24,37 @@ function publicUser(user) {
   return { id: String(user._id), email: user.email, role: user.role };
 }
 
-function createApp({ users, guests, secret, expiresIn, otpEnabled, otpLogger }) {
+function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, otpLogger, staffChangeGuard, coreHealthProbe, coreAuditProbe, coreApiUrl, audit }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
   app.use(express.json({ limit: "16kb" }));
   app.get("/health", (_req, res) => res.json({ ok: true, service: "auth-service" }));
-  installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger });
-
-  app.post("/auth/register", async (req, res, next) => {
-    const data = credentials(req.body, true);
-    if (!data) return res.status(400).json({ error: "Invalid email, password or role" });
+  installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger, allowNewGuests: !customers });
+  installCustomerAccountRoutes(app, { customers, secret, expiresIn, otpEnabled, otpLogger });
+  installStaffAdminRoutes(app, { users, secret, staffChangeGuard, audit,
+    coreHealthProbe: coreHealthProbe || (coreApiUrl ? createCoreHealthProbe(coreApiUrl) : null),
+    coreAuditProbe: coreAuditProbe || (coreApiUrl ? createCoreAuditProbe(coreApiUrl, secret) : null) });
+  app.get("/internal/staff/:id/active-stylist", async (req, res, next) => {
+    const match = /^Bearer ([^\s]+)$/i.exec(req.get("Authorization") || "");
+    if (!match) return res.status(401).json({ error: "Internal authentication required" });
     try {
-      if (await users.findByEmail(data.email)) {
-        return res.status(409).json({ error: "Email already registered" });
-      }
-      const passwordHash = await bcrypt.hash(data.password, 12);
-      const user = await users.create({ email: data.email, passwordHash, role: data.role });
-      return res.status(201).json({ user: publicUser(user) });
+      const claims = jwt.verify(match[1], secret, { algorithms: ["HS256"], issuer: "core-api" });
+      if (claims.scope !== "stylist-verify") return res.status(403).json({ error: "Invalid scope" });
+      if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(400).json({ error: "Invalid user id" });
+      const user = await users.findById(req.params.id);
+      return res.json({ active: Boolean(user && user.role === "stylist" && user.status !== "locked") });
     } catch (error) {
-      // Unique index handles concurrent requests that both pass the pre-check.
-      if (error.code === 11000) return res.status(409).json({ error: "Email already registered" });
+      if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
+        return res.status(401).json({ error: "Invalid internal token" });
+      }
       return next(error);
     }
   });
+
+  app.post("/auth/register", (_req, res) => res.status(410).json({
+    error: "Public account registration is closed; customers use /auth/customer/start",
+  }));
 
   app.post("/auth/login", async (req, res, next) => {
     const data = credentials(req.body, false);
@@ -53,10 +62,16 @@ function createApp({ users, guests, secret, expiresIn, otpEnabled, otpLogger }) 
     try {
       const user = await users.findByEmail(data.email);
       if (!user || !(await bcrypt.compare(data.password, user.passwordHash))) {
+        try { if (audit) await audit.write({ actorId: null, action: "auth.login", targetType: "staff", targetId: null, result: "failed" }); }
+        catch { console.error("Auth audit write failed"); }
         return res.status(401).json({ error: "Invalid email or password" });
       }
-      if (!ROLES.includes(user.role)) return res.status(401).json({ error: "Invalid email or password" });
-      const accessToken = jwt.sign({ role: user.role }, secret, {
+      if (!ROLES.includes(user.role) || user.status === "locked") {
+        try { if (audit) await audit.write({ actorId: null, action: "auth.login", targetType: "staff", targetId: null, result: "failed" }); }
+        catch { console.error("Auth audit write failed"); }
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+      const accessToken = jwt.sign({ role: user.role, authVersion: user.authVersion || 0 }, secret, {
         algorithm: "HS256", subject: String(user._id), expiresIn,
       });
       res.set("Cache-Control", "no-store");

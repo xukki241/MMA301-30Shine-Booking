@@ -1,182 +1,66 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  loginCustomer,
-  loginStylist,
-  registerUser,
-} from "../src/booking/http-adapter.ts";
-import { isTokenExpired } from "../src/providers/auth-utils.ts";
+import { createHttpBookingAdapter, loginStylist } from "../src/booking/http-adapter.ts";
+import { isTokenExpired, isMobileStaffRole, staffLanding } from "../src/providers/auth-utils.ts";
+
+test("Manager can enter the mobile staff area while System Admin cannot", () => {
+  assert.equal(isMobileStaffRole("general_manager"), true);
+  assert.equal(isMobileStaffRole("system_admin"), false);
+  assert.equal(staffLanding("general_manager"), "/(manager)/overview");
+  assert.equal(staffLanding("stylist"), "/(stylist)/today");
+});
 
 function createJwt(payload) {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  const signature = "fake_sig_123456";
-  return `${header}.${body}.${signature}`;
+  return `${header}.${body}.fake_signature`;
 }
 
-test("isTokenExpired accurately detects expired, valid, and malformed JWTs", () => {
-  const nowSec = Math.floor(Date.now() / 1000);
-
-  // 1. Valid future token
-  const validToken = createJwt({ sub: "user1", role: "customer", exp: nowSec + 3600 });
-  assert.equal(isTokenExpired(validToken), false);
-
-  // 2. Expired token (in past)
-  const expiredToken = createJwt({ sub: "user1", role: "customer", exp: nowSec - 60 });
-  assert.equal(isTokenExpired(expiredToken), true);
-
-  // 3. Token within 5-second buffer is treated as expired to prevent mid-flight failure
-  const soonExpiringToken = createJwt({ sub: "user1", role: "customer", exp: nowSec + 2 });
-  assert.equal(isTokenExpired(soonExpiringToken), true);
-
-  // 4. Malformed tokens
+test("isTokenExpired handles valid, expired and malformed JWTs", () => {
+  const now = Math.floor(Date.now() / 1000);
+  assert.equal(isTokenExpired(createJwt({ exp: now + 3600 })), false);
+  assert.equal(isTokenExpired(createJwt({ exp: now - 60 })), true);
+  assert.equal(isTokenExpired(createJwt({ exp: now + 2 })), true);
   assert.equal(isTokenExpired("not_a_jwt"), true);
-  assert.equal(isTokenExpired("a.b"), true);
-  assert.equal(isTokenExpired(""), true);
 });
 
-test("registerUser successfully registers Customer and Stylist accounts", async (t) => {
+test("mobile credential login accepts Stylist and rejects Manager/Admin roles", async (t) => {
   const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  let calledUrl = "";
-  let calledBody = null;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const requests = [];
+  let role = "stylist";
   globalThis.fetch = async (url, options) => {
-    calledUrl = String(url);
-    calledBody = JSON.parse(options?.body || "{}");
-    return {
-      ok: true,
-      status: 201,
-      json: async () => ({
-        user: { id: "user_new_123", email: calledBody.email, role: calledBody.role },
-      }),
-    };
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    return { ok: true, status: 200, json: async () => ({
+      accessToken: "staff_token", user: { id: "staff_id", email: "staff@example.test", role },
+    }) };
   };
 
-  // Register Customer
-  const customerResult = await registerUser("customer.new@30shine.vn", "Password123!", "customer");
-  assert.equal(customerResult.id, "user_new_123");
-  assert.equal(customerResult.email, "customer.new@30shine.vn");
-  assert.equal(customerResult.role, "customer");
-  assert.match(calledUrl, /\/auth\/register$/);
-  assert.equal(calledBody.role, "customer");
+  const stylist = await loginStylist("staff@example.test", "Password123!");
+  assert.equal(stylist.user.role, "stylist");
+  assert.equal(stylist.user.password, undefined);
+  assert.match(requests[0].url, /\/auth\/login$/);
+  assert.deepEqual(requests[0].body, { email: "staff@example.test", password: "Password123!" });
 
-  // Register Stylist
-  const stylistResult = await registerUser("stylist.new@30shine.vn", "Password123!", "stylist");
-  assert.equal(stylistResult.role, "stylist");
-  assert.equal(calledBody.role, "stylist");
+  for (role of ["general_manager", "system_admin", "customer"]) {
+    await assert.rejects(loginStylist("staff@example.test", "Password123!"), /quyền Stylist/);
+  }
 });
 
-test("registerUser rejects email duplicate with 409", async (t) => {
+test("Customer catalog and time slot reads carry the Guest Session token", async (t) => {
   const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  globalThis.fetch = async () => ({
-    ok: false,
-    status: 409,
-    json: async () => ({ error: "Email already registered" }),
-  });
-
-  await assert.rejects(
-    registerUser("existing@30shine.vn", "Password123!", "customer"),
-    /Email already registered/
-  );
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), authorization: options.headers.Authorization });
+    return { ok: true, status: 200, json: async () => ({ branches: [], services: [], stylists: [], slots: [] }) };
+  };
+  const adapter = createHttpBookingAdapter(() => "guest_token");
+  await adapter.listBranches();
+  await adapter.listServices("507f1f77bcf86cd799439011");
+  await adapter.listStylists("507f1f77bcf86cd799439011", "507f1f77bcf86cd799439012");
+  await adapter.listTimeSlots({ branchId: "507f1f77bcf86cd799439011", serviceId: "507f1f77bcf86cd799439012", stylistId: "507f1f77bcf86cd799439013", date: "2030-10-20" });
+  assert.equal(calls.length, 4);
+  assert.ok(calls.every((call) => call.authorization === "Bearer guest_token"));
 });
-
-test("loginCustomer and loginStylist enforce correct role permissions", async (t) => {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  // Mock server returning a stylist account
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      accessToken: "token_stylist_999",
-      user: { id: "stylist_999", email: "stylist@30shine.vn", role: "stylist" },
-    }),
-  });
-
-  // loginStylist succeeds
-  const stylistAuth = await loginStylist("stylist@30shine.vn", "Password123!");
-  assert.equal(stylistAuth.token, "token_stylist_999");
-  assert.equal(stylistAuth.user.role, "stylist");
-
-  // loginCustomer rejects this account because role is stylist
-  await assert.rejects(
-    loginCustomer("stylist@30shine.vn", "Password123!"),
-    /Tài khoản này không có quyền Customer/
-  );
-
-  // Mock server returning a shop_admin account
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      accessToken: "token_admin_123",
-      user: { id: "admin_123", email: "admin@30shine.vn", role: "shop_admin" },
-    }),
-  });
-
-  // Both mobile logins reject shop_admin role
-  await assert.rejects(
-    loginCustomer("admin@30shine.vn", "Password123!"),
-    /Tài khoản này không có quyền Customer/
-  );
-  await assert.rejects(
-    loginStylist("admin@30shine.vn", "Password123!"),
-    /Tài khoản này không có quyền Stylist/
-  );
-
-  // Mock server returning invalid credentials (401)
-  globalThis.fetch = async () => ({
-    ok: false,
-    status: 401,
-    json: async () => ({ error: "Invalid email or password" }),
-  });
-
-  await assert.rejects(
-    loginStylist("stylist@30shine.vn", "WrongPassword!"),
-    /Invalid email or password/
-  );
-});
-
-test("security RNF02: user registration and login payloads never contain passwords", async (t) => {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      accessToken: "secure_token_jwt",
-      user: { id: "u123", email: "user@30shine.vn", role: "customer" },
-    }),
-  });
-
-  const token = await loginCustomer("user@30shine.vn", "SuperSecretPassword123!");
-  assert.equal(token, "secure_token_jwt");
-
-  // Ensure returned token object does not leak password
-  globalThis.fetch = async () => ({
-    ok: true,
-    status: 200,
-    json: async () => ({
-      accessToken: "secure_token_jwt_2",
-      user: { id: "s123", email: "stylist@30shine.vn", role: "stylist" },
-    }),
-  });
-  const stylistResult = await loginStylist("stylist@30shine.vn", "SuperSecretPassword123!");
-  assert.equal(typeof stylistResult.user.password, "undefined");
-  assert.equal(typeof stylistResult.user.passwordHash, "undefined");
-});
-

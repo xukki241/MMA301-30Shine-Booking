@@ -13,7 +13,8 @@ const ids = {
 };
 
 function sign(role, userId) {
-  return jwt.sign({ sub: userId, role }, secret, { algorithm: "HS256", expiresIn: "1h" });
+  const claims = { sub: userId, role, authVersion: 0 };
+  return jwt.sign(claims, secret, { algorithm: "HS256", expiresIn: "1h" });
 }
 
 test("Customer appointment listing endpoints", async (t) => {
@@ -49,7 +50,7 @@ test("Customer appointment listing endpoints", async (t) => {
     },
   };
 
-  const app = createApp({ secret, bookingRepository });
+  const app = createApp({ secret, bookingRepository, verifyStaff: async () => true, verifyCustomer: async () => true });
   const server = app.listen(0);
   const port = server.address().port;
   const base = `http://localhost:${port}`;

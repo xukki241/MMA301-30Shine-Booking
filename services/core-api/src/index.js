@@ -26,9 +26,10 @@ async function start() {
       models.StylistProfile.init(),
       models.Calendar.init(),
       models.WorkShift.init(),
+      models.AuditLog.init(),
     ]);
 
-    const app = createApp({ secret: config.secret, models });
+    const app = createApp({ secret: config.secret, authServiceUrl: config.authServiceUrl, models });
     const server = app.listen(config.port, "0.0.0.0", () => {
       console.log(`core-api on ${config.port}`);
     });

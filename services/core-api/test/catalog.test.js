@@ -46,7 +46,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   await Promise.all([Branch.init(), Service.init(), StylistProfile.init()]);
 
   const models = { Branch, Service, StylistProfile };
-  const app = createApp({ secret, models });
+  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true, verifyActiveStylist: async () => true });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -58,10 +58,11 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   const base = `http://127.0.0.1:${server.address().port}`;
 
   const sign = (role, sub = "507f1f77bcf86cd799439011") =>
-    jwt.sign({ sub, role }, secret, { algorithm: "HS256", expiresIn: 3600 });
+    jwt.sign({ sub, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
 
-  const adminToken = sign("shop_admin");
+  const adminToken = sign("general_manager");
   const customerToken = sign("customer");
+  const customerRead = { headers: { Authorization: `Bearer ${customerToken}` } };
   const stylistToken = sign("stylist");
 
   let createdBranchId;
@@ -72,7 +73,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   // --- 1. Branch API Tests ---
   await t.test("Branch endpoints", async (tBranch) => {
     await tBranch.test("GET /branches starts empty", async () => {
-      const res = await fetch(`${base}/branches`);
+      const res = await fetch(`${base}/branches`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.ok(Array.isArray(data.branches));
@@ -112,7 +113,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.equal(res.status, 400);
     });
 
-    await tBranch.test("POST /branches succeeds with shop_admin", async () => {
+    await tBranch.test("POST /branches succeeds with general_manager", async () => {
       const res = await fetch(`${base}/branches`, {
         method: "POST",
         headers: {
@@ -137,7 +138,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tBranch.test("GET /branches returns created branch", async () => {
-      const res = await fetch(`${base}/branches`);
+      const res = await fetch(`${base}/branches`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.branches.length, 1);
@@ -145,19 +146,19 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tBranch.test("GET /branches/:id returns branch details", async () => {
-      const res = await fetch(`${base}/branches/${createdBranchId}`);
+      const res = await fetch(`${base}/branches/${createdBranchId}`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.branch.id, createdBranchId);
     });
 
     await tBranch.test("GET /branches/:id rejects invalid ObjectId format", async () => {
-      const res = await fetch(`${base}/branches/invalid-id-format`);
+      const res = await fetch(`${base}/branches/invalid-id-format`, customerRead);
       assert.equal(res.status, 400);
     });
 
     await tBranch.test("GET /branches/:id returns 404 for non-existent branch", async () => {
-      const res = await fetch(`${base}/branches/507f1f77bcf86cd799439011`);
+      const res = await fetch(`${base}/branches/507f1f77bcf86cd799439011`, customerRead);
       assert.equal(res.status, 404);
     });
 
@@ -179,7 +180,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   // --- 2. Service API Tests ---
   await t.test("Service endpoints", async (tService) => {
     await tService.test("GET /branches/:id/services starts empty", async () => {
-      const res = await fetch(`${base}/branches/${createdBranchId}/services`);
+      const res = await fetch(`${base}/branches/${createdBranchId}/services`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.deepEqual(data.services, []);
@@ -243,7 +244,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tService.test("GET /branches/:id/services returns created service", async () => {
-      const res = await fetch(`${base}/branches/${createdBranchId}/services`);
+      const res = await fetch(`${base}/branches/${createdBranchId}/services`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.services.length, 1);
@@ -251,7 +252,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tService.test("GET /services/:id returns service details", async () => {
-      const res = await fetch(`${base}/services/${createdServiceId}`);
+      const res = await fetch(`${base}/services/${createdServiceId}`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.service.id, createdServiceId);
@@ -270,12 +271,30 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       const data = await res.json();
       assert.equal(data.service.price, 150000);
     });
+
+    await tService.test("service price must be a safe whole VND amount for mock payment", async () => {
+      const headers = { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" };
+      for (const price of [120000.5, Number.MAX_SAFE_INTEGER + 1]) {
+        const create = await fetch(`${base}/branches/${createdBranchId}/services`, {
+          method: "POST", headers,
+          body: JSON.stringify({ name: "Gia khong hop le", price, durationMinutes: 45 }),
+        });
+        assert.equal(create.status, 400, `create accepted ${price}`);
+        const update = await fetch(`${base}/services/${createdServiceId}`, {
+          method: "PUT", headers, body: JSON.stringify({ price }),
+        });
+        assert.equal(update.status, 400, `update accepted ${price}`);
+        await assert.rejects(Service.create({ branchId: createdBranchId, name: "Gia sai",
+          price, durationMinutes: 45 }), /Giá dịch vụ phải là số nguyên VND an toàn/);
+      }
+      assert.equal((await Service.findById(createdServiceId)).price, 150000);
+    });
   });
 
   // --- 3. Stylist Profile API Tests ---
   await t.test("StylistProfile endpoints", async (tStylist) => {
     await tStylist.test("GET /branches/:id/stylists starts empty", async () => {
-      const res = await fetch(`${base}/branches/${createdBranchId}/stylists`);
+      const res = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.deepEqual(data.stylists, []);
@@ -321,7 +340,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tStylist.test("GET /branches/:id/stylists returns assigned stylist", async () => {
-      const res = await fetch(`${base}/branches/${createdBranchId}/stylists`);
+      const res = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.stylists.length, 1);
@@ -329,7 +348,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
     });
 
     await tStylist.test("GET /stylists/:id returns stylist profile", async () => {
-      const res = await fetch(`${base}/stylists/${createdStylistId}`);
+      const res = await fetch(`${base}/stylists/${createdStylistId}`, customerRead);
       assert.equal(res.status, 200);
       const data = await res.json();
       assert.equal(data.stylist.id, createdStylistId);
@@ -359,7 +378,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       });
       assert.equal(res.status, 200);
 
-      const check = await fetch(`${base}/services/${createdServiceId}`);
+      const check = await fetch(`${base}/services/${createdServiceId}`, customerRead);
       assert.equal(check.status, 404);
     });
 
@@ -370,7 +389,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       });
       assert.equal(res.status, 200);
 
-      const check = await fetch(`${base}/stylists/${createdStylistId}`);
+      const check = await fetch(`${base}/stylists/${createdStylistId}`, customerRead);
       assert.equal(check.status, 404);
     });
 
@@ -381,7 +400,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       });
       assert.equal(res.status, 200);
 
-      const check = await fetch(`${base}/branches/${createdBranchId}`);
+      const check = await fetch(`${base}/branches/${createdBranchId}`, customerRead);
       assert.equal(check.status, 404);
     });
   });

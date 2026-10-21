@@ -10,7 +10,11 @@ function readConfig(env = process.env) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("PORT must be an integer from 1 to 65535");
   }
-  return { secret: env.JWT_SECRET, mongoUri, port };
+  const authServiceUrl = env.AUTH_SERVICE_URL || "http://127.0.0.1:4101";
+  if (!/^https?:\/\/[^\s]+$/.test(authServiceUrl)) {
+    throw new Error("AUTH_SERVICE_URL must be an HTTP URL");
+  }
+  return { secret: env.JWT_SECRET, mongoUri, port, authServiceUrl };
 }
 
 module.exports = { readConfig };

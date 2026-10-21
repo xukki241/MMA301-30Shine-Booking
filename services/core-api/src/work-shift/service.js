@@ -19,22 +19,22 @@ function isId(value) {
 function createWorkShiftService(workShiftRepository, calendarRepository, serviceModel) {
   return {
     /**
-     * POST /work-shifts — Only shop_admin may call this.
+     * POST /work-shifts — Only general_manager may call this.
      */
     async create(actor, body) {
-      if (actor.role !== "shop_admin") {
-        throw new WorkShiftError(403, "Chỉ Shop Admin mới có thể tạo ca làm việc");
+      if (actor.role !== "general_manager") {
+        throw new WorkShiftError(403, "Chỉ General Manager mới có thể tạo ca làm việc");
       }
       const data = validateWorkShift(body);
       return workShiftRepository.create(data);
     },
 
     /**
-     * GET /work-shifts?stylistId=&date= — Only shop_admin may call this.
+     * GET /work-shifts?stylistId=&date= — Only general_manager may call this.
      */
     async list(actor, query) {
-      if (actor.role !== "shop_admin") {
-        throw new WorkShiftError(403, "Chỉ Shop Admin mới có thể xem ca làm việc");
+      if (actor.role !== "general_manager") {
+        throw new WorkShiftError(403, "Chỉ General Manager mới có thể xem ca làm việc");
       }
       const { stylistId, date } = query || {};
       if (!isId(stylistId)) {
@@ -47,11 +47,11 @@ function createWorkShiftService(workShiftRepository, calendarRepository, service
     },
 
     /**
-     * DELETE /work-shifts/:id — Only shop_admin may call this.
+     * DELETE /work-shifts/:id — Only general_manager may call this.
      */
     async remove(actor, id) {
-      if (actor.role !== "shop_admin") {
-        throw new WorkShiftError(403, "Chỉ Shop Admin mới có thể xóa ca làm việc");
+      if (actor.role !== "general_manager") {
+        throw new WorkShiftError(403, "Chỉ General Manager mới có thể xóa ca làm việc");
       }
       if (!isId(id)) {
         throw new WorkShiftError(400, "Định dạng id ca làm việc không hợp lệ");

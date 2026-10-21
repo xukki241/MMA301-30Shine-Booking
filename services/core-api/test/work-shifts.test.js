@@ -85,6 +85,7 @@ function createShiftStore() {
     async validateBooking(data) {
       if (data.branchId !== ids.branch || data.serviceId !== ids.service || data.endTime.getTime() - data.startTime.getTime() !== 45 * 60000) throw new BookingError(409, "Requested time does not match the active service");
       if (!shifts.some((shift) => shift.stylistId === data.stylistId && data.startTime >= new Date(shift.startAt) && data.endTime <= new Date(shift.endAt))) throw new BookingError(409, "Requested time is outside an assigned work shift");
+      return { bookedPrice: 120000 };
     },
   };
 }
@@ -97,17 +98,21 @@ test("Work Shift intervals require an explicit valid local day and ISO timezone"
   assert.equal(shiftInterval({ date: "2030-10-20", startAt: "2030-10-19T23:00:00-07:00", endAt: "2030-10-20T02:00:00-07:00" }), null);
 });
 
-test("work shifts require Shop Admin, block appointment conflicts, and provide slots mobile can book", async (t) => {
+test("work shifts require General Manager, block appointment conflicts, and provide slots mobile can book", async (t) => {
   const secret = randomBytes(32).toString("hex");
   const store = createShiftStore();
-  const app = createApp({ secret, workShiftRepository: store, bookingRepository: store });
+  const app = createApp({ secret, workShiftRepository: store, bookingRepository: store, verifyStaff: async () => true, verifyCustomer: async () => true,
+    verifyActiveStylist: async () => true });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const token = (role, id) => jwt.sign({ sub: id, role }, secret, { algorithm: "HS256", expiresIn: 3600 });
-  const admin = { Authorization: `Bearer ${token("shop_admin", ids.admin)}`, "Content-Type": "application/json" };
+  const token = (role, id) => jwt.sign({ sub: id, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
+  const admin = { Authorization: `Bearer ${token("general_manager", ids.admin)}`, "Content-Type": "application/json" };
   const customer = { Authorization: `Bearer ${token("customer", ids.customer)}`, "Content-Type": "application/json" };
+  const systemAdmin = { Authorization: `Bearer ${token("system_admin", ids.admin)}` };
+  assert.equal((await fetch(`${base}/work-shifts`, { headers: systemAdmin })).status, 403);
+  assert.equal((await fetch(`${base}/work-shifts`, { headers: admin })).status, 200);
   const payload = { branchId: ids.branch, stylistId: ids.stylist, date: "2030-10-20", startAt: "2030-10-20T09:00:00+07:00", endAt: "2030-10-20T12:00:00+07:00" };
 
   const forbidden = await fetch(`${base}/work-shifts`, { method: "POST", headers: customer, body: JSON.stringify(payload) });
@@ -118,7 +123,7 @@ test("work shifts require Shop Admin, block appointment conflicts, and provide s
   const overlap = await fetch(`${base}/work-shifts`, { method: "POST", headers: admin, body: JSON.stringify({ ...payload, startAt: "2030-10-20T11:00:00+07:00", endAt: "2030-10-20T13:00:00+07:00" }) });
   assert.equal(overlap.status, 409);
 
-  const slotsResponse = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`);
+  const slotsResponse = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   assert.equal(slotsResponse.status, 200);
   const slots = (await slotsResponse.json()).slots;
   assert.equal(slots.length, 4);
@@ -126,7 +131,10 @@ test("work shifts require Shop Admin, block appointment conflicts, and provide s
 
   const booking = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[0].startTime, endTime: slots[0].endTime }) });
   assert.equal(booking.status, 201);
-  const refreshedSlots = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`);
+  assert.equal((await booking.json()).appointment.bookedPrice, 120000);
+  const tamperedPrice = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[1].startTime, endTime: slots[1].endTime, bookedPrice: 1 }) });
+  assert.equal(tamperedPrice.status, 400);
+  const refreshedSlots = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   assert.equal((await refreshedSlots.json()).slots.length, 3);
   const wrongDuration = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[1].startTime, endTime: "2030-10-20T03:15:00.000Z" }) });
   assert.equal(wrongDuration.status, 409);

@@ -12,8 +12,8 @@ function createServiceController({ Branch, Service }) {
         if (!name || typeof name !== "string" || name.trim().length < 2) {
           return res.status(400).json({ error: "Tên dịch vụ là bắt buộc và phải có ít nhất 2 ký tự" });
         }
-        if (typeof price !== "number" || Number.isNaN(price) || price < 0) {
-          return res.status(400).json({ error: "Giá dịch vụ phải là số không âm" });
+        if (!Number.isSafeInteger(price) || price < 0) {
+          return res.status(400).json({ error: "Giá dịch vụ phải là số nguyên VND không âm" });
         }
         if (!Number.isInteger(durationMinutes) || durationMinutes < 5 || durationMinutes > 480) {
           return res.status(400).json({ error: "Thời lượng phải là số nguyên từ 5 đến 480 phút" });
@@ -80,8 +80,8 @@ function createServiceController({ Branch, Service }) {
           updateData.name = name.trim();
         }
         if (typeof price !== "undefined") {
-          if (typeof price !== "number" || Number.isNaN(price) || price < 0) {
-            return res.status(400).json({ error: "Giá dịch vụ phải là số không âm" });
+          if (!Number.isSafeInteger(price) || price < 0) {
+            return res.status(400).json({ error: "Giá dịch vụ phải là số nguyên VND không âm" });
           }
           updateData.price = price;
         }

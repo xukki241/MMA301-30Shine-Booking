@@ -1,6 +1,8 @@
 # Chương 6. Hướng dẫn phát triển và triển khai — code hiện tại
 
-> Các lệnh và quyền API ở chương này áp dụng cho code đang chạy với `shop_admin`. Thiết kế mục tiêu bốn role ở [Chương 2](./02-phan-tich-yeu-cau.md) chưa được triển khai.
+> **Customer mới:** `POST /auth/customer/lookup`, `/register/request`, `/register/verify`, `/register/complete`, `/login`, `/reset/request`, `/reset/verify`, `/reset/complete`; `GET /auth/customer/introspect`. OTP mô phỏng ghi trong log Auth khi `DEMO_OTP_ENABLED=true`; không gửi SMS. Core cho khách vãng lai đọc `GET /public/branches` và `/public/branches/:id/services`. Các endpoint Guest `start`, `resume`, `recovery` trả 410 khi hệ thống dùng CustomerAccount; Guest JWT không còn truy cập Core. Các endpoint Guest bên dưới chỉ mô tả dữ liệu cũ. Xem [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md).
+
+> Các lệnh và quyền API ở chương này áp dụng cho SHINE-26: `system_admin` quản trị hệ thống, `general_manager` ghi catalog/Work Shift. Các màn Manager theo dõi lịch/thanh toán ở [Chương 2](./02-phan-tich-yeu-cau.md) vẫn là mục tiêu.
 
 ## 6.1. Môi trường
 
@@ -16,6 +18,7 @@ cd apps/admin-web && npm ci && npm run dev         # :5173
 ```
 
 Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo README riêng. Mobile `.env`: cấu hình `EXPO_PUBLIC_AUTH_API_URL` và `EXPO_PUBLIC_CORE_API_URL`; Android Emulator dùng `10.0.2.2`, thiết bị thật dùng IP LAN của máy backend.
+Auth `.env` cần `CORE_API_URL`; Core `.env` cần `AUTH_SERVICE_URL`. Với database mới, đặt `BOOTSTRAP_ADMIN_EMAIL` và `BOOTSTRAP_ADMIN_PASSWORD`, chạy `npm run bootstrap:admin` trong Auth Service một lần rồi xóa hai biến khỏi `.env`.
 
 ## 6.3. API khung
 
@@ -24,8 +27,11 @@ Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo R
 | Method | Path | Mô tả |
 |--------|------|--------|
 | GET | `/health` | Health |
-| POST | `/auth/register` | Tạo tài khoản theo role |
+| POST | `/auth/register` | Đã đóng, trả 410; Customer dùng Guest Session |
 | POST | `/auth/login` | Đăng nhập, trả JWT |
+| GET | `/admin/users`, `/admin/health`, `/admin/audit` | Chỉ System Admin |
+| POST/PATCH | `/admin/users` và `/admin/users/:id` | Tạo/sửa tài khoản nhân sự |
+| POST | `/admin/users/:id/lock`, `/restore` | Khóa mềm/khôi phục |
 | POST | `/auth/customer/start` | Khách nhập tên + số điện thoại, nhận Guest Session |
 | POST | `/auth/customer/resume` | Tiếp tục Guest Session trên cùng thiết bị |
 | POST | `/auth/customer/recovery/request` | Tạo OTP demo, ghi mã ở console Auth Service |
@@ -37,7 +43,7 @@ Admin Web `.env`: cấu hình `VITE_AUTH_API_URL` và `VITE_CORE_API_URL` theo R
 |------|------------|--------|
 | Health | `GET /health` | |
 | Catalog | `/branches`, `/services`, `/stylists` | CRUD / list |
-| Shifts | `/work-shifts` | CRUD ca; chỉ Shop Admin ghi |
+| Shifts | `/work-shifts` | CRUD/xem ca; chỉ General Manager |
 | Slots | `GET /time-slots` | Slot theo Work Shift và duration Service |
 | Booking | `/appointments`, `/appointments/:id/complete` | Đặt / hoàn thành |
 | Pay | `POST /appointments/:id/pay` | Chuyển `completed` → `paid` mô phỏng; chưa lưu Payment Attempt riêng |
