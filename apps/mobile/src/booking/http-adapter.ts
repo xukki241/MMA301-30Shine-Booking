@@ -3,6 +3,7 @@ import type {
   BookingWizardDataSource,
   Branch,
   CompleteBookingDraft,
+  BookingWishes,
   Service,
   Stylist,
   TimeSlot,
@@ -99,6 +100,14 @@ export async function cancelCustomerAppointment(token: string, appointmentId: st
   return data.appointment;
 }
 
+export async function rescheduleCustomerAppointment(token: string, appointmentId: string,
+  slot: TimeSlot): Promise<CustomerAppointmentItem> {
+  const data = await request<{ appointment: CustomerAppointmentItem }>(coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/reschedule`, token,
+    { method: "POST", body: JSON.stringify({ startTime: slot.startTime, endTime: slot.endTime }) });
+  return data.appointment;
+}
+
 export async function payCustomerAppointment(token: string, appointmentId: string): Promise<CustomerAppointmentItem> {
   const data = await request<{ appointment: CustomerAppointmentItem }>(
     coreApi,
@@ -119,7 +128,7 @@ export function createHttpBookingAdapter(getToken: () => string | null): Booking
       const data = await request<{ services: Array<{ id: string; name: string; durationMinutes: number; price: number; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/services?isActive=true`, getToken() || undefined);
       return data.services.map((service) => ({ id: service.id, name: service.name, durationMinutes: service.durationMinutes, priceVnd: service.price }));
     },
-    async listStylists(branchId: string, _serviceId: string): Promise<Stylist[]> {
+    async listStylists(branchId: string): Promise<Stylist[]> {
       const data = await request<{ stylists: Array<{ userId: string; displayName: string; isActive: boolean }> }>(coreApi, `/branches/${encodeURIComponent(branchId)}/stylists?isActive=true`, getToken() || undefined);
       return data.stylists.filter((stylist) => stylist.isActive).map((stylist) => ({ id: stylist.userId, name: stylist.displayName }));
     },
@@ -128,14 +137,16 @@ export function createHttpBookingAdapter(getToken: () => string | null): Booking
       const data = await request<{ slots: TimeSlot[] }>(coreApi, `/time-slots?${params}`, getToken() || undefined);
       return data.slots;
     },
-    async confirmBooking(booking: CompleteBookingDraft): Promise<AppointmentResult> {
+    async confirmBooking(booking: CompleteBookingDraft, wishes?: BookingWishes): Promise<AppointmentResult> {
       const token = getToken();
       if (!token) throw new Error("Đăng nhập Customer để xác nhận lịch hẹn.");
-      const data = await request<{ appointment: { id: string; status: "booked" } }>(coreApi, "/appointments", token, {
+      const data = await request<{ appointment: { id: string; status: "booked"; bookedPrice?: number } }>(coreApi, "/appointments", token, {
         method: "POST",
-        body: JSON.stringify({ branchId: booking.branch.id, serviceId: booking.service.id, stylistId: booking.stylist.id, startTime: booking.slot.startTime, endTime: booking.slot.endTime }),
+        body: JSON.stringify({ branchId: booking.branch.id, serviceId: booking.service.id, stylistId: booking.stylist.id,
+          startTime: booking.slot.startTime, endTime: booking.slot.endTime, ...(wishes ? { wishes } : {}) }),
       });
-      return { id: data.appointment.id, status: data.appointment.status, mode: "api", booking };
+      return { id: data.appointment.id, status: data.appointment.status, mode: "api", booking,
+        bookedPrice: data.appointment.bookedPrice };
     },
   };
 }

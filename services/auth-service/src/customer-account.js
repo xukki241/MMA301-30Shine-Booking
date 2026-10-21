@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const { randomInt, createHmac, timingSafeEqual } = require("node:crypto");
 const { normalizePhone, normalizeName } = require("./customer-guest");
+const { validateProfilePatch, publicProfile } = require("./customer-profile");
 
 const pinValid = (value) => typeof value === "string" && /^\d{6}$/.test(value);
 const digest = (secret, purpose, phone, code) => createHmac("sha256", secret).update(`${purpose}:${phone}:${code}`).digest("hex");
@@ -10,9 +11,15 @@ const bodyValid = (body, keys) => body && typeof body === "object" && !Array.isA
   Object.keys(body).every((key) => keys.includes(key));
 
 function createCustomerModels(connection) {
+  const homeAddressSchema = new mongoose.Schema({ province: String, district: String,
+    ward: String, streetAddress: String }, { _id: false });
   const accountSchema = new mongoose.Schema({
     phone: { type: String, required: true, unique: true, match: /^\+84[35789]\d{8}$/ },
     name: { type: String, required: true, minlength: 2, maxlength: 100 },
+    email: { type: String, default: null },
+    birthDate: { type: String, default: null },
+    avatar: { type: String, default: null },
+    homeAddress: { type: homeAddressSchema, default: null },
     passwordHash: { type: String, required: true, select: false },
     authVersion: { type: Number, required: true, default: 0 },
     loginAttempts: { type: Number, required: true, default: 0 },
@@ -36,6 +43,8 @@ function createCustomerRepository({ Account, Challenge }) {
   return {
     findByPhone: (phone) => Account.findOne({ phone }).select("+passwordHash").exec(),
     findById: (id) => Account.findById(id).exec(),
+    updateProfile: (id, fields) => Account.findByIdAndUpdate(id, { $set: fields },
+      { returnDocument: "after", runValidators: true }).exec(),
     create: (data) => Account.create(data),
     updatePassword: (phone, passwordHash) => Account.findOneAndUpdate({ phone },
       { $set: { passwordHash, loginAttempts: 0, lastFailedAt: null }, $inc: { authVersion: 1 } }, { new: true }).exec(),
@@ -65,6 +74,39 @@ function installCustomerAccountRoutes(app, { customers, secret, expiresIn, otpEn
       user: { id: String(account._id), role: "customer", name: account.name, phone: account.phone } };
   };
   const unavailable = (_req, res, next) => customers ? next() : res.status(503).json({ error: "Customer accounts unavailable" });
+  const profileAccount = async (req, res, next) => {
+    const match = /^Bearer ([^\s]+)$/i.exec(req.get("Authorization") || "");
+    if (!match) return res.status(401).json({ error: "Invalid token" });
+    try {
+      const claims = jwt.verify(match[1], secret, { algorithms: ["HS256"] });
+      if (claims.role !== "customer" || claims.guest || !Number.isSafeInteger(claims.authVersion)) {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+      const account = await customers.findById(claims.sub);
+      if (!account || account.authVersion !== claims.authVersion) return res.status(401).json({ error: "Invalid token" });
+      req.customerAccount = account;
+      return next();
+    } catch (error) {
+      if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
+        return res.status(401).json({ error: "Invalid token" });
+      }
+      return next(error);
+    }
+  };
+  app.get("/auth/customer/profile", unavailable, profileAccount, (req, res) => {
+    res.set("Cache-Control", "no-store");
+    return res.json(publicProfile(req.customerAccount));
+  });
+  app.patch("/auth/customer/profile", unavailable, profileAccount, async (req, res, next) => {
+    const fields = validateProfilePatch(req.body);
+    if (!fields) return res.status(400).json({ error: "Invalid profile" });
+    try {
+      const account = await customers.updateProfile(String(req.customerAccount._id), fields);
+      if (!account) return res.status(401).json({ error: "Invalid token" });
+      res.set("Cache-Control", "no-store");
+      return res.json(publicProfile(account));
+    } catch (error) { return next(error); }
+  });
   app.post("/auth/customer/lookup", unavailable, async (req, res, next) => {
     if (!bodyValid(req.body, ["phone"])) return res.status(400).json({ error: "Invalid phone" });
     const phone = normalizePhone(req.body.phone);

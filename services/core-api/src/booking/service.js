@@ -1,4 +1,4 @@
-const { ACTIONS, BookingError, isId, validateBooking, validatePayment } = require("./rules");
+const { ACTIONS, BookingError, isId, validateBooking, validateReschedule, validatePayment } = require("./rules");
 
 function createBookingService(repository) {
   return {
@@ -25,6 +25,27 @@ function createBookingService(repository) {
         ...actor, userId: actor.userId.toLowerCase(),
       });
       if (!updated) throw new BookingError(400, "Appointment state changed; reload and retry");
+      return updated;
+    },
+    async reschedule(actor, id, body, workShiftRepository) {
+      if (!isId(id)) throw new BookingError(400, "Invalid appointment id");
+      const times = validateReschedule(body);
+      const appointment = await repository.findById(id.toLowerCase());
+      if (!appointment) throw new BookingError(404, "Appointment not found");
+      if (actor.role !== "customer" || actor.userId.toLowerCase() !== appointment.customerId) {
+        throw new BookingError(403, "Appointment does not belong to this actor");
+      }
+      if (appointment.status !== "booked") throw new BookingError(400, "Invalid appointment state");
+      if (times.startTime.getTime() === new Date(appointment.startTime).getTime() &&
+          times.endTime.getTime() === new Date(appointment.endTime).getTime()) return appointment;
+      if (!workShiftRepository || !appointment.branchId || !appointment.serviceId) {
+        throw new BookingError(409, "Appointment cannot be rescheduled");
+      }
+      await workShiftRepository.validateBooking({ stylistId: appointment.stylistId,
+        branchId: appointment.branchId, serviceId: appointment.serviceId, ...times });
+      const updated = await repository.reschedule(id.toLowerCase(), {
+        userId: actor.userId.toLowerCase(), stylistId: appointment.stylistId }, times);
+      if (!updated) throw new BookingError(409, "New time is unavailable; please choose another slot");
       return updated;
     },
     async pay(actor, id, body) {

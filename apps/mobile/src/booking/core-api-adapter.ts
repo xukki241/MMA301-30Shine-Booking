@@ -109,9 +109,9 @@ export const coreApiBookingAdapter: BookingWizardDataSource = {
     }));
   },
 
-  async listStylists(branchId: string, serviceId: string): Promise<Stylist[]> {
+  async listStylists(branchId: string, serviceId?: string): Promise<Stylist[]> {
     const data = await apiFetch<{ stylists: ApiStylist[] }>(
-      `/branches/${branchId}/stylists?serviceId=${encodeURIComponent(serviceId)}`
+      `/branches/${branchId}/stylists${serviceId ? `?serviceId=${encodeURIComponent(serviceId)}` : ""}`
     );
     return data.stylists.map((s) => ({
       id: s.id,

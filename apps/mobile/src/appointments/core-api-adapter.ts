@@ -57,7 +57,32 @@ export function createCoreApiAppointmentDataSource(
         ? `/appointments?customerId=${encodeURIComponent(customerId)}`
         : "/appointments/customer";
       const data = await request<{ appointments: CustomerAppointment[] }>(path);
-      return data.appointments || [];
+      const branches = new Map<string, Promise<{ name: string; address?: string } | null>>();
+      const services = new Map<string, Promise<{ name: string } | null>>();
+      const stylists = new Map<string, Promise<Array<{ userId: string; displayName: string }>>>();
+      return Promise.all((data.appointments || []).map(async (item) => {
+        if (item.branchId && (!item.branchName || !item.branchAddress) && !branches.has(item.branchId)) {
+          branches.set(item.branchId, request<{ branch: { name: string; address?: string } }>(
+            `/branches/${encodeURIComponent(item.branchId)}`).then((value) => value.branch).catch(() => null));
+        }
+        if (item.serviceId && !item.serviceName && !services.has(item.serviceId)) {
+          services.set(item.serviceId, request<{ service: { name: string } }>(
+            `/services/${encodeURIComponent(item.serviceId)}`).then((value) => value.service).catch(() => null));
+        }
+        if (item.branchId && item.stylistId && !item.stylistName && !stylists.has(item.branchId)) {
+          stylists.set(item.branchId, request<{ stylists: Array<{ userId: string; displayName: string }> }>(
+            `/branches/${encodeURIComponent(item.branchId)}/stylists`).then((value) => value.stylists).catch(() => []));
+        }
+        const [branch, service, branchStylists] = await Promise.all([
+          item.branchId ? branches.get(item.branchId) : undefined,
+          item.serviceId ? services.get(item.serviceId) : undefined,
+          item.branchId ? stylists.get(item.branchId) : undefined,
+        ]);
+        return { ...item, branchName: item.branchName || branch?.name,
+          branchAddress: item.branchAddress || branch?.address,
+          serviceName: item.serviceName || service?.name,
+          stylistName: item.stylistName || branchStylists?.find((stylist) => stylist.userId === item.stylistId)?.displayName };
+      }));
     },
 
     async cancel(id: string): Promise<CustomerAppointment> {

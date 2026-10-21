@@ -18,6 +18,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
+import { orderCustomerAppointments } from "@/appointments/order";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
 import type { PaymentInput } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
@@ -29,7 +30,7 @@ import { useConnectivity } from "@/offline/network-provider";
 import { type ReadResult, readCachedList } from "@/offline/read-cache";
 import { useAuth } from "@/providers/auth-provider";
 
-const cacheKeyPrefix = "shine:customer-appointments:v3";
+const cacheKeyPrefix = "shine:customer-appointments:v4";
 
 const statusLabels: Record<CustomerAppointment["status"], string> = {
   booked: "Đã đặt",
@@ -60,6 +61,7 @@ export default function CustomerAppointmentsScreen() {
   const { token, user, requestCustomerRecovery, verifyCustomerRecovery } = useAuth();
 
   const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
+  const orderedAppointments = useMemo(() => orderCustomerAppointments(appointments), [appointments]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -95,7 +97,14 @@ export default function CustomerAppointmentsScreen() {
       id: item.id,
       startTime: item.startTime,
       status: item.status,
-      bookedPrice: item.bookedPrice
+      bookedPrice: item.bookedPrice,
+      branchId: item.branchId,
+      branchName: item.branchName,
+      branchAddress: item.branchAddress,
+      serviceId: item.serviceId,
+      serviceName: item.serviceName,
+      stylistId: item.stylistId,
+      stylistName: item.stylistName
     }));
   }, [dataSource, token, isDemo]);
 
@@ -415,7 +424,7 @@ export default function CustomerAppointmentsScreen() {
             }
           />
         ) : (
-          appointments.map((item) => {
+          orderedAppointments.map((item) => {
             const isCompleted = item.status === "completed";
             const isPaid = item.status === "paid";
             const isBooked = item.status === "booked";
@@ -427,7 +436,7 @@ export default function CustomerAppointmentsScreen() {
               ? "#DBEAFE"
               : isCancelled
               ? "#FEE2E2"
-              : "#FEF3C7";
+              : theme.brandMuted;
 
             const statusTextColor = isCompleted
               ? "#166534"
@@ -435,13 +444,18 @@ export default function CustomerAppointmentsScreen() {
               ? "#1E40AF"
               : isCancelled
               ? "#991B1B"
-              : "#92400E";
+              : theme.brand;
 
             return (
               <View
                 key={item.id}
-                style={[styles.appointmentCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                style={[styles.appointmentCard, { backgroundColor: isBooked ? theme.surfaceHighlight : theme.surface,
+                  borderColor: isBooked ? theme.brand : theme.border }, isBooked && styles.bookedCard]}
               >
+                {isBooked ? <View style={styles.bookedBanner}>
+                  <Ionicons name="calendar" size={16} color={theme.brand} />
+                  <Text style={[styles.bookedBannerText, { color: theme.brand }]}>LỊCH ĐÃ ĐẶT</Text>
+                </View> : null}
                 {/* Top Header of Card */}
                 <View style={styles.cardHeaderRow}>
                   <View style={{ flex: 1, gap: 2 }}>
@@ -474,93 +488,42 @@ export default function CustomerAppointmentsScreen() {
                   <View style={styles.detailItem}>
                     <Ionicons name="location-outline" size={16} color={theme.brand} />
                     <Text style={[styles.detailText, { color: theme.text }]}>
-                      {item.branchName || "30Shine Salon"}
+                      {item.branchName || "Chưa có tên chi nhánh"}
                     </Text>
                   </View>
+
+                  {item.branchAddress ? <Text style={[styles.detailText, { color: theme.textMuted }]}>
+                    {item.branchAddress}</Text> : null}
 
                   <View style={styles.detailItem}>
                     <Ionicons name="person-outline" size={16} color={theme.gold} />
                     <Text style={[styles.detailText, { color: theme.text }]}>
-                      Stylist: <Text style={{ fontWeight: "700" }}>{item.stylistName || item.stylistId || "Master Stylist"}</Text>
+                      Stylist: <Text style={{ fontWeight: "700" }}>{item.stylistName || "Chưa có thông tin"}</Text>
                     </Text>
                   </View>
 
                   <View style={styles.detailItem}>
                     <Ionicons name="cut-outline" size={16} color="#3B82F6" />
                     <Text style={[styles.detailText, { color: theme.text }]}>
-                      Gói: {item.serviceName || "Shine Combo 10 bước"}
+                      Gói: {item.serviceName || "Chưa có thông tin dịch vụ"}
                     </Text>
                   </View>
-                </View>
-
-                {/* Lookbook Simulation (Matching Stitch Screen 3) */}
-                <View style={[styles.lookbookSection, { backgroundColor: theme.surfaceHighlight }]}>
-                  <View style={styles.lookbookHeader}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Ionicons name="images-outline" size={15} color={theme.textMuted} />
-                      <Text style={[styles.lookbookTitle, { color: theme.text }]}>
-                        Hình ảnh lưu giữ kiểu tóc (Lookbook cá nhân)
-                      </Text>
-                    </View>
-                    <Text style={[styles.lookbookAngleCount, { color: theme.brand }]}>3 góc chụp</Text>
-                  </View>
-
-                  <View style={styles.anglesRow}>
-                    <View style={styles.angleCard}>
-                      <View style={styles.anglePhotoPlaceholder}>
-                        <Ionicons name="person-circle-outline" size={28} color={theme.textDim} />
-                      </View>
-                      <View style={styles.angleLabelPill}>
-                        <Text style={styles.angleLabelText}>Trước</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.angleCard}>
-                      <View style={styles.anglePhotoPlaceholder}>
-                        <Ionicons name="person-circle-outline" size={28} color={theme.textDim} />
-                      </View>
-                      <View style={styles.angleLabelPill}>
-                        <Text style={styles.angleLabelText}>Nghiêng</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.angleCard}>
-                      <View style={styles.anglePhotoPlaceholder}>
-                        <Ionicons name="person-circle-outline" size={28} color={theme.textDim} />
-                      </View>
-                      <View style={styles.angleLabelPill}>
-                        <Text style={styles.angleLabelText}>Sau gáy</Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Customer Review Snippet (From Stitch Screen 3) */}
-                <View style={[styles.reviewBox, { backgroundColor: "#FFFBEB", borderColor: "#FDE68A" }]}>
-                  <View style={styles.ratingStarsRow}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Ionicons key={s} name="star" size={13} color="#F59E0B" />
-                    ))}
-                    <Text style={styles.ratingReviewLabel}>Đã đánh giá 5 sao</Text>
-                  </View>
-                  <Text style={styles.reviewComment}>
-                    "Rất ưng ý, thợ tư vấn nhiệt tình, vuốt sáp vào nếp tự nhiên cực chuẩn."
-                  </Text>
                 </View>
 
                 {/* Flow 1: Cancel for booked appointments */}
                 {isBooked && confirmingCancelId !== item.id ? (
                   <View style={styles.actionBtnRow}>
                     <Pressable
-                      style={[styles.outlineBtn, { borderColor: theme.danger }]}
+                      accessibilityRole="button"
+                      style={[styles.outlineBtn, { borderColor: theme.danger, backgroundColor: theme.danger }]}
                       disabled={processingId !== null}
                       onPress={() => {
                         setActionError(null);
                         setConfirmingCancelId(item.id);
                       }}
                     >
-                      <Ionicons name="close-circle-outline" size={16} color={theme.danger} />
-                      <Text style={[styles.outlineBtnText, { color: theme.danger }]}>Hủy lịch hẹn</Text>
+                      <Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                      <Text style={[styles.outlineBtnText, { color: "#FFFFFF" }]}>Hủy lịch hẹn</Text>
                     </Pressable>
 
                     <Pressable
@@ -575,24 +538,33 @@ export default function CustomerAppointmentsScreen() {
 
                 {/* Cancel Confirmation Prompt */}
                 {isBooked && confirmingCancelId === item.id ? (
-                  <View style={[styles.cancelConfirmBox, { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" }]}>
-                    <Text style={styles.cancelConfirmTitle}>Bạn có chắc muốn hủy lịch hẹn này?</Text>
+                  <View style={[styles.cancelConfirmBox, { backgroundColor: theme.danger,
+                    borderColor: theme.danger }]}>
+                    <View style={styles.cancelConfirmHeading}>
+                      <Ionicons name="alert-circle-outline" size={20} color="#FFFFFF" />
+                      <Text style={[styles.cancelConfirmTitle, { color: "#FFFFFF" }]}>Xác nhận hủy lịch hẹn</Text>
+                    </View>
+                    <Text style={[styles.cancelConfirmDescription, { color: "#FFFFFF" }]}>
+                      Hủy lịch {formattedTime(item.startTime)}{item.branchName ? ` tại ${item.branchName}` : ""}?
+                    </Text>
                     {actionError ? (
-                      <Text style={{ color: theme.danger, fontSize: 12 }}>{actionError}</Text>
+                      <Text style={{ color: "#FFFFFF", fontSize: 12 }}>{actionError}</Text>
                     ) : null}
                     <View style={styles.cancelConfirmActions}>
                       <Pressable
-                        style={styles.cancelKeepBtn}
+                        accessibilityRole="button"
+                        style={[styles.cancelKeepBtn, { borderColor: "#FFFFFF", backgroundColor: "#FFFFFF" }]}
                         disabled={processingId !== null}
                         onPress={() => {
                           setConfirmingCancelId(null);
                           setActionError(null);
                         }}
                       >
-                        <Text style={[styles.cancelKeepBtnText, { color: theme.textMuted }]}>Giữ lịch</Text>
+                        <Text style={[styles.cancelKeepBtnText, { color: theme.danger }]}>Giữ lịch</Text>
                       </Pressable>
                       <Pressable
-                        style={[styles.cancelAcceptBtn, { backgroundColor: theme.danger }]}
+                        accessibilityRole="button"
+                        style={[styles.cancelAcceptBtn, { backgroundColor: "#B91C1C", borderColor: "#FFFFFF" }]}
                         disabled={processingId !== null}
                         onPress={() => {
                           void handleCancel(item.id);
@@ -601,7 +573,8 @@ export default function CustomerAppointmentsScreen() {
                         {processingId === item.id ? (
                           <ActivityIndicator color="#FFFFFF" size="small" />
                         ) : (
-                          <Text style={styles.cancelAcceptBtnText}>Xác nhận hủy</Text>
+                          <><Ionicons name="close-circle-outline" size={16} color="#FFFFFF" />
+                            <Text style={styles.cancelAcceptBtnText}>Xác nhận hủy</Text></>
                         )}
                       </Pressable>
                     </View>
@@ -716,7 +689,7 @@ export default function CustomerAppointmentsScreen() {
                 ) : null}
 
                 {/* Rebook & Warranty Buttons (Stitch Screen 3) */}
-                <View style={styles.rebookRow}>
+                {confirmingCancelId !== item.id ? <View style={styles.rebookRow}>
                   <Pressable
                     style={[styles.rebookBtn, { backgroundColor: theme.brand }]}
                     onPress={() => router.push("/(customer)/book")}
@@ -737,7 +710,7 @@ export default function CustomerAppointmentsScreen() {
                     <Ionicons name="shield-checkmark-outline" size={14} color={theme.text} />
                     <Text style={[styles.warrantyBtnText, { color: theme.text }]}>Bảo hành kiểu tóc</Text>
                   </Pressable>
-                </View>
+                </View> : null}
               </View>
             );
           })
@@ -1034,6 +1007,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 6
   },
+  bookedCard: {
+    borderWidth: 2,
+    elevation: 5,
+    shadowOpacity: 0.13,
+    shadowRadius: 10
+  },
+  bookedBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingBottom: 2
+  },
+  bookedBannerText: {
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1
+  },
   cardHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1163,7 +1153,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 10,
     borderWidth: 1.5,
-    height: 40,
+    minHeight: 44,
     gap: 6
   },
   outlineBtnText: {
@@ -1176,7 +1166,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,
-    height: 40,
+    minHeight: 44,
     gap: 6
   },
   solidBtnText: {
@@ -1186,32 +1176,49 @@ const styles = StyleSheet.create({
   },
   cancelConfirmBox: {
     borderRadius: 12,
-    borderWidth: 1,
-    padding: 12,
+    borderWidth: 1.5,
+    padding: 14,
+    gap: 10
+  },
+  cancelConfirmHeading: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8
   },
   cancelConfirmTitle: {
-    color: "#991B1B",
+    fontSize: 14,
+    fontWeight: "800",
+    flex: 1
+  },
+  cancelConfirmDescription: {
     fontSize: 13,
-    fontWeight: "700"
+    lineHeight: 19
   },
   cancelConfirmActions: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     gap: 10
   },
   cancelKeepBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
   },
   cancelKeepBtnText: {
     fontSize: 13,
     fontWeight: "700"
   },
   cancelAcceptBtn: {
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 6
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+    justifyContent: "center"
   },
   cancelAcceptBtnText: {
     color: "#FFFFFF",

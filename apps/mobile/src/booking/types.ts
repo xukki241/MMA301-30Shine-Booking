@@ -20,6 +20,7 @@ export type TimeSlot = {
   id: string;
   startTime: string;
   endTime: string;
+  available?: boolean;
 };
 
 export type BookingDraft = {
@@ -38,11 +39,18 @@ export type CompleteBookingDraft = {
   slot: TimeSlot;
 };
 
+export type BookingWishes = {
+  stylistPreference?: string;
+  specialRequest?: string;
+  referenceImages?: string[];
+};
+
 export type AppointmentResult = {
   id: string;
   status: "booked";
   mode: "demo" | "api";
   booking: CompleteBookingDraft;
+  bookedPrice?: number;
 };
 
 export type TimeSlotQuery = {
@@ -55,9 +63,9 @@ export type TimeSlotQuery = {
 export interface BookingWizardDataSource {
   listBranches(): Promise<Branch[]>;
   listServices(branchId: string): Promise<Service[]>;
-  listStylists(branchId: string, serviceId: string): Promise<Stylist[]>;
+  listStylists(branchId: string, serviceId?: string): Promise<Stylist[]>;
   listTimeSlots(query: TimeSlotQuery): Promise<TimeSlot[]>;
-  confirmBooking(booking: CompleteBookingDraft): Promise<AppointmentResult>;
+  confirmBooking(booking: CompleteBookingDraft, wishes?: BookingWishes): Promise<AppointmentResult>;
 }
 
 export function isCompleteBookingDraft(draft: BookingDraft): draft is CompleteBookingDraft {

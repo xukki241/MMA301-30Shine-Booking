@@ -6,7 +6,7 @@
 
 | Thuật ngữ | Ý nghĩa và ranh giới |
 |---|---|
-| **Customer** (`customer`) | Khách nhập tên + số điện thoại để dùng app, không có mật khẩu; đặt, hủy lịch `booked` và thanh toán mô phỏng sau `completed`. |
+| **Customer** (`customer`) | Khách có thể khám phá Home công khai; tạo/đăng nhập tài khoản bằng số điện thoại và mật khẩu 6 số theo ADR 0008. Hồ sơ có thông tin cá nhân và địa chỉ nhà tùy chọn theo ADR 0009; đặt, hủy lịch `booked` và thanh toán mô phỏng sau `completed`. |
 | **Stylist** (`stylist`) | Thợ xem lịch theo ca do Manager xếp và đánh dấu lịch của mình hoàn thành. Không tự khai báo ca. |
 | **System Admin** (`system_admin`) | Quản trị tài khoản, một role cho mỗi tài khoản, health và audit log. Không xem lịch vận hành, danh mục kinh doanh hay thanh toán. |
 | **General Manager** (`general_manager`) | Quản lý vận hành mọi Branch, gồm Service, hồ sơ Stylist, Work Shift, lịch đặt và lịch sử thanh toán. Không tạo tài khoản hoặc phân quyền. |

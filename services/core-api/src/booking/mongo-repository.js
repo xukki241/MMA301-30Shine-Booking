@@ -24,8 +24,13 @@ function plain(appointment) {
     ...(appointment.customerPhone ? { customerPhone: appointment.customerPhone } : {}),
     stylistId: String(appointment.stylistId),
     ...(appointment.branchId ? { branchId: String(appointment.branchId) } : {}),
+    ...(appointment.branchName ? { branchName: appointment.branchName } : {}),
+    ...(appointment.branchAddress ? { branchAddress: appointment.branchAddress } : {}),
     ...(appointment.serviceId ? { serviceId: String(appointment.serviceId) } : {}),
+    ...(appointment.serviceName ? { serviceName: appointment.serviceName } : {}),
+    ...(appointment.stylistName ? { stylistName: appointment.stylistName } : {}),
     ...(typeof appointment.bookedPrice === "number" ? { bookedPrice: appointment.bookedPrice } : {}),
+    ...(appointment.wishes ? { wishes: appointment.wishes } : {}),
     paymentAttempts: (appointment.paymentAttempts || []).map((attempt) => ({
       id: String(attempt._id), requestId: attempt.requestId,
       branchId: String(attempt.branchId), amount: attempt.amount,
@@ -171,6 +176,26 @@ function createBookingRepository(Calendar) {
         "appointments.$.updatedAt": new Date(),
       } }, {
         returnDocument: "after", runValidators: true,
+        projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
+      }).lean().exec();
+      return calendar ? plain(calendar.appointments[0]) : null;
+    },
+
+    async reschedule(id, actor, { startTime, endTime }) {
+      const calendar = await Calendar.findOneAndUpdate({
+        _id: new mongoose.Types.ObjectId(actor.stylistId),
+        $and: [
+          { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id),
+            status: "booked", customerId: new mongoose.Types.ObjectId(actor.userId) } } },
+          { appointments: { $not: { $elemMatch: {
+            _id: { $ne: new mongoose.Types.ObjectId(id) }, status: { $in: ACTIVE_STATUSES },
+            startTime: { $lt: endTime }, endTime: { $gt: startTime },
+          } } } },
+        ],
+      }, { $set: { "appointments.$[target].startTime": startTime,
+        "appointments.$[target].endTime": endTime, "appointments.$[target].updatedAt": new Date() } }, {
+        returnDocument: "after", runValidators: true,
+        arrayFilters: [{ "target._id": new mongoose.Types.ObjectId(id), "target.status": "booked" }],
         projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
       }).lean().exec();
       return calendar ? plain(calendar.appointments[0]) : null;
