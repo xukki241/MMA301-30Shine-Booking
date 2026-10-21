@@ -1,3 +1,4 @@
+// Appointment types - shared interfaces for customer and stylist appointment views
 export type AppointmentStatus = "booked" | "checked_in" | "completed" | "paid" | "cancelled" | "no_show";
 
 export type CustomerAppointment = {
