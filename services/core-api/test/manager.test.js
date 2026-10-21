@@ -28,10 +28,8 @@ test("Manager endpoints reject other roles and revoked staff", async (t) => {
     managerPayments: async () => ({ items: [], nextCursor: null, simulatedTotal: 0 }),
   };
   const base = await startHttp(t, createApp({ secret, bookingRepository: repository,
-    verifyStaff: async (_token, payload) => payload.sub !== "000000000000000000000001" }));
-  const token = (role, subject = id()) => jwt.sign(role === "customer"
-    ? { role, guest: true, phone: "+84912345678", name: "Khách thử", phoneVerified: false }
-    : { role, authVersion: 0 }, secret, { subject, expiresIn: 3600 });
+    verifyStaff: async (_token, payload) => payload.sub !== "000000000000000000000001", verifyCustomer: async () => true }));
+  const token = (role, subject = id()) => jwt.sign({ role, authVersion: 0 }, secret, { subject, expiresIn: 3600 });
   for (const role of ["customer", "stylist", "system_admin"]) {
     assert.equal((await fetch(base + "/manager/overview", { headers: { Authorization: `Bearer ${token(role)}` } })).status, 403);
   }

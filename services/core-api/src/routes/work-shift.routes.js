@@ -4,9 +4,9 @@ const { requireRole } = require("../middleware/role");
 const { validateObjectIdParam } = require("../middleware/validation");
 const { BookingError } = require("../booking/rules");
 
-function createWorkShiftRouter({ repository, secret, verifyStaff, verifyActiveStylist }) {
+function createWorkShiftRouter({ repository, secret, verifyStaff, verifyCustomer, verifyActiveStylist }) {
   const router = express.Router();
-  const admin = [authenticate(secret, verifyStaff), requireRole("general_manager")];
+  const admin = [authenticate(secret, verifyStaff, verifyCustomer), requireRole("general_manager")];
   const handle = (operation) => async (req, res, next) => {
     try { await operation(req, res); }
     catch (error) {
@@ -42,9 +42,9 @@ function createWorkShiftRouter({ repository, secret, verifyStaff, verifyActiveSt
   return router;
 }
 
-function createTimeSlotRouter({ repository, secret, verifyStaff }) {
+function createTimeSlotRouter({ repository, secret, verifyStaff, verifyCustomer }) {
   const router = express.Router();
-  router.get("/", authenticate(secret, verifyStaff), requireRole("customer", "general_manager"), async (req, res, next) => {
+  router.get("/", authenticate(secret, verifyStaff, verifyCustomer), requireRole("customer", "general_manager"), async (req, res, next) => {
     try { res.json({ slots: await repository.availableSlots(req.query) }); }
     catch (error) {
       if (error instanceof BookingError) return res.status(error.status).json({ error: error.message });

@@ -15,8 +15,8 @@ async function startHttp(t, app) {
 async function bookingContract(t, firstRepository, secondRepository = firstRepository) {
   const secret = randomBytes(32).toString("hex");
   const workShiftRepository = { validateBooking: async () => ({ bookedPrice: 120000 }) };
-  const base = await startHttp(t, createApp({ secret, bookingRepository: firstRepository, workShiftRepository, verifyStaff: async () => true }));
-  const secondBase = await startHttp(t, createApp({ secret, bookingRepository: secondRepository, workShiftRepository, verifyStaff: async () => true }));
+  const base = await startHttp(t, createApp({ secret, bookingRepository: firstRepository, workShiftRepository, verifyStaff: async () => true, verifyCustomer: async () => true }));
+  const secondBase = await startHttp(t, createApp({ secret, bookingRepository: secondRepository, workShiftRepository, verifyStaff: async () => true, verifyCustomer: async () => true }));
   const customer = { userId: id(), role: "customer" };
   const stranger = { userId: id(), role: "customer" };
   const bodyFor = (stylistId = id(), startTime = "2030-10-20T10:00:00Z", endTime = "2030-10-20T11:00:00Z") =>
@@ -26,8 +26,7 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
       method,
       headers: {
         "Content-Type": "application/json",
-        ...(actor ? { Authorization: "Bearer " + jwt.sign(actor.role === "customer" ?
-          { role: "customer", guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
+        ...(actor ? { Authorization: "Bearer " + jwt.sign(
           { role: actor.role, authVersion: 0 }, secret, {
           subject: actor.userId, expiresIn: 3600, algorithm: "HS256",
         }) } : {}),

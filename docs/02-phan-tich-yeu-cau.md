@@ -1,5 +1,7 @@
 # Chương 2. Phân tích yêu cầu — thiết kế mục tiêu
 
+> **Cập nhật RF01:** Customer vào Home không cần đăng nhập. Khi đặt lịch, số mới xác minh OTP demo, đặt mật khẩu 6 số và nhập tên; số đã có tài khoản nhập mật khẩu. Quên mật khẩu dùng OTP demo. Mỗi số điện thoại Việt Nam chỉ có một tài khoản. Xem [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md); các dòng Guest Session bên dưới là lịch sử.
+
 > Ma trận là thiết kế đầy đủ. SHINE-26 đã triển khai ranh giới quyền và System Admin; Core API và app Expo có màn Manager theo dõi lịch và Payment Attempt theo Branch. Cần kiểm thử hành trình UI trên thiết bị. Xem [Chương 8](./08-admin-web.md).
 
 ## 2.1. Ma trận quyền

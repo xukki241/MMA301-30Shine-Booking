@@ -55,7 +55,7 @@ function createGuestRepository({ Guest, Recovery }) {
   };
 }
 
-function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger = console.info, otpEnabled = true }) {
+function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger = console.info, otpEnabled = true, allowNewGuests = true }) {
   const issue = (guest) => {
     const accessToken = jwt.sign({ role: "customer", guest: true, phone: guest.phone,
       name: guest.name, phoneVerified: Boolean(guest.verifiedAt) }, secret,
@@ -69,6 +69,7 @@ function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger 
   const unavailable = (_req, res, next) => guests ? next() : res.status(503).json({ error: "Customer session is unavailable" });
 
   app.post("/auth/customer/start", unavailable, async (req, res, next) => {
+    if (!allowNewGuests) return res.status(410).json({ error: "Guest registration is closed" });
     if (!validBody(req.body, ["name", "phone"])) return res.status(400).json({ error: "Invalid customer details" });
     const name = normalizeName(req.body.name);
     const phone = normalizePhone(req.body.phone);
@@ -82,6 +83,7 @@ function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger 
   });
 
   app.post("/auth/customer/resume", unavailable, async (req, res, next) => {
+    if (!allowNewGuests) return res.status(410).json({ error: "Guest sessions are closed" });
     if (!validBody(req.body, ["deviceSecret"]) || !/^[a-f0-9]{64}$/i.test(req.body.deviceSecret || "")) {
       return res.status(400).json({ error: "Invalid device session" });
     }
@@ -94,6 +96,7 @@ function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger 
   });
 
   app.post("/auth/customer/recovery/request", unavailable, async (req, res, next) => {
+    if (!allowNewGuests) return res.status(410).json({ error: "Guest recovery is closed" });
     if (!otpEnabled) return res.status(503).json({ error: "Demo OTP is disabled" });
     if (!validBody(req.body, ["phone"])) return res.status(400).json({ error: "Invalid phone" });
     const phone = normalizePhone(req.body.phone);
@@ -112,6 +115,7 @@ function installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpLogger 
   });
 
   app.post("/auth/customer/recovery/verify", unavailable, async (req, res, next) => {
+    if (!allowNewGuests) return res.status(410).json({ error: "Guest recovery is closed" });
     if (!otpEnabled) return res.status(503).json({ error: "Demo OTP is disabled" });
     if (!validBody(req.body, ["phone", "code", "deviceSecret"])) return res.status(400).json({ error: "Invalid recovery data" });
     const phone = normalizePhone(req.body.phone);

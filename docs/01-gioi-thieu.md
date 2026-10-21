@@ -1,5 +1,7 @@
 # Chương 1. Giới thiệu đề tài
 
+> **Cập nhật Customer:** [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md) thay thế mô tả Guest Session bên dưới: khách có thể khám phá Home trước khi đăng nhập, còn đặt lịch cần tài khoản số điện thoại.
+
 > **Thiết kế mục tiêu:** bốn role và tách quản trị hệ thống khỏi vận hành chuỗi. SHINE-26 đã chuyển `shop_admin` cũ sang `system_admin`, cấp quyền catalog/ca cho `general_manager` và thêm màn System Admin. Core API và app Expo đã có luồng Manager theo dõi lịch, giao dịch; cần kiểm thử hành trình trên thiết bị. Hiện trạng chi tiết ở [Chương 8](./08-admin-web.md).
 
 ## 1.1. Tên đề tài và bối cảnh

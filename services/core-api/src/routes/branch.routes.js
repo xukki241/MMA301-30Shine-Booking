@@ -9,10 +9,11 @@ function createBranchRouter({
   stylistController,
   secret,
   verifyStaff,
+  verifyCustomer,
 }) {
   const router = express.Router();
-  const requireAdmin = [authenticate(secret, verifyStaff), requireRole("general_manager")];
-  const canBrowse = [authenticate(secret, verifyStaff), requireRole("customer", "general_manager")];
+  const requireAdmin = [authenticate(secret, verifyStaff, verifyCustomer), requireRole("general_manager")];
+  const canBrowse = [authenticate(secret, verifyStaff, verifyCustomer), requireRole("customer", "general_manager")];
 
   // Branch CRUD
   router.get("/", ...canBrowse, branchController.list);

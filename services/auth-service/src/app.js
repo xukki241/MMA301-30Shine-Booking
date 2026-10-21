@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { ROLES } = require("./models/user");
 const { installCustomerGuestRoutes } = require("./customer-guest");
+const { installCustomerAccountRoutes } = require("./customer-account");
 const { installStaffAdminRoutes, createCoreHealthProbe, createCoreAuditProbe } = require("./staff-admin");
 
 function credentials(body, register) {
@@ -23,13 +24,14 @@ function publicUser(user) {
   return { id: String(user._id), email: user.email, role: user.role };
 }
 
-function createApp({ users, guests, secret, expiresIn, otpEnabled, otpLogger, staffChangeGuard, coreHealthProbe, coreAuditProbe, coreApiUrl, audit }) {
+function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, otpLogger, staffChangeGuard, coreHealthProbe, coreAuditProbe, coreApiUrl, audit }) {
   const app = express();
   app.disable("x-powered-by");
   app.use(cors());
   app.use(express.json({ limit: "16kb" }));
   app.get("/health", (_req, res) => res.json({ ok: true, service: "auth-service" }));
-  installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger });
+  installCustomerGuestRoutes(app, { guests, secret, expiresIn, otpEnabled, otpLogger, allowNewGuests: !customers });
+  installCustomerAccountRoutes(app, { customers, secret, expiresIn, otpEnabled, otpLogger });
   installStaffAdminRoutes(app, { users, secret, staffChangeGuard, audit,
     coreHealthProbe: coreHealthProbe || (coreApiUrl ? createCoreHealthProbe(coreApiUrl) : null),
     coreAuditProbe: coreAuditProbe || (coreApiUrl ? createCoreAuditProbe(coreApiUrl, secret) : null) });

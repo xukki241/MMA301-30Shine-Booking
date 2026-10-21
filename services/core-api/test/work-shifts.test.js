@@ -101,15 +101,13 @@ test("Work Shift intervals require an explicit valid local day and ISO timezone"
 test("work shifts require General Manager, block appointment conflicts, and provide slots mobile can book", async (t) => {
   const secret = randomBytes(32).toString("hex");
   const store = createShiftStore();
-  const app = createApp({ secret, workShiftRepository: store, bookingRepository: store, verifyStaff: async () => true,
+  const app = createApp({ secret, workShiftRepository: store, bookingRepository: store, verifyStaff: async () => true, verifyCustomer: async () => true,
     verifyActiveStylist: async () => true });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const token = (role, id) => jwt.sign(role === "customer" ? { sub: id, role, guest: true,
-    name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
-    { sub: id, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
+  const token = (role, id) => jwt.sign({ sub: id, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
   const admin = { Authorization: `Bearer ${token("general_manager", ids.admin)}`, "Content-Type": "application/json" };
   const customer = { Authorization: `Bearer ${token("customer", ids.customer)}`, "Content-Type": "application/json" };
   const systemAdmin = { Authorization: `Bearer ${token("system_admin", ids.admin)}` };

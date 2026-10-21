@@ -46,7 +46,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   await Promise.all([Branch.init(), Service.init(), StylistProfile.init()]);
 
   const models = { Branch, Service, StylistProfile };
-  const app = createApp({ secret, models, verifyStaff: async () => true, verifyActiveStylist: async () => true });
+  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true, verifyActiveStylist: async () => true });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -58,9 +58,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   const base = `http://127.0.0.1:${server.address().port}`;
 
   const sign = (role, sub = "507f1f77bcf86cd799439011") =>
-    jwt.sign(role === "customer" ? { sub, role, guest: true,
-      name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
-      { sub, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
+    jwt.sign({ sub, role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 });
 
   const adminToken = sign("general_manager");
   const customerToken = sign("customer");

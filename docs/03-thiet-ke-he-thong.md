@@ -1,5 +1,7 @@
 # Chương 3. Thiết kế hệ thống — trạng thái mục tiêu
 
+> **Mô hình Customer mới:** `CustomerAccount(id, phone unique, name, passwordHash, authVersion, loginAttempts, lastFailedAt)` và `CustomerChallenge(phone, purpose, digest, expiresAt, attempts, sentAt, verifiedAt)` thuộc Auth Service. Home dùng danh mục công khai; booking và lịch cá nhân dùng JWT Customer sau khi Auth xác minh trạng thái tài khoản. Dữ liệu Guest cũ được giữ trong database nhưng Guest JWT không còn truy cập Core. Xem [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md).
+
 > Sơ đồ liên vai trò mô tả luồng mục tiêu. Core API đã lưu giá chốt, Payment Attempt mô phỏng và cung cấp API chỉ đọc cho Manager. Manager dùng app Expo chung với Customer/Stylist; Admin Web chỉ dành cho System Admin. Xem [kế hoạch](./superpowers/plans/2026-10-20-manager-mobile.md) và `/openapi.json` của Core để đối chiếu code.
 
 ## 3.1. Thành phần và ranh giới

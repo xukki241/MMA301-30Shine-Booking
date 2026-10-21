@@ -53,14 +53,13 @@ test("Work Shift repository persists local-day shifts and computes appointment-a
   };
   const secret = randomBytes(32).toString("hex");
   const app = createApp({ secret, models: { Branch, Service, StylistProfile, Calendar, WorkShift },
-    verifyStaff: async () => true, verifyActiveStylist: async () => true });
+    verifyStaff: async () => true, verifyCustomer: async () => true, verifyActiveStylist: async () => true });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const bearer = (role, sub) => `Bearer ${jwt.sign(role === "customer" ? { sub: String(sub), role,
-    guest: true, name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
-    { sub: String(sub), role, authVersion: 0 }, secret, { algorithm: "HS256", expiresIn: 3600 })}`;
+  const bearer = (role, sub) => `Bearer ${jwt.sign({ sub: String(sub), role, authVersion: 0 },
+    secret, { algorithm: "HS256", expiresIn: 3600 })}`;
   const adminHeaders = { Authorization: bearer("general_manager", new mongoose.Types.ObjectId()), "Content-Type": "application/json" };
   const customerHeaders = { Authorization: bearer("customer", customerId), "Content-Type": "application/json" };
 

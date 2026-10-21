@@ -19,6 +19,17 @@ function createStaffVerifier(authServiceUrl) {
   };
 }
 
+function createCustomerVerifier(authServiceUrl) {
+  if (!authServiceUrl) return null;
+  const base = authServiceUrl.replace(/\/$/, "");
+  return async (token) => {
+    const response = await fetch(`${base}/auth/customer/introspect`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000),
+    });
+    return response.ok ? (await response.json()).user : false;
+  };
+}
+
 function createActiveStylistVerifier(authServiceUrl, secret) {
   if (!authServiceUrl) return null;
   const base = authServiceUrl.replace(/\/$/, "");
@@ -33,7 +44,7 @@ function createActiveStylistVerifier(authServiceUrl, secret) {
   };
 }
 
-function authenticate(secret, verifyStaff) {
+function authenticate(secret, verifyStaff, verifyCustomer) {
   return async (req, res, next) => {
     const match = /^Bearer ([^\s]+)$/i.exec(req.get("Authorization") || "");
     try {
@@ -44,17 +55,20 @@ function authenticate(secret, verifyStaff) {
         throw new Error("Invalid token claims");
       }
       if (payload.guest === true) {
-        if (payload.role !== "customer" || typeof payload.phone !== "string" ||
-            !/^\+84[35789]\d{8}$/.test(payload.phone) || typeof payload.name !== "string" ||
-            payload.name.length < 2 || payload.name.length > 100 || typeof payload.phoneVerified !== "boolean") {
-          throw new Error("Invalid guest claims");
-        }
-        req.auth = { userId: payload.sub, role: payload.role, guest: true,
-          phone: payload.phone, name: payload.name, phoneVerified: payload.phoneVerified };
+        throw new Error("Legacy Guest Session is disabled");
       } else {
-        if (payload.role === "customer") throw new Error("Legacy customer session is disabled");
         if (!Number.isSafeInteger(payload.authVersion) || payload.authVersion < 0) {
           throw new Error("Invalid staff session version");
+        }
+        if (payload.role === "customer") {
+          if (!verifyCustomer) return res.status(503).json({ error: "Customer session verification unavailable" });
+          let active;
+          try { active = await verifyCustomer(match[1], payload); }
+          catch { return res.status(503).json({ error: "Customer session verification unavailable" }); }
+          if (!active) throw new Error("Customer session revoked");
+          req.auth = { userId: payload.sub, role: "customer", guest: false,
+            ...(typeof active === "object" ? { name: active.name, phone: active.phone } : {}) };
+          return next();
         }
         if (!verifyStaff) return res.status(503).json({ error: "Staff session verification unavailable" });
         let active;
@@ -70,4 +84,4 @@ function authenticate(secret, verifyStaff) {
     return next();
   };
 }
-module.exports = { authenticate, readJwtSecret, createStaffVerifier, createActiveStylistVerifier };
+module.exports = { authenticate, readJwtSecret, createStaffVerifier, createCustomerVerifier, createActiveStylistVerifier };

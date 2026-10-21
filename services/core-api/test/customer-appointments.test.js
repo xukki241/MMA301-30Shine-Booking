@@ -13,9 +13,7 @@ const ids = {
 };
 
 function sign(role, userId) {
-  const claims = role === "customer" ? { sub: userId, role, guest: true,
-    name: "Khách thử", phone: "+84912345678", phoneVerified: false } :
-    { sub: userId, role, authVersion: 0 };
+  const claims = { sub: userId, role, authVersion: 0 };
   return jwt.sign(claims, secret, { algorithm: "HS256", expiresIn: "1h" });
 }
 
@@ -52,7 +50,7 @@ test("Customer appointment listing endpoints", async (t) => {
     },
   };
 
-  const app = createApp({ secret, bookingRepository, verifyStaff: async () => true });
+  const app = createApp({ secret, bookingRepository, verifyStaff: async () => true, verifyCustomer: async () => true });
   const server = app.listen(0);
   const port = server.address().port;
   const base = `http://localhost:${port}`;
