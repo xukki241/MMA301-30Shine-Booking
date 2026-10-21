@@ -1,24 +1,22 @@
 const mongoose = require("mongoose");
 const { ACTIVE_STATUSES, BookingError, isId, parseTime } = require("../booking/rules");
-const SLOT_STEP_MS = 30 * 60_000;
 
-function isThirtyMinuteStart(shiftStart, start) {
-  return start >= shiftStart && start.getTime() % SLOT_STEP_MS === 0;
-}
-
-function buildSlotOptions(shifts, appointments, durationMinutes, now = new Date()) {
+function buildSlotOptions(shifts, appointments, durationMinutes, now = new Date(), excludeAppointmentId = null) {
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return [];
   const durationMs = durationMinutes * 60_000;
   const slots = [];
   for (const shift of shifts) {
-    const firstStart = Math.ceil(new Date(shift.startAt).getTime() / SLOT_STEP_MS) * SLOT_STEP_MS;
+    const firstStart = new Date(shift.startAt).getTime();
     const shiftEnd = new Date(shift.endAt).getTime();
-    for (let startMs = firstStart; startMs + durationMs <= shiftEnd; startMs += SLOT_STEP_MS) {
-      if (startMs <= now.getTime()) continue;
+    for (let startMs = firstStart; startMs + durationMs <= shiftEnd;) {
       const startTime = new Date(startMs);
       const endTime = new Date(startMs + durationMs);
-      const available = !appointments.some((appointment) => ACTIVE_STATUSES.includes(appointment.status) &&
+      const conflicts = appointments.filter((appointment) => String(appointment._id || appointment.id) !== excludeAppointmentId &&
+        ACTIVE_STATUSES.includes(appointment.status) &&
         startTime < appointment.endTime && endTime > appointment.startTime);
-      slots.push({ startTime, endTime, available });
+      if (startMs > now.getTime()) slots.push({ startTime, endTime, available: conflicts.length === 0 });
+      const earliestEnd = conflicts.length ? Math.min(...conflicts.map((appointment) => new Date(appointment.endTime).getTime())) : Infinity;
+      startMs = Math.min(startMs + durationMs, earliestEnd);
     }
   }
   return slots;
@@ -124,8 +122,11 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       await shift.deleteOne();
       return { id };
     },
-    async availableSlots({ branchId, serviceId, stylistId, date }) {
+    async availableSlots({ branchId, serviceId, stylistId, date, excludeAppointmentId }, actor) {
       if (!isId(branchId) || !isId(serviceId) || !isId(stylistId) || !validDateKey(date)) throw new BookingError(400, "Invalid branch, service, stylist or date");
+      if (excludeAppointmentId && (!isId(excludeAppointmentId) || actor?.role !== "customer")) {
+        throw new BookingError(403, "Cannot exclude this appointment");
+      }
       const [branch, service, stylist, shifts] = await Promise.all([
         Branch.findById(branchId),
         Service.findOne({ _id: serviceId, branchId, isActive: true }),
@@ -136,11 +137,19 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       if (!service) throw new BookingError(404, "Active service not found for branch");
       if (!stylist) throw new BookingError(404, "Active stylist assignment not found for branch");
       const calendar = await Calendar.findById(stylistId).lean().exec();
-      const slots = buildSlotOptions(shifts, calendar?.appointments || [], service.durationMinutes);
+      if (excludeAppointmentId) {
+        const ownAppointment = calendar?.appointments?.find((item) => String(item._id) === excludeAppointmentId);
+        if (!ownAppointment || String(ownAppointment.customerId) !== actor.userId ||
+            String(ownAppointment.branchId) !== branchId || ownAppointment.status !== "booked") {
+          throw new BookingError(403, "Cannot exclude this appointment");
+        }
+      }
+      const slots = buildSlotOptions(shifts, calendar?.appointments || [], service.durationMinutes,
+        new Date(), excludeAppointmentId || null);
       return slots.map((slot) => ({ id: `${stylistId}-${slot.startTime.toISOString()}`,
         startTime: slot.startTime.toISOString(), endTime: slot.endTime.toISOString(), available: slot.available }));
     },
-    async validateBooking({ stylistId, branchId, serviceId, startTime, endTime }) {
+    async validateBooking({ stylistId, branchId, serviceId, startTime, endTime, excludeAppointmentId }) {
       if (!branchId || !serviceId) throw new BookingError(400, "branchId and serviceId are required when booking an available slot");
       const shift = await WorkShift.findOne({ stylistId, startAt: { $lte: startTime }, endAt: { $gte: endTime } }).lean().exec();
       if (!shift) throw new BookingError(409, "Requested time is outside an assigned work shift");
@@ -157,7 +166,11 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
         throw new BookingError(409, "Service price is invalid for mock payment");
       }
       const durationMs = service.durationMinutes * 60_000;
-      if (endTime.getTime() - startTime.getTime() !== durationMs || !isThirtyMinuteStart(shift.startAt, startTime) ||
+      const calendar = await Calendar.findById(stylistId).lean().exec();
+      const matching = buildSlotOptions([shift], calendar?.appointments || [], service.durationMinutes,
+        new Date(0), excludeAppointmentId || null).find((slot) =>
+        slot.startTime.getTime() === startTime.getTime() && slot.endTime.getTime() === endTime.getTime());
+      if (endTime.getTime() - startTime.getTime() !== durationMs || !matching?.available ||
           startTime.getTime() <= Date.now()) {
         throw new BookingError(409, "Requested time does not match the selected service duration");
       }
@@ -168,4 +181,4 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
 }
 
 module.exports = { createWorkShiftRepository, validDateKey, interval, shiftInterval,
-  buildSlotOptions, isThirtyMinuteStart };
+  buildSlotOptions };

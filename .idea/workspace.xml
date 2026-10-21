@@ -6,37 +6,20 @@
   <component name="ChangeListManager">
     <list default="true" id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CONTEXT.md" beforeDir="false" afterPath="$PROJECT_DIR$/CONTEXT.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SCOPE.md" beforeDir="false" afterPath="$PROJECT_DIR$/SCOPE.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/package-lock.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/_layout.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/appointments.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/book.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/login.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/appointments/core-api-adapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/appointments/core-api-adapter.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/appointments/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/appointments/types.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/core-api-adapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/core-api-adapter.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/demo-adapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/demo-adapter.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/http-adapter.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/http-adapter.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/src/booking/types.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/booking/types.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/src/offline/appointments.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/offline/appointments.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/apps/mobile/test/core-api-adapter.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/test/core-api-adapter.test.mjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth-service/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth-service/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth-service/src/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/src/app.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/auth-service/src/customer-account.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/src/customer-account.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/core-api/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/core-api/src/app.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/app.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/src/customer/booking-flow-screen.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/customer/booking-flow-screen.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/test/booking-flow.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/test/booking-flow.test.mjs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/mongo-repository.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/mongo-repository.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/routes.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/routes.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/rules.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/rules.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/src/booking/service.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/booking/service.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/src/docs/openapi.json" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/docs/openapi.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/services/core-api/src/models/stylist-calendar.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/models/stylist-calendar.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/src/routes/work-shift.routes.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/routes/work-shift.routes.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/core-api/test/booking-wishes-reschedule.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/booking-wishes-reschedule.test.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />

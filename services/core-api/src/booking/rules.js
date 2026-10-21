@@ -68,7 +68,8 @@ function validateWishes(value) {
 
 function validateReschedule(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((key) => !["startTime", "endTime"].includes(key))) {
+      Object.keys(body).some((key) => !["startTime", "endTime", "serviceId"].includes(key)) ||
+      (body.serviceId !== undefined && !isId(body.serviceId))) {
     throw new BookingError(400, "Invalid reschedule request");
   }
   const startTime = parseTime(body.startTime);
@@ -76,7 +77,8 @@ function validateReschedule(body) {
   if (!startTime || !endTime || startTime >= endTime || startTime.getTime() <= Date.now()) {
     throw new BookingError(400, "Invalid reschedule request");
   }
-  return { startTime, endTime };
+  return { startTime, endTime,
+    ...(body.serviceId ? { serviceId: body.serviceId.toLowerCase() } : {}) };
 }
 
 function validatePayment(body) {

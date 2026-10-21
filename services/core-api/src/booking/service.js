@@ -36,15 +36,19 @@ function createBookingService(repository) {
         throw new BookingError(403, "Appointment does not belong to this actor");
       }
       if (appointment.status !== "booked") throw new BookingError(400, "Invalid appointment state");
+      const serviceId = times.serviceId || appointment.serviceId;
       if (times.startTime.getTime() === new Date(appointment.startTime).getTime() &&
-          times.endTime.getTime() === new Date(appointment.endTime).getTime()) return appointment;
+          times.endTime.getTime() === new Date(appointment.endTime).getTime() &&
+          serviceId === appointment.serviceId) return appointment;
       if (!workShiftRepository || !appointment.branchId || !appointment.serviceId) {
         throw new BookingError(409, "Appointment cannot be rescheduled");
       }
-      await workShiftRepository.validateBooking({ stylistId: appointment.stylistId,
-        branchId: appointment.branchId, serviceId: appointment.serviceId, ...times });
+      const snapshot = await workShiftRepository.validateBooking({ stylistId: appointment.stylistId,
+        branchId: appointment.branchId, serviceId, startTime: times.startTime, endTime: times.endTime,
+        excludeAppointmentId: id.toLowerCase() });
       const updated = await repository.reschedule(id.toLowerCase(), {
-        userId: actor.userId.toLowerCase(), stylistId: appointment.stylistId }, times);
+        userId: actor.userId.toLowerCase(), stylistId: appointment.stylistId },
+        { ...times, serviceId, ...snapshot });
       if (!updated) throw new BookingError(409, "New time is unavailable; please choose another slot");
       return updated;
     },

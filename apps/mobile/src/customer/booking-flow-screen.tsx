@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate, upcomingDates } from "@/booking/dates";
-import { cancelCustomerAppointment, createHttpBookingAdapter, rescheduleCustomerAppointment } from "@/booking/http-adapter";
+import { cancelCustomerAppointment, createHttpBookingAdapter, getCustomerAppointments, rescheduleCustomerAppointment } from "@/booking/http-adapter";
+import { loadRescheduleDraft } from "@/booking/reschedule-draft";
 import { findSlotAtStart, mergeSlotOptions, slotForService, type SlotOption } from "@/booking/slot-options";
 import { isCompleteBookingDraft, type AppointmentResult, type BookingDraft, type BookingWishes, type Branch,
   type Service, type Stylist } from "@/booking/types";
@@ -21,12 +22,16 @@ const hour = (value: string) => new Intl.DateTimeFormat("vi-VN", {
 
 export default function CustomerBookingFlowScreen() {
   const { token, user } = useAuth();
+  const { rescheduleId } = useLocalSearchParams<{ rescheduleId?: string }>();
   if (!token) return <Redirect href="/login?next=book" />;
-  return <BookingFlow token={token} customerName={user?.name || "anh"} customerPhone={user?.phone || ""} />;
+  return <BookingFlow token={token} customerName={user?.name || "anh"} customerPhone={user?.phone || ""}
+    rescheduleId={rescheduleId || undefined} />;
 }
 
-function BookingFlow({ token, customerName, customerPhone }: { token: string; customerName: string; customerPhone: string }) {
+function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { token: string; customerName: string;
+  customerPhone: string; rescheduleId?: string }) {
   const theme = useAppTheme();
+  const isRescheduling = Boolean(rescheduleId);
   const tokenRef = useRef(token);
   tokenRef.current = token;
   const source = useMemo(() => createHttpBookingAdapter(() => tokenRef.current), []);
@@ -53,16 +58,30 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
   const [branchRevision, setBranchRevision] = useState(0);
   const [optionRevision, setOptionRevision] = useState(0);
   const [slotRevision, setSlotRevision] = useState(0);
+  const [rescheduleLoading, setRescheduleLoading] = useState(Boolean(rescheduleId));
+  const [rescheduleError, setRescheduleError] = useState("");
   const submitLock = useRef(false);
 
   useFocusEffect(useCallback(() => {
+    let active = true;
     setPage("main");
     setDraft(emptyDraft);
     setResult(null);
     setWishes({});
     setNotice("");
     setError("");
-  }, []));
+    setRescheduleError("");
+    if (rescheduleId) {
+      setRescheduleLoading(true);
+      void loadRescheduleDraft(rescheduleId, () => getCustomerAppointments(token), source,
+        dates.map((date) => date.key)).then((loaded) => {
+        if (active) setDraft(loaded);
+      }).catch((cause) => {
+        if (active) setRescheduleError(cause instanceof Error ? cause.message : "Không tải được lịch hẹn.");
+      }).finally(() => { if (active) setRescheduleLoading(false); });
+    } else setRescheduleLoading(false);
+    return () => { active = false; };
+  }, [rescheduleId, token, source, dates]));
 
   useEffect(() => {
     let active = true;
@@ -97,6 +116,7 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
       serviceId: service.id,
       slots: await source.listTimeSlots({
         branchId: draft.branch!.id, stylistId: draft.stylist!.id, date: draft.date!, serviceId: service.id,
+        ...(rescheduleId ? { excludeAppointmentId: rescheduleId } : {}),
       }),
     }))).then((results) => {
       if (!active) return;
@@ -115,7 +135,7 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
       }
     }).finally(() => { if (active) setBusy(null); });
     return () => { active = false; };
-  }, [draft.branch?.id, draft.stylist?.id, draft.date, draft.service?.id, services, source, slotRevision]);
+  }, [draft.branch?.id, draft.stylist?.id, draft.date, draft.service?.id, services, source, slotRevision, rescheduleId]);
 
   useEffect(() => {
     if (page !== "main" || !draft.branch || !draft.stylist || !draft.date) return;
@@ -126,14 +146,22 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
   const cities = [...new Set(branches.map((branch) => branch.address.split(",").at(-1)?.trim() || ""))]
     .filter(Boolean).sort();
   const open = (target: "salons" | "services") => {
+    if (isRescheduling && target === "salons") return;
     setSearch(""); setCity(""); setError(""); setPage(target);
   };
   const selectBranch = (branch: Branch) => {
+    if (isRescheduling) return;
     setServices([]); setStylists([]); setSlots([]);
     setDraft({ ...emptyDraft, branch, date: dates[0]?.key || null });
     setNotice(""); setPage("main");
   };
   const selectService = async (service: Service) => {
+    if (isRescheduling) {
+      setSlots([]);
+      setDraft((current) => ({ ...current, service, slot: null }));
+      setNotice(""); setPage("main");
+      return;
+    }
     if (!draft.branch || !draft.stylist || !draft.date || !draft.slot || busy) return;
     const { branch, stylist, date, slot } = draft;
     setBusy("service"); setNotice("");
@@ -154,11 +182,23 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
     } finally { setBusy(null); }
   };
   const confirm = async (includeWishes: boolean) => {
+    if (isRescheduling) return;
     if (submitLock.current || !isCompleteBookingDraft(draft)) return;
     submitLock.current = true; setBusy("confirm"); setNotice("");
     try { setResult(await source.confirmBooking(draft, includeWishes ? wishes : undefined)); }
     catch (cause) { setNotice(cause instanceof Error ? cause.message : "Không thể đặt lịch lúc này."); }
     finally { setBusy(null); submitLock.current = false; }
+  };
+  const confirmExistingReschedule = async () => {
+    if (!rescheduleId || submitLock.current || !isCompleteBookingDraft(draft)) return;
+    submitLock.current = true; setBusy("confirm"); setNotice("");
+    try {
+      await rescheduleCustomerAppointment(token, rescheduleId, draft.slot, draft.service.id);
+      router.replace("/(customer)/appointments");
+    } catch (cause) {
+      setNotice(cause instanceof Error ? cause.message : "Không đổi được lịch hẹn. Vui lòng chọn giờ khác.");
+      setSlotRevision((revision) => revision + 1);
+    } finally { setBusy(null); submitLock.current = false; }
   };
   const chooseReference = async () => {
     if ((wishes.referenceImages?.length || 0) >= 3) return;
@@ -403,9 +443,22 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
     </SafeAreaView>;
   }
 
+  if (isRescheduling && (rescheduleLoading || rescheduleError)) return <SafeAreaView
+    style={[styles.root, { backgroundColor: theme.surface }]}>
+    {header("Đổi ngày / giờ", () => router.replace("/(customer)/appointments"))}
+    <View style={{ padding: 24, gap: 18 }}>
+      {rescheduleLoading ? <ActivityIndicator color={theme.brand} /> : <>
+        <Text style={{ color: theme.text }}>{rescheduleError}</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.replace("/(customer)/appointments")}>
+          <Text style={{ color: theme.brand, fontWeight: "700" }}>Quay lại lịch hẹn</Text>
+        </Pressable>
+      </>}
+    </View>
+  </SafeAreaView>;
   const complete = isCompleteBookingDraft(draft) && busy !== "confirm";
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.surface }]}>
-    {header("Đặt lịch giữ chỗ", () => router.replace("/(customer)/home"))}
+    {header(isRescheduling ? "Đổi ngày / giờ" : "Đặt lịch giữ chỗ",
+      () => router.replace(isRescheduling ? "/(customer)/appointments" : "/(customer)/home"))}
     <ScrollView contentContainerStyle={styles.flowContent} showsVerticalScrollIndicator={false}>
       {notice ? <View style={[styles.warning, { backgroundColor: theme.surfaceHighlight }]}>
         <Text style={{ color: theme.text }}>{notice}</Text></View> : null}
@@ -413,31 +466,32 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
         <View style={styles.stage}>
           <View style={[styles.dot, { backgroundColor: theme.brand }]}>
             {draft.branch ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
-          <Text style={[styles.title, { color: theme.brand }]}>1. Chọn salon</Text>
-          <Pressable accessibilityRole="button" onPress={() => open("salons")}
+          <Text style={[styles.title, { color: theme.brand }]}>{isRescheduling ? "1. Salon hiện tại" : "1. Chọn salon"}</Text>
+          <Pressable accessibilityRole="button" disabled={isRescheduling} onPress={() => open("salons")}
             style={[styles.actionRow, { backgroundColor: theme.surfaceHighlight }]}>
             <Ionicons name="home-outline" size={22} color={theme.text} />
             <Text style={[styles.actionText, { color: draft.branch ? theme.text : theme.textMuted }]}
               numberOfLines={1}>{draft.branch ? draft.branch.name + " · " + draft.branch.address
                 : "Xem tất cả salon"}</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.text} /></Pressable>
+            <Ionicons name={isRescheduling ? "lock-closed-outline" : "chevron-forward"} size={18} color={theme.text} /></Pressable>
         </View>
         <View style={styles.stage}>
           <View style={[styles.dot, { backgroundColor: draft.slot ? theme.brand : theme.border }]}>
             {draft.slot ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
-          <Text style={[styles.title, { color: theme.brand }]}>2. Chọn ngày, giờ & stylist</Text>
+          <Text style={[styles.title, { color: theme.brand }]}>{isRescheduling
+            ? "2. Chọn lại ngày và giờ" : "2. Chọn ngày, giờ & stylist"}</Text>
           {!draft.branch ? <Text style={{ color: theme.textMuted }}>Chọn salon để xem stylist và giờ trống.</Text> : <>
             {busy === "options" ? <ActivityIndicator color={theme.brand} /> : null}
             {warning}
-            {stylists.length === 0 && busy !== "options" && !error
+            {(isRescheduling ? !draft.stylist : stylists.length === 0) && busy !== "options" && !error
               ? <Text style={{ color: theme.textMuted }}>Salon chưa có stylist khả dụng.</Text> : null}
-            {stylists.length > 0 ? <>
-              <Text style={[styles.subTitle, { color: theme.text }]}>Chọn stylist</Text>
+            {(isRescheduling ? Boolean(draft.stylist) : stylists.length > 0) ? <>
+              <Text style={[styles.subTitle, { color: theme.text }]}>{isRescheduling ? "Stylist đã chọn" : "Chọn stylist"}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.stylistRow}>
-                {stylists.map((stylist) => {
+                {(isRescheduling && draft.stylist ? [draft.stylist] : stylists).map((stylist) => {
                   const selected = draft.stylist?.id === stylist.id;
-                  return <Pressable key={stylist.id} accessibilityRole="button"
+                  return <Pressable key={stylist.id} accessibilityRole="button" disabled={isRescheduling}
                     accessibilityState={{ selected }}
                     onPress={() => { setSlots([]); setDraft((current) => ({ ...current, stylist, slot: null })); setNotice(""); }}
                     style={[styles.stylistCard, { borderColor: selected ? theme.brand : theme.border,
@@ -492,10 +546,10 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
           <View style={[styles.dot, { backgroundColor: draft.service ? theme.brand : theme.border }]}>
             {draft.service ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
           <Text style={[styles.title, { color: theme.brand }]}>3. Chọn dịch vụ</Text>
-          <Pressable accessibilityRole="button" disabled={!draft.slot || busy === "options"}
+          <Pressable accessibilityRole="button" disabled={(!isRescheduling && !draft.slot) || busy === "options"}
             onPress={() => open("services")}
             style={[styles.actionRow, { backgroundColor: theme.surfaceHighlight,
-              opacity: draft.slot ? 1 : 0.55 }]}>
+              opacity: draft.slot || isRescheduling ? 1 : 0.55 }]}>
             <Ionicons name="cut-outline" size={22} color={theme.text} />
             <Text style={[styles.actionText, { color: draft.service ? theme.text : theme.textMuted }]}
               numberOfLines={1}>{draft.service?.name || "Xem tất cả dịch vụ"}</Text>
@@ -513,11 +567,14 @@ function BookingFlow({ token, customerName, customerPhone }: { token: string; cu
     </ScrollView>
     <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
       <Pressable accessibilityRole="button" accessibilityState={{ disabled: !complete, busy: busy === "confirm" }}
-        disabled={!complete} onPress={() => { setNotice(""); setPage("wishes"); }}
+        disabled={!complete} onPress={() => {
+          if (isRescheduling) void confirmExistingReschedule();
+          else { setNotice(""); setPage("wishes"); }
+        }}
         style={[styles.primary, { backgroundColor: complete ? theme.brand : theme.surfaceMuted }]}>
         {busy === "confirm" ? <ActivityIndicator color="#FFFFFF" />
           : <Text style={[styles.primaryText, { color: complete ? "#FFFFFF" : theme.textMuted }]}>
-            CHỐT GIỜ CẮT</Text>}</Pressable>
+            {isRescheduling ? "XÁC NHẬN ĐỔI LỊCH" : "CHỐT GIỜ CẮT"}</Text>}</Pressable>
       <Text style={{ color: theme.textMuted, fontSize: 12, textAlign: "center" }}>
         Thanh toán sau khi hoàn tất dịch vụ tại salon</Text>
     </View>

@@ -35,6 +35,28 @@ test("reschedule only accepts an explicit new time interval", () => {
     "2030-10-20T10:00:00.000Z");
   assert.throws(() => validateReschedule({ startTime: booking.startTime, endTime: booking.endTime,
     stylistId: id }), /Invalid reschedule request/);
+  assert.equal(validateReschedule({ startTime: booking.startTime, endTime: booking.endTime,
+    serviceId: id }).serviceId, id);
+});
+
+test("reschedule can change service while keeping appointment identity", async () => {
+  const customerId = "b".repeat(24);
+  const record = { id, customerId, stylistId: id, branchId: id, serviceId: id,
+    startTime: new Date("2030-10-20T10:00:00Z"), endTime: new Date("2030-10-20T11:00:00Z"), status: "booked" };
+  const nextServiceId = "c".repeat(24);
+  let saved;
+  const service = createBookingService({ findById: async () => record,
+    reschedule: async (_id, _actor, change) => { saved = change; return { ...record, ...change }; } });
+  const shift = { validateBooking: async ({ serviceId }) => {
+    assert.equal(serviceId, nextServiceId);
+    return { serviceName: "Gội đầu", bookedPrice: 90000 };
+  } };
+  const updated = await service.reschedule({ role: "customer", userId: customerId }, id,
+    { startTime: "2030-10-21T10:00:00Z", endTime: "2030-10-21T10:45:00Z", serviceId: nextServiceId }, shift);
+  assert.equal(updated.id, id);
+  assert.equal(saved.serviceId, nextServiceId);
+  assert.equal(saved.serviceName, "Gội đầu");
+  assert.equal(saved.bookedPrice, 90000);
 });
 
 test("reschedule enforces ownership, state and shift; preserves appointment identity", async () => {

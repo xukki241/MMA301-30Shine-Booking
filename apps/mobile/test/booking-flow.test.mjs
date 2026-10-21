@@ -54,5 +54,11 @@ test("booking sends optional wishes and reschedule sends only new interval", asy
     assert.ok(calls[1].url.endsWith("/appointments/appointment-id/reschedule"));
     assert.deepEqual(JSON.parse(calls[1].options.body),
       { startTime: slot.startTime, endTime: slot.endTime });
+    await rescheduleCustomerAppointment("jwt", result.id, slot, "new-service");
+    assert.deepEqual(JSON.parse(calls[2].options.body),
+      { startTime: slot.startTime, endTime: slot.endTime, serviceId: "new-service" });
+    await createHttpBookingAdapter(() => "jwt").listTimeSlots({ branchId: "branch", serviceId: "new-service",
+      stylistId: "stylist", date: "2030-01-01", excludeAppointmentId: "appointment-id" });
+    assert.match(calls[3].url, /excludeAppointmentId=appointment-id/);
   } finally { globalThis.fetch = originalFetch; }
 });

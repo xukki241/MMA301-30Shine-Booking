@@ -181,7 +181,7 @@ function createBookingRepository(Calendar) {
       return calendar ? plain(calendar.appointments[0]) : null;
     },
 
-    async reschedule(id, actor, { startTime, endTime }) {
+    async reschedule(id, actor, { startTime, endTime, serviceId, serviceName, bookedPrice }) {
       const calendar = await Calendar.findOneAndUpdate({
         _id: new mongoose.Types.ObjectId(actor.stylistId),
         $and: [
@@ -193,7 +193,10 @@ function createBookingRepository(Calendar) {
           } } } },
         ],
       }, { $set: { "appointments.$[target].startTime": startTime,
-        "appointments.$[target].endTime": endTime, "appointments.$[target].updatedAt": new Date() } }, {
+        "appointments.$[target].endTime": endTime, "appointments.$[target].updatedAt": new Date(),
+        ...(serviceId ? { "appointments.$[target].serviceId": new mongoose.Types.ObjectId(serviceId) } : {}),
+        ...(serviceName ? { "appointments.$[target].serviceName": serviceName } : {}),
+        ...(bookedPrice !== undefined ? { "appointments.$[target].bookedPrice": bookedPrice } : {}) } }, {
         returnDocument: "after", runValidators: true,
         arrayFilters: [{ "target._id": new mongoose.Types.ObjectId(id), "target.status": "booked" }],
         projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },

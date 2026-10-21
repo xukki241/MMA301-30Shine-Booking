@@ -58,6 +58,7 @@ export type TimeSlotQuery = {
   serviceId: string;
   stylistId: string;
   date: string;
+  excludeAppointmentId?: string;
 };
 
 export interface BookingWizardDataSource {

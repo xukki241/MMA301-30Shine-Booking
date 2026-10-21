@@ -5,7 +5,7 @@ const { randomBytes } = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const { createApp } = require("../src/app");
 const { BookingError } = require("../src/booking/rules");
-const { shiftInterval, buildSlotOptions, isThirtyMinuteStart } = require("../src/work-shifts/repository");
+const { shiftInterval, buildSlotOptions } = require("../src/work-shifts/repository");
 
 const ids = {
   branch: "507f1f77bcf86cd799439001",
@@ -80,7 +80,10 @@ function createShiftStore() {
     },
     async validateBooking(data) {
       if (data.branchId !== ids.branch || data.serviceId !== ids.service || data.endTime.getTime() - data.startTime.getTime() !== 45 * 60000 ||
-          !shifts.some((shift) => shift.stylistId === data.stylistId && isThirtyMinuteStart(shift.startAt, data.startTime))) throw new BookingError(409, "Requested time does not match the active service");
+          !shifts.some((shift) => shift.stylistId === data.stylistId &&
+            buildSlotOptions([shift], appointments.filter((a) => a.stylistId === data.stylistId), 45,
+              new Date(0)).some((slot) => slot.available &&
+              slot.startTime.getTime() === data.startTime.getTime()))) throw new BookingError(409, "Requested time does not match the active service");
       if (!shifts.some((shift) => shift.stylistId === data.stylistId && data.startTime >= new Date(shift.startAt) && data.endTime <= new Date(shift.endAt))) throw new BookingError(409, "Requested time is outside an assigned work shift");
       return { bookedPrice: 120000 };
     },
@@ -123,9 +126,9 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   const slotsResponse = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   assert.equal(slotsResponse.status, 200);
   const slots = (await slotsResponse.json()).slots;
-  assert.equal(slots.length, 5);
+  assert.equal(slots.length, 4);
   assert.equal(slots[0].startTime, "2030-10-20T02:00:00.000Z");
-  assert.equal(slots[1].startTime, "2030-10-20T02:30:00.000Z");
+  assert.equal(slots[1].startTime, "2030-10-20T02:45:00.000Z");
 
   const booking = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[0].startTime, endTime: slots[0].endTime }) });
   assert.equal(booking.status, 201);
@@ -134,9 +137,9 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   assert.equal(tamperedPrice.status, 400);
   const refreshedSlots = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   const refreshed = (await refreshedSlots.json()).slots;
-  assert.equal(refreshed.length, 5);
+  assert.equal(refreshed.length, 4);
   assert.equal(refreshed[0].available, false);
-  assert.equal(refreshed[1].available, false);
+  assert.equal(refreshed[1].available, true);
   assert.equal(refreshed[2].available, true);
   const duplicate = await fetch(`${base}/appointments`, { method: "POST", headers: customer,
     body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist,

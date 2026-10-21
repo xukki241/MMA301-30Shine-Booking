@@ -528,7 +528,7 @@ export default function CustomerAppointmentsScreen() {
 
                     <Pressable
                       style={[styles.solidBtn, { backgroundColor: theme.brand }]}
-                      onPress={() => router.push("/(customer)/book")}
+                      onPress={() => router.push({ pathname: "/(customer)/book", params: { rescheduleId: item.id } })}
                     >
                       <Ionicons name="calendar-outline" size={16} color="#FFFFFF" />
                       <Text style={styles.solidBtnText}>Đổi ngày / giờ</Text>

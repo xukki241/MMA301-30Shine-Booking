@@ -76,6 +76,8 @@ export async function completeStylistAppointment(token: string, appointmentId: s
 export interface CustomerAppointmentItem {
   id: string;
   customerId: string;
+  branchId?: string;
+  serviceId?: string;
   stylistId: string;
   startTime: string;
   endTime?: string;
@@ -101,10 +103,11 @@ export async function cancelCustomerAppointment(token: string, appointmentId: st
 }
 
 export async function rescheduleCustomerAppointment(token: string, appointmentId: string,
-  slot: TimeSlot): Promise<CustomerAppointmentItem> {
+  slot: TimeSlot, serviceId?: string): Promise<CustomerAppointmentItem> {
   const data = await request<{ appointment: CustomerAppointmentItem }>(coreApi,
     `/appointments/${encodeURIComponent(appointmentId)}/reschedule`, token,
-    { method: "POST", body: JSON.stringify({ startTime: slot.startTime, endTime: slot.endTime }) });
+    { method: "POST", body: JSON.stringify({ startTime: slot.startTime, endTime: slot.endTime,
+      ...(serviceId ? { serviceId } : {}) }) });
   return data.appointment;
 }
 
@@ -133,7 +136,7 @@ export function createHttpBookingAdapter(getToken: () => string | null): Booking
       return data.stylists.filter((stylist) => stylist.isActive).map((stylist) => ({ id: stylist.userId, name: stylist.displayName }));
     },
     async listTimeSlots(query: TimeSlotQuery): Promise<TimeSlot[]> {
-      const params = new URLSearchParams(query);
+      const params = new URLSearchParams(Object.entries(query).filter(([, value]) => value !== undefined) as [string, string][]);
       const data = await request<{ slots: TimeSlot[] }>(coreApi, `/time-slots?${params}`, getToken() || undefined);
       return data.slots;
     },
