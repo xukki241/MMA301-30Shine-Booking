@@ -1,3 +1,4 @@
+// Manager test suite - daily KPIs and operations summary calculations
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
