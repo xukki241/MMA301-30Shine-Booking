@@ -1,3 +1,4 @@
+// Order sorting - appointment list ordering by date, status priority
 import type { CustomerAppointment } from "./types";
 
 export function orderCustomerAppointments<T extends Pick<CustomerAppointment, "status" | "startTime">>(items: T[]): T[] {
