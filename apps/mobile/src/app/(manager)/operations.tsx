@@ -4,7 +4,7 @@ import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
 import { useConnectivity } from "@/offline/network-provider";
 import { managerToday } from "@/manager/date";
-import { ManagerDatePicker, ManagerSelect } from "@/manager/filters-ui";
+import { ManagerDatePicker, ManagerSelect, ManagerTimePicker } from "@/manager/filters-ui";
 import { ManagerAction } from "@/manager/ui";
 import { canSubmitMutation, createLatestRequestGate, localTime, validateServiceDraft, validateShiftDraft } from "@/manager/operations-model";
 import type { Branch, Service, Shift, Stylist, StylistCandidate } from "@/manager/types";
@@ -138,7 +138,7 @@ export default function ManagerOperations() {
   const fields = kind === "branch" ? [["name", "Tên chi nhánh"], ["address", "Địa chỉ"], ["phone", "Số điện thoại"]] :
     kind === "service" ? [["name", "Tên dịch vụ"], ["price", "Giá (VND)"], ["durationMinutes", "Thời lượng (phút)"], ["description", "Mô tả"]] :
     kind === "stylist" ? [] :
-    [["start", "Bắt đầu HH:mm"], ["end", "Kết thúc HH:mm"]];
+    [];
   return <Screen eyebrow="General Manager" title="Vận hành" description="Chi nhánh, dịch vụ, hồ sơ thợ và phân ca.">
     <View style={styles.tabs}>{(Object.keys(labels) as Kind[]).map((value) => <Action key={value}
       label={labels[value]} onPress={() => { setKind(value); setEditing(null); setError(""); }} selected={kind === value} />)}</View>
@@ -174,6 +174,12 @@ export default function ManagerOperations() {
       {kind === "shift" && <><CardText>Chọn thợ:</CardText><View style={styles.row}>{stylists.map((stylist) =>
         <Action key={stylist.id} label={stylist.displayName} selected={editing.draft.stylistId === stylist.userId}
           onPress={() => setEditing({ ...editing, draft: { ...editing.draft, stylistId: stylist.userId } })} />)}</View></>}
+      {kind === "shift" && <>
+        <ManagerTimePicker label="Bắt đầu" value={editing.draft.start || "09:00"}
+          onChange={(value) => setEditing({ ...editing, draft: { ...editing.draft, start: value } })} />
+        <ManagerTimePicker label="Kết thúc" value={editing.draft.end || "17:00"}
+          onChange={(value) => setEditing({ ...editing, draft: { ...editing.draft, end: value } })} />
+      </>}
       {fields.map(([field, label]) =>
         <Field key={field} label={label} value={editing.draft[field] || ""}
           onChange={(value) => setEditing({ ...editing, draft: { ...editing.draft, [field]: value } })} />)}

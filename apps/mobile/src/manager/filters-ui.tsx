@@ -104,6 +104,65 @@ export function ManagerDatePicker({ label, value, onChange }: { label: string; v
   </View>;
 }
 
+export function ManagerTimePicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const theme = useAppTheme();
+  const [open, setOpen] = useState(false);
+  const [hour, setHour] = useState(value.slice(0, 2));
+  const [minute, setMinute] = useState(value.slice(3, 5));
+  const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0"));
+  const minutes = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"));
+  if (minute && !minutes.includes(minute)) minutes.push(minute);
+  minutes.sort();
+  function openPicker() {
+    setHour(value.slice(0, 2) || "09");
+    setMinute(value.slice(3, 5) || "00");
+    setOpen(true);
+  }
+  return <View style={styles.filterWrap}>
+    <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${label}: ${value || "Chọn giờ"}`}
+      onPress={openPicker} style={[styles.trigger, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+      <Ionicons name="time-outline" size={19} color={theme.brand} />
+      <Text style={[styles.triggerText, { color: theme.text }]}>{value || "Chọn giờ"}</Text>
+      <Ionicons name="chevron-down" size={18} color={theme.brand} />
+    </Pressable>
+    <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <View style={styles.overlay}><View style={[styles.modal, { backgroundColor: theme.surface }]}>
+        <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: theme.text }]}>{label}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Đóng" onPress={() => setOpen(false)}>
+            <Ionicons name="close" size={24} color={theme.textMuted} /></Pressable></View>
+        <View style={styles.timeColumns}>
+          {([{ title: "Giờ", values: hours, selected: hour, choose: setHour },
+            { title: "Phút", values: minutes, selected: minute, choose: setMinute }] as const).map((column) =>
+            <View key={column.title} style={styles.timeColumn}>
+              <Text style={[styles.timeColumnTitle, { color: theme.textMuted }]}>{column.title}</Text>
+              <ScrollView style={styles.timeOptions} nestedScrollEnabled>
+                {column.values.map((part) => <Pressable key={part} accessibilityRole="button"
+                  accessibilityLabel={`${column.title} ${part}`} accessibilityState={{ selected: column.selected === part }}
+                  onPress={() => column.choose(part)} style={[styles.timeOption,
+                    column.selected === part && { backgroundColor: theme.brand }]}>
+                  <Text style={{ color: column.selected === part ? "#FFFFFF" : theme.text, fontWeight: "700" }}>{part}</Text>
+                </Pressable>)}
+              </ScrollView>
+            </View>)}
+        </View>
+        <View style={styles.timePresets}>{["09:00", "12:00", "17:00", "20:00"].map((time) =>
+          <Pressable key={time} accessibilityRole="button" accessibilityLabel={`Chọn nhanh ${time}`}
+            onPress={() => { setHour(time.slice(0, 2)); setMinute(time.slice(3)); }}
+            style={[styles.timePreset, { borderColor: theme.border }]}>
+            <Text style={{ color: theme.text, fontWeight: "700" }}>{time}</Text>
+          </Pressable>)}</View>
+        <Text style={[styles.timePreview, { color: theme.text }]}>{hour}:{minute}</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Xác nhận ${hour}:${minute}`}
+          onPress={() => { onChange(`${hour}:${minute}`); setOpen(false); }}
+          style={[styles.timeConfirm, { backgroundColor: theme.brand }]}>
+          <Text style={styles.timeConfirmText}>Chọn giờ này</Text>
+        </Pressable>
+      </View></View>
+    </Modal>
+  </View>;
+}
+
 const styles = StyleSheet.create({
   filterWrap: { marginHorizontal: 16, gap: 6 },
   label: { fontSize: 12, fontWeight: "800" },
@@ -128,4 +187,14 @@ const styles = StyleSheet.create({
   dayCell: { width: "14.2857%", height: 40, alignItems: "center", justifyContent: "center" },
   todayButton: { alignSelf: "center", padding: 12, marginTop: 10 },
   closeButton: { alignSelf: "center", padding: 8 },
+  timeColumns: { flexDirection: "row", gap: 12 },
+  timeColumn: { flex: 1, gap: 8 },
+  timeColumnTitle: { fontSize: 12, fontWeight: "800", textAlign: "center" },
+  timeOptions: { maxHeight: 224 },
+  timeOption: { minHeight: 44, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  timePresets: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 8, marginTop: 14 },
+  timePreset: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 11, paddingVertical: 8 },
+  timePreview: { textAlign: "center", fontSize: 24, fontWeight: "800", marginTop: 14 },
+  timeConfirm: { minHeight: 46, borderRadius: 12, alignItems: "center", justifyContent: "center", marginTop: 12 },
+  timeConfirmText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
 });
