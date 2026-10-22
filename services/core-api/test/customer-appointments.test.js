@@ -1,3 +1,4 @@
+// Customer appointment tests - appointment cancellation and list filters
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");
