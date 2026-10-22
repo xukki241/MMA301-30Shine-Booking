@@ -7,7 +7,8 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
     catch { throw Object.assign(new Error("Stylist directory unavailable"), { status: 503 }); }
   };
   const currentName = (profile, staff) => staff.find((item) => item.id === String(profile.userId))?.fullName || profile.displayName;
-  const publicProfile = (profile, staff) => ({ ...profile.toJSON(), displayName: currentName(profile, staff) });
+  const publicProfile = (profile, staff) => ({ ...profile.toJSON(), displayName: currentName(profile, staff),
+    phone: staff.find((item) => item.id === String(profile.userId))?.phone || null });
   const primaryProfileIds = (profiles) => {
     const first = new Map();
     for (const profile of [...profiles].sort((a, b) =>

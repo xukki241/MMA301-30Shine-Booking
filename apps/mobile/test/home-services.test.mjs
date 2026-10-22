@@ -32,12 +32,12 @@ test("home stylist profiles include only active stylists and their salon", async
     assert.equal(options.headers.Authorization, "Bearer customer-token");
     const body = String(url).endsWith("/branches")
       ? { branches: [{ id: "salon-a", name: "Salon A", address: "Hà Nội", isActive: true }] }
-      : { stylists: [{ userId: "stylist-a", displayName: "Stylist An", isActive: true },
+      : { stylists: [{ userId: "stylist-a", displayName: "Stylist An", phone: "0912345678", isActive: true },
         { userId: "stylist-b", displayName: "Stylist Bình", isActive: false }] };
     return { ok: true, json: async () => body };
   };
   assert.deepEqual(await listHomeStylists("customer-token"), [
     { branch: { id: "salon-a", name: "Salon A", address: "Hà Nội" },
-      stylist: { id: "stylist-a", name: "Stylist An" } },
+      stylist: { id: "stylist-a", name: "Stylist An", phone: "0912345678" } },
   ]);
 });

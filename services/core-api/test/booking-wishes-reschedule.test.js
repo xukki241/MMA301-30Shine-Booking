@@ -30,6 +30,20 @@ test("booking stores catalog names from server snapshot, not client input", asyn
   assert.throws(() => validateBooking({ ...booking, serviceName: "Shine Combo 10 bước" }), /Expected stylistId/);
 });
 
+test("booking rejects another future appointment until the current one is cancelled", async () => {
+  const customerId = "b".repeat(24);
+  let saved = 0;
+  const repository = { listByCustomer: async () => [{ status: "booked",
+    startTime: new Date("2030-10-20T10:00:00Z") }],
+    book: async (data) => { saved++; return data; } };
+  const service = createBookingService(repository);
+  await assert.rejects(service.book({ role: "customer", userId: customerId }, booking), { status: 409 });
+  assert.equal(saved, 0);
+  repository.listByCustomer = async () => [{ status: "cancelled", startTime: new Date("2030-10-20T10:00:00Z") }];
+  await service.book({ role: "customer", userId: customerId }, booking);
+  assert.equal(saved, 1);
+});
+
 test("reschedule only accepts an explicit new time interval", () => {
   assert.equal(validateReschedule({ startTime: booking.startTime, endTime: booking.endTime }).startTime.toISOString(),
     "2030-10-20T10:00:00.000Z");

@@ -14,7 +14,7 @@ test("appointment list resolves actual branch, stylist and service instead of pl
       serviceId: "s1", stylistId: "u1", startTime: "2030-01-01T10:00:00Z", status: "cancelled" }] }
       : path === "/branches/b1" ? { branch: { name: "30Shine Cầu Diễn", address: "65 Cầu Diễn, Hà Nội" } }
       : path === "/services/s1" ? { service: { name: "Cắt xả" } }
-      : path === "/branches/b1/stylists" ? { stylists: [{ userId: "u1", displayName: "Anh Phú" }] }
+      : path === "/branches/b1/stylists" ? { stylists: [{ userId: "u1", displayName: "Anh Phú", phone: "0912345678" }] }
       : null;
     return { ok: Boolean(data), json: async () => data };
   };
@@ -23,9 +23,32 @@ test("appointment list resolves actual branch, stylist and service instead of pl
     assert.equal(items[0].branchName, "30Shine Cầu Diễn");
     assert.equal(items[0].branchAddress, "65 Cầu Diễn, Hà Nội");
     assert.equal(items[0].stylistName, "Anh Phú");
+    assert.equal(items[0].stylistPhone, "0912345678");
     assert.equal(items[0].serviceName, "Cắt xả");
     assert.deepEqual(urls.sort(), ["/appointments/customer", "/branches/b1",
       "/services/s1", "/branches/b1/stylists"].sort());
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("appointment list loads stylist phone when the appointment already includes the stylist name", async () => {
+  const originalFetch = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async (url) => {
+    const path = new URL(String(url)).pathname;
+    urls.push(path);
+    const data = path === "/appointments/customer"
+      ? { appointments: [{ id: "a1", branchId: "b1", stylistId: "u1", stylistName: "Tên stylist cũ",
+        startTime: "2030-01-01T10:00:00Z", status: "booked" }] }
+      : path === "/branches/b1/stylists"
+        ? { stylists: [{ userId: "u1", displayName: "Stylist Toàn", phone: "0987654321" }] }
+        : null;
+    return { ok: Boolean(data), json: async () => data };
+  };
+  try {
+    const items = await createCoreApiAppointmentDataSource(() => "jwt", undefined, "http://localhost:4102").list();
+    assert.equal(items[0].stylistName, "Stylist Toàn");
+    assert.equal(items[0].stylistPhone, "0987654321");
+    assert.deepEqual(urls.sort(), ["/appointments/customer", "/branches/b1", "/branches/b1/stylists"].sort());
   } finally { globalThis.fetch = originalFetch; }
 });
 

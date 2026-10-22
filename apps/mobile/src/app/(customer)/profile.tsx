@@ -2,14 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/constants/theme";
 import { getCustomerProfile, ProfileRequestError, saveProfileDraft, updateCustomerProfile,
   type CustomerProfile, type ProfileDraft } from "@/customer/profile-api";
 import { useAuth } from "@/providers/auth-provider";
 import { formatBirthDate, provinces, toBirthDate, wardsForProvince } from "@/customer/profile-options";
+import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
 
 const emptyAddress = { province: "", district: "", ward: "", streetAddress: "" };
 const asDraft = (profile: CustomerProfile): ProfileDraft => ({ name: profile.name, email: profile.email || "",
@@ -20,8 +21,6 @@ export default function CustomerProfileScreen() {
   const theme = useAppTheme();
   const { section } = useLocalSearchParams<{ section?: string }>();
   const scrollRef = useRef<ScrollView>(null);
-  const streetFocused = useRef(false);
-  const streetFieldY = useRef(0);
   const { token, user, logout, setAuth } = useAuth();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
@@ -33,13 +32,6 @@ export default function CustomerProfileScreen() {
   const [search, setSearch] = useState("");
   const [dateOpen, setDateOpen] = useState(false);
   const [dateParts, setDateParts] = useState({ day: 1, month: 1, year: 2000 });
-
-  useEffect(() => {
-    const subscription = Keyboard.addListener("keyboardDidShow", () => {
-      if (streetFocused.current) scrollRef.current?.scrollTo({ y: Math.max(0, streetFieldY.current - 16), animated: true });
-    });
-    return () => subscription.remove();
-  }, []);
 
   const handleUnauthorized = useCallback(() => {
     logout();
@@ -122,8 +114,7 @@ export default function CustomerProfileScreen() {
 
   if (!token) return null;
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView scrollRef={scrollRef} contentContainerStyle={styles.content}>
       <View style={styles.top}><Pressable accessibilityRole="button" onPress={() => router.replace("/(customer)/account")}>
         <Ionicons name="arrow-back" size={25} color={theme.brand} /></Pressable>
         <Text style={[styles.title, { color: theme.text }]}>Thông tin tài khoản</Text><View style={{ width: 25 }} /></View>
@@ -160,16 +151,8 @@ export default function CustomerProfileScreen() {
           style={[styles.sectionTitle, { color: theme.brand, marginTop: 12 }]}>ĐỊA CHỈ NHÀ (KHÔNG BẮT BUỘC)</Text>
         {selectField("Tỉnh/thành phố", draft.homeAddress.province, "province")}
         {selectField("Phường/xã", draft.homeAddress.ward, "ward", !draft.homeAddress.province)}
-        <View onLayout={(event) => { streetFieldY.current = event.nativeEvent.layout.y; }}>
-          {input("Số nhà và tên đường", draft.homeAddress.streetAddress, (streetAddress) => setDraft({ ...draft,
-            homeAddress: { ...draft.homeAddress, streetAddress } }), {
-            onFocus: () => {
-              streetFocused.current = true;
-              scrollRef.current?.scrollTo({ y: Math.max(0, streetFieldY.current - 16), animated: true });
-            },
-            onBlur: () => { streetFocused.current = false; },
-          })}
-        </View>
+        {input("Số nhà và tên đường", draft.homeAddress.streetAddress, (streetAddress) => setDraft({ ...draft,
+          homeAddress: { ...draft.homeAddress, streetAddress } }))}
         {editing && Object.values(draft.homeAddress).some(Boolean) ? <Pressable accessibilityRole="button"
           onPress={() => setDraft({ ...draft, homeAddress: { ...emptyAddress } })}>
           <Text style={{ color: theme.textMuted, alignSelf: "flex-end" }}>Xóa địa chỉ nhà</Text>
@@ -180,9 +163,9 @@ export default function CustomerProfileScreen() {
         <Pressable style={styles.logout} onPress={() => { logout(); router.replace("/(customer)/account"); }}>
           <Text style={{ color: theme.textMuted, fontWeight: "800" }}>ĐĂNG XUẤT</Text></Pressable>
       </> : null}
-    </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
     <Modal visible={picker !== null} transparent animationType="slide" onRequestClose={() => setPicker(null)}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={styles.overlay}><View style={[styles.sheet, { backgroundColor: theme.surface }]}>
         <View style={styles.sheetHead}><Text style={[styles.title, { color: theme.text }]}>
           Chọn {picker === "province" ? "tỉnh/thành phố" : "phường/xã"}</Text>
@@ -202,6 +185,7 @@ export default function CustomerProfileScreen() {
             }} style={styles.option}><Text style={{ color: theme.text, fontSize: 16 }}>{name}</Text></Pressable>)}
         </ScrollView>
       </View></View>
+      </KeyboardAvoidingView>
     </Modal>
     <Modal visible={dateOpen} transparent animationType="slide" onRequestClose={() => setDateOpen(false)}>
       <View style={styles.overlay}><View style={[styles.sheet, { backgroundColor: theme.surface }]}>

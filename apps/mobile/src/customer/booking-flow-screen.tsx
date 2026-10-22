@@ -6,8 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate, upcomingDates } from "@/booking/dates";
+import { activeBooking, isCurrentRescheduleSlot } from "@/booking/active-appointment";
 import { loadHomeServiceDraft, loadHomeStylistDraft } from "@/booking/home-service-draft";
-import { cancelCustomerAppointment, createHttpBookingAdapter, getCustomerAppointments, rescheduleCustomerAppointment } from "@/booking/http-adapter";
+import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
+import { cancelCustomerAppointment, createHttpBookingAdapter, getCustomerAppointments, rescheduleCustomerAppointment, type CustomerAppointmentItem } from "@/booking/http-adapter";
 import { loadRescheduleDraft } from "@/booking/reschedule-draft";
 import { mergeSlotOptions, slotForService, type SlotOption } from "@/booking/slot-options";
 import { isCompleteBookingDraft, type AppointmentResult, type BookingDraft, type BookingWishes, type Branch,
@@ -62,6 +64,11 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
   const [slotRevision, setSlotRevision] = useState(0);
   const [rescheduleLoading, setRescheduleLoading] = useState(Boolean(rescheduleId));
   const [rescheduleError, setRescheduleError] = useState("");
+  const [currentStartTime, setCurrentStartTime] = useState<string | null>(null);
+  const [existingBooking, setExistingBooking] = useState<CustomerAppointmentItem | null>(null);
+  const [existingLoading, setExistingLoading] = useState(!rescheduleId);
+  const [existingError, setExistingError] = useState("");
+  const [cancellingExisting, setCancellingExisting] = useState(false);
   const submitLock = useRef(false);
 
   useFocusEffect(useCallback(() => {
@@ -75,7 +82,11 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
     setRescheduleError("");
     if (rescheduleId) {
       setRescheduleLoading(true);
-      void loadRescheduleDraft(rescheduleId, () => getCustomerAppointments(token), source,
+      void loadRescheduleDraft(rescheduleId, async () => {
+        const items = await getCustomerAppointments(token);
+        if (active) setCurrentStartTime(items.find((item) => item.id === rescheduleId)?.startTime || null);
+        return items;
+      }, source,
         dates.map((date) => date.key)).then((loaded) => {
         if (active) setDraft(loaded);
       }).catch((cause) => {
@@ -83,6 +94,13 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
       }).finally(() => { if (active) setRescheduleLoading(false); });
     } else {
       setRescheduleLoading(false);
+      setExistingLoading(true);
+      setExistingError("");
+      void getCustomerAppointments(token).then((items) => {
+        if (active) setExistingBooking(activeBooking(items));
+      }).catch(() => {
+        if (active) setExistingError("Không kiểm tra được lịch hẹn hiện tại. Vui lòng thử lại.");
+      }).finally(() => { if (active) setExistingLoading(false); });
       if (branchId && (serviceId || stylistId)) void (serviceId
         ? loadHomeServiceDraft(source, branchId, serviceId, dates[0]?.key || "")
         : loadHomeStylistDraft(source, branchId, stylistId!, dates[0]?.key || ""))
@@ -173,7 +191,7 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
   };
   const confirm = async (includeWishes: boolean) => {
     if (isRescheduling) return;
-    if (submitLock.current || !isCompleteBookingDraft(draft)) return;
+    if (submitLock.current || existingLoading || existingError || existingBooking || !isCompleteBookingDraft(draft)) return;
     submitLock.current = true; setBusy("confirm"); setNotice("");
     try { setResult(await source.confirmBooking(draft, includeWishes ? wishes : undefined)); }
     catch (cause) { setNotice(cause instanceof Error ? cause.message : "Không thể đặt lịch lúc này."); }
@@ -332,7 +350,7 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
   if (page === "wishes") return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
     {header("Chia sẻ mong muốn", () => setPage("main"))}
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.listContent}>
+      <KeyboardAwareScrollView avoidKeyboard={false} contentContainerStyle={styles.listContent}>
         <Text style={[styles.rowTitle, { color: theme.text }]}>Chọn kiểu tóc anh thích (tối đa 3 ảnh)</Text>
         <View style={styles.imageRow}>
           {Array.from({ length: 3 }, (_, index) => {
@@ -364,7 +382,7 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
             { borderColor: theme.border, color: theme.text }]} />
         {wishError ? <Text style={{ color: "#B91C1C" }}>{wishError}</Text> : null}
         {notice ? <Text style={{ color: "#B91C1C" }}>{notice}</Text> : null}
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <View style={[styles.footer, { backgroundColor: theme.surface, borderTopColor: theme.border }, styles.wishFooter]}>
         <Pressable disabled={busy === "confirm"} onPress={() => void confirm(false)}
           style={[styles.wishButton, { borderColor: theme.brand }]}><Text style={{ color: theme.brand, fontWeight: "800" }}>BỎ QUA</Text></Pressable>
@@ -443,6 +461,38 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
           <Text style={{ color: theme.brand, fontWeight: "700" }}>Quay lại lịch hẹn</Text>
         </Pressable>
       </>}
+    </View>
+  </SafeAreaView>;
+  if (!isRescheduling && (existingLoading || existingError || existingBooking)) return <SafeAreaView
+    style={[styles.root, { backgroundColor: theme.surface }]}>
+    {header("Đặt lịch giữ chỗ", () => router.replace("/(customer)/home"))}
+    <View style={{ padding: 24, gap: 18 }}>
+      {existingLoading ? <ActivityIndicator color={theme.brand} /> : null}
+      {existingError ? <Text style={{ color: theme.text }}>{existingError}</Text> : null}
+      {existingError ? <Pressable accessibilityRole="button" onPress={() => router.replace("/(customer)/appointments")}>
+        <Text style={{ color: theme.brand, fontWeight: "700" }}>Xem lịch hẹn</Text>
+      </Pressable> : null}
+      {existingBooking ? <>
+        <Text style={{ color: theme.text, fontWeight: "700" }}>Bạn đang có lịch hẹn lúc {hour(existingBooking.startTime)}.
+          Hãy hủy lịch này trước khi đặt lịch mới.</Text>
+        <Pressable accessibilityRole="button" onPress={() => router.push("/(customer)/appointments")}>
+          <Text style={{ color: theme.brand, fontWeight: "700" }}>Xem lịch hẹn hiện tại</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" disabled={cancellingExisting} onPress={() =>
+          Alert.alert("Hủy lịch hẹn hiện tại?", "Sau khi hủy, bạn có thể đặt lịch mới.", [
+            { text: "Giữ lịch", style: "cancel" },
+            { text: "Hủy và đặt lịch mới", style: "destructive", onPress: () => {
+              setCancellingExisting(true);
+              void cancelCustomerAppointment(token, existingBooking.id).then(() => {
+                setExistingBooking(null);
+              }).catch((cause) => setExistingError(cause instanceof Error ? cause.message : "Không thể hủy lịch hẹn."))
+                .finally(() => setCancellingExisting(false));
+            } },
+          ])}>
+          <Text style={{ color: theme.brand, fontWeight: "700" }}>
+            {cancellingExisting ? "Đang hủy lịch..." : "Hủy lịch hiện tại để đặt mới"}</Text>
+        </Pressable>
+      </> : null}
     </View>
   </SafeAreaView>;
   const complete = isCompleteBookingDraft(draft) && busy !== "confirm";
@@ -538,7 +588,8 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchI
                 ? <Text style={{ color: theme.textMuted }}>
                   Chưa có giờ trống. Hãy chọn ngày hoặc stylist khác.</Text> : null}
               {slots.length > 0 ? <View style={styles.slotGrid}>{slots.map((option) => {
-                const unavailable = option.serviceIds.length === 0;
+                const unavailable = option.serviceIds.length === 0 ||
+                  (isRescheduling && isCurrentRescheduleSlot(option.startTime, currentStartTime));
                 const selected = !unavailable && draft.slot?.startTime === option.startTime;
                 return <Pressable key={option.startTime} accessibilityRole="button"
                   accessibilityState={{ selected, disabled: unavailable }} disabled={unavailable} onPress={() => {

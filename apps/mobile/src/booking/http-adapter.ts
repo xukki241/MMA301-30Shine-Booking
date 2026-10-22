@@ -47,12 +47,12 @@ export async function listHomeStylists(token: string): Promise<HomeStylist[]> {
   const { branches } = await request<{ branches: Array<Branch & { isActive: boolean }> }>(
     coreApi, "/branches", token);
   const catalogs = await Promise.all(branches.filter((branch) => branch.isActive).map(async (branch) => {
-    const { stylists } = await request<{ stylists: Array<{ userId: string; displayName: string;
+      const { stylists } = await request<{ stylists: Array<{ userId: string; displayName: string; phone?: string | null;
       isActive: boolean }> }>(coreApi,
       `/branches/${encodeURIComponent(branch.id)}/stylists?isActive=true`, token);
     return stylists.filter((item) => item.isActive).map((item): HomeStylist => ({
       branch: { id: branch.id, name: branch.name, address: branch.address },
-      stylist: { id: item.userId, name: item.displayName },
+        stylist: { id: item.userId, name: item.displayName, phone: item.phone },
     }));
   }));
   return catalogs.flat();

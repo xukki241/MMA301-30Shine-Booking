@@ -14,6 +14,7 @@ export type Service = {
 export type Stylist = {
   id: string;
   name: string;
+  phone?: string | null;
 };
 
 export type TimeSlot = {

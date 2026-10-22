@@ -61,7 +61,7 @@ function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, ot
       const stylists = await users.listActiveStylists();
       res.set("Cache-Control", "no-store");
       return res.json({ stylists: stylists.map((user) => ({ id: String(user._id),
-        email: user.email, fullName: user.fullName || null })) });
+        email: user.email, fullName: user.fullName || null, phone: user.phone || null })) });
     } catch (error) {
       if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
         return res.status(401).json({ error: "Invalid internal token" });

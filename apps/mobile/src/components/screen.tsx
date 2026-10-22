@@ -1,7 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import {
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 
 import { useAppTheme } from "@/constants/theme";
+import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
 
 type ScreenProps = PropsWithChildren<{
   eyebrow?: string;
@@ -59,7 +59,7 @@ export function Screen({
   const theme = useAppTheme();
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[styles.content, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
@@ -76,7 +76,7 @@ export function Screen({
         </Text>
       ) : null}
       <View style={styles.body}>{children}</View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

@@ -10,6 +10,7 @@ export type AppointmentSummary = {
   serviceName?: string;
   stylistId?: string;
   stylistName?: string;
+  stylistPhone?: string | null;
 };
 
 export function isAppointmentSummary(value: unknown): value is AppointmentSummary {
@@ -20,6 +21,6 @@ export function isAppointmentSummary(value: unknown): value is AppointmentSummar
     (item.status === "booked" || item.status === "checked_in" || item.status === "completed" ||
       item.status === "paid" || item.status === "cancelled" || item.status === "no_show") &&
     (item.bookedPrice === undefined || (typeof item.bookedPrice === "number" && Number.isSafeInteger(item.bookedPrice) && item.bookedPrice >= 0)) &&
-    ["branchId", "branchName", "branchAddress", "serviceId", "serviceName", "stylistId", "stylistName"]
+    ["branchId", "branchName", "branchAddress", "serviceId", "serviceName", "stylistId", "stylistName", "stylistPhone"]
       .every((key) => item[key] === undefined || typeof item[key] === "string");
 }

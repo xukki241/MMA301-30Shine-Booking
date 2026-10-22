@@ -305,6 +305,8 @@ export default function CustomerHomeScreen() {
               </View>
               <Text style={[styles.serviceNameText, { color: theme.text }]} numberOfLines={1}>{stylist.name}</Text>
               <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>{branch.name}</Text>
+              {stylist.phone ? <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={1}>
+                {stylist.phone}</Text> : null}
               <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn stylist ›</Text>
             </Pressable>)}
           </ScrollView> : null}
