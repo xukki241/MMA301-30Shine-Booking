@@ -3,20 +3,23 @@ const bcrypt = require("bcryptjs");
 const { ROLES } = require("./models/user");
 
 function publicStaff(user) {
-  return { id: String(user._id), email: user.email, fullName: user.fullName || null, role: user.role,
+  return { id: String(user._id), email: user.email, fullName: user.fullName || null,
+    phone: user.phone || null, role: user.role,
     status: user.status || "active", createdAt: user.createdAt, updatedAt: user.updatedAt };
 }
 
 function validNewUser(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((key) => !["email", "password", "role", "fullName"].includes(key))) return null;
+      Object.keys(body).some((key) => !["email", "password", "role", "fullName", "phone"].includes(key))) return null;
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+  const phone = typeof body.phone === "string" ? body.phone.trim() : null;
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
       fullName.length < 2 || fullName.length > 100 ||
+      (phone !== null && phone.length > 0 && !/^\+?[0-9\s\-().]{8,20}$/.test(phone)) ||
       typeof body.password !== "string" || body.password.length < 8 ||
       Buffer.byteLength(body.password, "utf8") > 72 || !ROLES.includes(body.role)) return null;
-  return { email, fullName, password: body.password, role: body.role };
+  return { email, fullName, phone: phone || null, password: body.password, role: body.role };
 }
 
 function createCoreHealthProbe(coreApiUrl) {
@@ -130,7 +133,7 @@ function installStaffAdminRoutes(app, { users, secret, staffChangeGuard, coreHea
     try {
       if (await users.findByEmail(data.email)) return res.status(409).json({ error: "Email already registered" });
       const passwordHash = await bcrypt.hash(data.password, 12);
-      const user = await users.create({ email: data.email, fullName: data.fullName, passwordHash, role: data.role });
+      const user = await users.create({ email: data.email, fullName: data.fullName, phone: data.phone, passwordHash, role: data.role });
       await recordAudit({ actorId: String(req.staff._id), action: "staff.create",
         targetType: "staff", targetId: String(user._id), result: "success" });
       return res.status(201).json({ user: publicStaff(user) });
@@ -195,7 +198,7 @@ function installStaffAdminRoutes(app, { users, secret, staffChangeGuard, coreHea
   app.patch("/admin/users/:id", currentStaff, onlyAdmin, loadTarget, async (req, res, next) => {
     const body = req.body;
     if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length ||
-        Object.keys(body).some((key) => !["email", "password", "role", "fullName"].includes(key))) {
+        Object.keys(body).some((key) => !["email", "password", "role", "fullName", "phone"].includes(key))) {
       return res.status(400).json({ error: "Invalid staff update" });
     }
     const change = {};
@@ -203,6 +206,13 @@ function installStaffAdminRoutes(app, { users, secret, staffChangeGuard, coreHea
       const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
       if (fullName.length < 2 || fullName.length > 100) return res.status(400).json({ error: "Invalid full name" });
       change.fullName = fullName;
+    }
+    if (body.phone !== undefined) {
+      const phone = typeof body.phone === "string" ? body.phone.trim() : null;
+      if (phone !== null && phone.length > 0 && !/^\+?[0-9\s\-().]{8,20}$/.test(phone)) {
+        return res.status(400).json({ error: "Invalid phone number" });
+      }
+      change.phone = phone || null;
     }
     if (body.email !== undefined) {
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
