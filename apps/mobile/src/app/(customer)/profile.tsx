@@ -124,7 +124,7 @@ export default function CustomerProfileScreen() {
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === "ios" ? "padding" : "height"}>
     <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={styles.top}><Pressable accessibilityRole="button" onPress={() => router.back()}>
+      <View style={styles.top}><Pressable accessibilityRole="button" onPress={() => router.replace("/(customer)/account")}>
         <Ionicons name="arrow-back" size={25} color={theme.brand} /></Pressable>
         <Text style={[styles.title, { color: theme.text }]}>Thông tin tài khoản</Text><View style={{ width: 25 }} /></View>
       {loading ? <ActivityIndicator color={theme.brand} /> : null}

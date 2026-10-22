@@ -6,9 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { formatDate, upcomingDates } from "@/booking/dates";
+import { loadHomeServiceDraft, loadHomeStylistDraft } from "@/booking/home-service-draft";
 import { cancelCustomerAppointment, createHttpBookingAdapter, getCustomerAppointments, rescheduleCustomerAppointment } from "@/booking/http-adapter";
 import { loadRescheduleDraft } from "@/booking/reschedule-draft";
-import { findSlotAtStart, mergeSlotOptions, slotForService, type SlotOption } from "@/booking/slot-options";
+import { mergeSlotOptions, slotForService, type SlotOption } from "@/booking/slot-options";
 import { isCompleteBookingDraft, type AppointmentResult, type BookingDraft, type BookingWishes, type Branch,
   type Service, type Stylist } from "@/booking/types";
 import { useAppTheme } from "@/constants/theme";
@@ -22,14 +23,15 @@ const hour = (value: string) => new Intl.DateTimeFormat("vi-VN", {
 
 export default function CustomerBookingFlowScreen() {
   const { token, user } = useAuth();
-  const { rescheduleId } = useLocalSearchParams<{ rescheduleId?: string }>();
+  const { rescheduleId, branchId, serviceId, stylistId } = useLocalSearchParams<{
+    rescheduleId?: string; branchId?: string; serviceId?: string; stylistId?: string }>();
   if (!token) return <Redirect href="/login?next=book" />;
   return <BookingFlow token={token} customerName={user?.name || "anh"} customerPhone={user?.phone || ""}
-    rescheduleId={rescheduleId || undefined} />;
+    rescheduleId={rescheduleId || undefined} branchId={branchId} serviceId={serviceId} stylistId={stylistId} />;
 }
 
-function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { token: string; customerName: string;
-  customerPhone: string; rescheduleId?: string }) {
+function BookingFlow({ token, customerName, customerPhone, rescheduleId, branchId, serviceId, stylistId }: { token: string; customerName: string;
+  customerPhone: string; rescheduleId?: string; branchId?: string; serviceId?: string; stylistId?: string }) {
   const theme = useAppTheme();
   const isRescheduling = Boolean(rescheduleId);
   const tokenRef = useRef(token);
@@ -79,9 +81,21 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
       }).catch((cause) => {
         if (active) setRescheduleError(cause instanceof Error ? cause.message : "Không tải được lịch hẹn.");
       }).finally(() => { if (active) setRescheduleLoading(false); });
-    } else setRescheduleLoading(false);
+    } else {
+      setRescheduleLoading(false);
+      if (branchId && (serviceId || stylistId)) void (serviceId
+        ? loadHomeServiceDraft(source, branchId, serviceId, dates[0]?.key || "")
+        : loadHomeStylistDraft(source, branchId, stylistId!, dates[0]?.key || ""))
+        .then((selected) => {
+          if (!active) return;
+          if (selected) setDraft(selected);
+          else setNotice("Salon, dịch vụ hoặc stylist không còn khả dụng. Vui lòng chọn lại.");
+        }).catch(() => {
+          if (active) setNotice("Không tải được dịch vụ. Vui lòng thử lại.");
+        });
+    }
     return () => { active = false; };
-  }, [rescheduleId, token, source, dates]));
+  }, [rescheduleId, branchId, serviceId, stylistId, token, source, dates]));
 
   useEffect(() => {
     let active = true;
@@ -105,34 +119,25 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
   }, [draft.branch?.id, source, optionRevision]);
 
   useEffect(() => {
-    if (!draft.branch || !draft.stylist || !draft.date || services.length === 0) {
+    if (!draft.branch || !draft.service || !draft.stylist || !draft.date) {
       setSlots([]);
       return;
     }
     let active = true;
     setBusy("slots"); setError("");
-    const candidates = draft.service ? [draft.service] : services;
-    Promise.allSettled(candidates.map(async (service) => ({
-      serviceId: service.id,
-      slots: await source.listTimeSlots({
-        branchId: draft.branch!.id, stylistId: draft.stylist!.id, date: draft.date!, serviceId: service.id,
-        ...(rescheduleId ? { excludeAppointmentId: rescheduleId } : {}),
-      }),
-    }))).then((results) => {
+    source.listTimeSlots({
+      branchId: draft.branch.id, stylistId: draft.stylist.id, date: draft.date,
+      serviceId: draft.service.id,
+      ...(rescheduleId ? { excludeAppointmentId: rescheduleId } : {}),
+    }).then((serviceSlots) => {
       if (!active) return;
-      const available = results.filter((item): item is PromiseFulfilledResult<{
-        serviceId: string; slots: Awaited<ReturnType<typeof source.listTimeSlots>>;
-      }> => item.status === "fulfilled").map((item) => item.value);
-      if (available.length === 0) setError("Không tải được giờ trống. Vui lòng thử lại.");
-      else {
-        const nextSlots = mergeSlotOptions(available);
-        setSlots(nextSlots);
-        setDraft((current) => current.slot && !nextSlots.some((option) =>
-          option.startTime === current.slot?.startTime &&
-          Boolean(slotForService(option, current.service?.id || option.serviceIds[0])))
-          ? { ...current, slot: null } : current);
-        if (available.length < candidates.length) setError("Một số giờ chưa tải được. Hãy thử lại nếu cần.");
-      }
+      const nextSlots = mergeSlotOptions([{ serviceId: draft.service!.id, slots: serviceSlots }]);
+      setSlots(nextSlots);
+      setDraft((current) => current.slot && !nextSlots.some((option) =>
+        option.startTime === current.slot?.startTime && Boolean(slotForService(option, current.service!.id)))
+        ? { ...current, slot: null } : current);
+    }).catch(() => {
+      if (active) setError("Không tải được giờ trống. Vui lòng thử lại.");
     }).finally(() => { if (active) setBusy(null); });
     return () => { active = false; };
   }, [draft.branch?.id, draft.stylist?.id, draft.date, draft.service?.id, services, source, slotRevision, rescheduleId]);
@@ -162,24 +167,9 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
       setNotice(""); setPage("main");
       return;
     }
-    if (!draft.branch || !draft.stylist || !draft.date || !draft.slot || busy) return;
-    const { branch, stylist, date, slot } = draft;
-    setBusy("service"); setNotice("");
-    try {
-      const current = await source.listTimeSlots({
-        branchId: branch.id, stylistId: stylist.id, date, serviceId: service.id,
-      });
-      const matching = findSlotAtStart(current, slot.startTime);
-      setSlots([]);
-      setDraft((previous) => previous.branch?.id === branch.id &&
-        previous.stylist?.id === stylist.id && previous.date === date &&
-        previous.slot?.startTime === slot.startTime ? { ...previous, service, slot: matching } : previous);
-      if (!matching) setNotice("Giờ đã chọn không còn trống cho dịch vụ này. Vui lòng chọn giờ khác.");
-      setPage("main");
-    } catch {
-      setNotice("Không kiểm tra được giờ cho dịch vụ này. Vui lòng thử lại.");
-      setPage("main");
-    } finally { setBusy(null); }
+    setSlots([]);
+    setDraft((current) => ({ ...current, service, slot: null }));
+    setNotice(""); setPage("main");
   };
   const confirm = async (includeWishes: boolean) => {
     if (isRescheduling) return;
@@ -476,11 +466,32 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
             <Ionicons name={isRescheduling ? "lock-closed-outline" : "chevron-forward"} size={18} color={theme.text} /></Pressable>
         </View>
         <View style={styles.stage}>
+          <View style={[styles.dot, { backgroundColor: draft.service ? theme.brand : theme.border }]}>
+            {draft.service ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
+          <Text style={[styles.title, { color: theme.brand }]}>2. Chọn dịch vụ</Text>
+          <Pressable accessibilityRole="button" disabled={!draft.branch || busy === "options"}
+            onPress={() => open("services")}
+            style={[styles.actionRow, { backgroundColor: theme.surfaceHighlight,
+              opacity: draft.branch && busy !== "options" ? 1 : 0.55 }]}>
+            <Ionicons name="cut-outline" size={22} color={theme.text} />
+            <Text style={[styles.actionText, { color: draft.service ? theme.text : theme.textMuted }]}
+              numberOfLines={1}>{draft.service?.name || "Xem tất cả dịch vụ"}</Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.text} /></Pressable>
+          {draft.service ? <>
+            <View style={[styles.selectedService, { borderColor: theme.border }]}>
+              <Text style={{ color: theme.text, flex: 1 }}>{draft.service.name}</Text>
+              <Text style={{ color: theme.brand, fontWeight: "800" }}>
+                {money(draft.service.priceVnd)}</Text></View>
+            <Text style={{ color: theme.brand, fontWeight: "700" }}>
+              Tạm tính: {money(draft.service.priceVnd)}</Text>
+          </> : null}
+        </View>
+        <View style={styles.stage}>
           <View style={[styles.dot, { backgroundColor: draft.slot ? theme.brand : theme.border }]}>
             {draft.slot ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
           <Text style={[styles.title, { color: theme.brand }]}>{isRescheduling
-            ? "2. Chọn lại ngày và giờ" : "2. Chọn ngày, giờ & stylist"}</Text>
-          {!draft.branch ? <Text style={{ color: theme.textMuted }}>Chọn salon để xem stylist và giờ trống.</Text> : <>
+            ? "3. Chọn lại ngày và giờ" : "3. Chọn ngày, giờ & stylist"}</Text>
+          {!draft.service ? <Text style={{ color: theme.textMuted }}>Chọn dịch vụ để xem giờ phù hợp.</Text> : <>
             {busy === "options" ? <ActivityIndicator color={theme.brand} /> : null}
             {warning}
             {(isRescheduling ? !draft.stylist : stylists.length === 0) && busy !== "options" && !error
@@ -531,8 +542,7 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
                 const selected = !unavailable && draft.slot?.startTime === option.startTime;
                 return <Pressable key={option.startTime} accessibilityRole="button"
                   accessibilityState={{ selected, disabled: unavailable }} disabled={unavailable} onPress={() => {
-                    const serviceId = draft.service?.id || option.serviceIds[0];
-                    const slot = slotForService(option, serviceId);
+                    const slot = slotForService(option, draft.service!.id);
                     if (slot) { setDraft((current) => ({ ...current, slot })); setNotice(""); }
                   }} style={[styles.slot, { backgroundColor: selected ? theme.brand : theme.surface,
                     borderColor: selected ? theme.brand : theme.border, opacity: unavailable ? 0.38 : 1 }]}>
@@ -541,27 +551,6 @@ function BookingFlow({ token, customerName, customerPhone, rescheduleId }: { tok
               })}</View> : null}
             </> : null}
           </>}
-        </View>
-        <View style={styles.stage}>
-          <View style={[styles.dot, { backgroundColor: draft.service ? theme.brand : theme.border }]}>
-            {draft.service ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}</View>
-          <Text style={[styles.title, { color: theme.brand }]}>3. Chọn dịch vụ</Text>
-          <Pressable accessibilityRole="button" disabled={(!isRescheduling && !draft.slot) || busy === "options"}
-            onPress={() => open("services")}
-            style={[styles.actionRow, { backgroundColor: theme.surfaceHighlight,
-              opacity: draft.slot || isRescheduling ? 1 : 0.55 }]}>
-            <Ionicons name="cut-outline" size={22} color={theme.text} />
-            <Text style={[styles.actionText, { color: draft.service ? theme.text : theme.textMuted }]}
-              numberOfLines={1}>{draft.service?.name || "Xem tất cả dịch vụ"}</Text>
-            <Ionicons name="chevron-forward" size={18} color={theme.text} /></Pressable>
-          {draft.service ? <>
-            <View style={[styles.selectedService, { borderColor: theme.border }]}>
-              <Text style={{ color: theme.text, flex: 1 }}>{draft.service.name}</Text>
-              <Text style={{ color: theme.brand, fontWeight: "800" }}>
-                {money(draft.service.priceVnd)}</Text></View>
-            <Text style={{ color: theme.brand, fontWeight: "700" }}>
-              Tạm tính: {money(draft.service.priceVnd)}</Text>
-          </> : null}
         </View>
       </View>
     </ScrollView>

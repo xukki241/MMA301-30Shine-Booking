@@ -35,6 +35,42 @@ async function request<T>(base: string, path: string, token?: string, init?: Req
   return data as T;
 }
 
+export type HomeService = {
+  branch: Branch;
+  service: Service;
+  description?: string;
+};
+
+export type HomeStylist = { branch: Branch; stylist: Stylist };
+
+export async function listHomeStylists(token: string): Promise<HomeStylist[]> {
+  const { branches } = await request<{ branches: Array<Branch & { isActive: boolean }> }>(
+    coreApi, "/branches", token);
+  const catalogs = await Promise.all(branches.filter((branch) => branch.isActive).map(async (branch) => {
+    const { stylists } = await request<{ stylists: Array<{ userId: string; displayName: string;
+      isActive: boolean }> }>(coreApi,
+      `/branches/${encodeURIComponent(branch.id)}/stylists?isActive=true`, token);
+    return stylists.filter((item) => item.isActive).map((item): HomeStylist => ({
+      branch: { id: branch.id, name: branch.name, address: branch.address },
+      stylist: { id: item.userId, name: item.displayName },
+    }));
+  }));
+  return catalogs.flat();
+}
+
+export async function listPublicHomeServices(): Promise<HomeService[]> {
+  const { branches } = await request<{ branches: Branch[] }>(coreApi, "/public/branches");
+  const catalogs = await Promise.all(branches.map(async (branch) => {
+    const { services } = await request<{ services: Array<{ id: string; name: string; price: number;
+      durationMinutes: number; description?: string }> }>(coreApi,
+      `/public/branches/${encodeURIComponent(branch.id)}/services`);
+    return services.map((item): HomeService => ({ branch,
+      service: { id: item.id, name: item.name, priceVnd: item.price,
+        durationMinutes: item.durationMinutes }, description: item.description }));
+  }));
+  return catalogs.flat();
+}
+
 export async function loginStylist(email: string, password: string) {
   const result = await request<{ accessToken: string; user: { id: string; email: string; role: string } }>(
     authApi,

@@ -2,17 +2,50 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildSlotOptions, createWorkShiftRepository } = require("../src/work-shifts/repository");
 
-test("45 minute service starts every 45 minutes and occupied intervals remain disabled", () => {
+test("45 minute service offers 20 minute starts and disables overlapping bookings", () => {
+  const shift = { startAt: new Date("2030-10-20T08:00:00Z"), endAt: new Date("2030-10-20T10:00:00Z") };
+  const appointment = { startTime: new Date("2030-10-20T08:00:00Z"),
+    endTime: new Date("2030-10-20T08:45:00Z"), status: "booked" };
+  const slots = buildSlotOptions([shift], [appointment], 45, new Date("2020-01-01T00:00:00Z"));
+  assert.deepEqual(slots.map((slot) => [slot.startTime.toISOString().slice(11, 16), slot.available]), [
+    ["08:00", false], ["08:20", false], ["08:40", false], ["09:00", true],
+    ["09:20", false], ["09:40", false], ["10:00", false],
+  ]);
+  assert.equal(slots[3].endTime.toISOString().slice(11, 16), "09:45");
+});
+
+test("20:00 shift end keeps late starts visible but disabled for a 45 minute service", () => {
+  const shift = { startAt: new Date("2030-10-20T18:00:00Z"), endAt: new Date("2030-10-20T20:00:00Z") };
+  const slots = buildSlotOptions([shift], [], 45, new Date("2020-01-01T00:00:00Z"));
+  assert.deepEqual(slots.slice(-4).map((slot) => [slot.startTime.toISOString().slice(11, 16), slot.available]), [
+    ["19:00", true], ["19:20", false], ["19:40", false], ["20:00", false],
+  ]);
+});
+
+test("08:00 shift end dims 07:40 and 08:00 for a 45 minute service", () => {
+  const shift = { startAt: new Date("2030-10-20T07:00:00Z"), endAt: new Date("2030-10-20T08:00:00Z") };
+  const slots = buildSlotOptions([shift], [], 45, new Date("2020-01-01T00:00:00Z"));
+  assert.deepEqual(slots.map((slot) => [slot.startTime.toISOString().slice(11, 16), slot.available]), [
+    ["07:00", true], ["07:20", false], ["07:40", false], ["08:00", false],
+  ]);
+});
+
+test("45 minute service starts every 20 minutes and occupied intervals remain disabled", () => {
   const shift = { startAt: new Date("2030-10-20T02:00:00Z"), endAt: new Date("2030-10-20T04:30:00Z") };
   const appointment = { startTime: new Date("2030-10-20T02:00:00Z"),
     endTime: new Date("2030-10-20T02:45:00Z"), status: "booked" };
   const slots = buildSlotOptions([shift], [appointment], 45, new Date("2020-01-01T00:00:00Z"));
   assert.deepEqual(slots.map((slot) => [slot.startTime.toISOString(), slot.available]), [
     ["2030-10-20T02:00:00.000Z", false],
-    ["2030-10-20T02:45:00.000Z", true],
-    ["2030-10-20T03:30:00.000Z", true],
+    ["2030-10-20T02:20:00.000Z", false],
+    ["2030-10-20T02:40:00.000Z", false],
+    ["2030-10-20T03:00:00.000Z", true],
+    ["2030-10-20T03:20:00.000Z", true],
+    ["2030-10-20T03:40:00.000Z", true],
+    ["2030-10-20T04:00:00.000Z", false],
+    ["2030-10-20T04:20:00.000Z", false],
   ]);
-  assert.equal(slots.some((slot) => slot.startTime.toISOString() === "2030-10-20T02:30:00.000Z"), false);
+  assert.equal(slots.some((slot) => slot.startTime.toISOString() === "2030-10-20T02:45:00.000Z"), false);
   assert.equal(buildSlotOptions([shift], [{ ...appointment, status: "cancelled" }], 45,
     new Date("2020-01-01T00:00:00Z"))[0].available, true);
   const shifted = { startAt: new Date("2030-10-20T02:15:00Z"), endAt: shift.endAt };
@@ -27,9 +60,9 @@ test("a 45 minute service can start and be booked at 10:00 when a 09:00 booking 
   const slots = buildSlotOptions([shift], [appointment], 45, new Date("2020-01-01T00:00:00Z"));
   assert.deepEqual(slots.slice(0, 4).map((slot) => [slot.startTime.toISOString(), slot.available]), [
     ["2030-10-20T02:00:00.000Z", false],
-    ["2030-10-20T02:45:00.000Z", false],
+    ["2030-10-20T02:20:00.000Z", false],
+    ["2030-10-20T02:40:00.000Z", false],
     ["2030-10-20T03:00:00.000Z", true],
-    ["2030-10-20T03:45:00.000Z", true],
   ]);
   const branchId = "a".repeat(24), serviceId = "b".repeat(24), stylistId = "c".repeat(24);
   const found = (value) => ({ lean: () => ({ exec: async () => value }) });
@@ -44,7 +77,7 @@ test("a 45 minute service can start and be booked at 10:00 when a 09:00 booking 
     endTime: new Date("2030-10-20T03:45:00Z") };
   assert.equal((await repository.validateBooking(request)).bookedPrice, 60000);
   await assert.rejects(repository.validateBooking({ ...request,
-    startTime: new Date("2030-10-20T02:45:00Z"), endTime: new Date("2030-10-20T03:30:00Z") }),
+    startTime: new Date("2030-10-20T02:40:00Z"), endTime: new Date("2030-10-20T03:25:00Z") }),
   { status: 409 });
 });
 
@@ -55,7 +88,7 @@ test("rescheduling ignores only the customer's own appointment", () => {
   const another = { id: "another", startTime: new Date("2030-10-20T03:30:00Z"),
     endTime: new Date("2030-10-20T04:00:00Z"), status: "booked" };
   const slots = buildSlotOptions([shift], [mine, another], 45, new Date("2020-01-01T00:00:00Z"), "mine");
-  assert.deepEqual(slots.map((slot) => slot.available), [true, true, false]);
+  assert.deepEqual(slots.map((slot) => slot.available), [true, true, true, false, false, false, false, false]);
 });
 
 test("only the appointment owner can exclude it from available slots", async () => {
