@@ -49,7 +49,7 @@ test("Work Shift repository persists local-day shifts and computes appointment-a
   const repository = createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift, Calendar });
   const body = {
     branchId: String(branch.id), stylistId: String(userId), date: "2030-10-20",
-    startAt: "2030-10-20T09:00:00+07:00", endAt: "2030-10-20T12:00:00+07:00",
+    startAt: "2030-10-20T09:00:00+07:00", endAt: "2030-10-20T13:00:00+07:00",
   };
   const secret = randomBytes(32).toString("hex");
   const app = createApp({ secret, models: { Branch, Service, StylistProfile, Calendar, WorkShift },
@@ -72,29 +72,47 @@ test("Work Shift repository persists local-day shifts and computes appointment-a
   assert.equal(duplicateResponse.status, 409);
 
   const initialSlots = await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date });
-  assert.equal(initialSlots.length, 4);
+  assert.equal(initialSlots.length, 13);
   assert.equal(initialSlots[0].startTime, "2030-10-20T02:00:00.000Z");
   const slotResponse = await fetch(`${base}/time-slots?branchId=${body.branchId}&serviceId=${service.id}&stylistId=${userId}&date=${body.date}`, { headers: customerHeaders });
   assert.equal(slotResponse.status, 200);
-  assert.equal((await slotResponse.json()).slots.length, 4);
-  const bookingResponse = await fetch(`${base}/appointments`, { method: "POST", headers: customerHeaders, body: JSON.stringify({ branchId: body.branchId, serviceId: String(service.id), stylistId: String(userId), startTime: initialSlots[0].startTime, endTime: initialSlots[0].endTime }) });
+  assert.equal((await slotResponse.json()).slots.length, 13);
+  const bookingResponse = await fetch(`${base}/appointments`, { method: "POST", headers: customerHeaders, body: JSON.stringify({ branchId: body.branchId, serviceId: String(service.id), stylistId: String(userId), startTime: initialSlots[3].startTime, endTime: initialSlots[3].endTime }) });
   assert.equal(bookingResponse.status, 201);
+  const booked = (await bookingResponse.json()).appointment;
 
   const available = await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date });
-  assert.equal(available.length, 3);
-  await repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(initialSlots[1].endTime) });
+  assert.equal(available.length, 13);
+  assert.equal(available[3].available, false);
+  assert.equal(available[1].available, false);
+  const moveResponse = await fetch(`${base}/appointments/${booked.id}/reschedule`, { method: "POST", headers: customerHeaders,
+    body: JSON.stringify({ startTime: initialSlots[7].startTime, endTime: initialSlots[7].endTime }) });
+  assert.equal(moveResponse.status, 200);
+  assert.equal((await moveResponse.json()).appointment.startTime, initialSlots[7].startTime);
+  const afterMove = await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date });
+  assert.equal(afterMove[3].available, true, "10:00 is released after moving to 11:20");
+  assert.equal(afterMove[4].available, true, "10:20 no longer overlaps the booking");
+  assert.equal(afterMove[5].available, false, "10:40 would overlap an 11:20 appointment by five minutes");
+  assert.equal(afterMove[6].available, false, "11:00 overlaps the new appointment");
+  assert.equal(afterMove[7].available, false, "11:20 is occupied after the move");
+  const otherHeaders = { Authorization: bearer("customer", new mongoose.Types.ObjectId()), "Content-Type": "application/json" };
+  const otherBooking = await fetch(`${base}/appointments`, { method: "POST", headers: otherHeaders,
+    body: JSON.stringify({ branchId: body.branchId, serviceId: String(service.id), stylistId: String(userId),
+      startTime: initialSlots[3].startTime, endTime: initialSlots[3].endTime }) });
+  assert.equal(otherBooking.status, 201, "another customer can book the released old start");
+  await repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[0].startTime), endTime: new Date(initialSlots[0].endTime) });
   await Service.collection.updateOne({ _id: service._id }, { $set: { price: 10.5 } });
   await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id),
-    stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(initialSlots[1].endTime) }),
+    stylistId: body.stylistId, startTime: new Date(initialSlots[0].startTime), endTime: new Date(initialSlots[0].endTime) }),
   (error) => error instanceof BookingError && error.status === 409);
   await Service.collection.updateOne({ _id: service._id }, { $set: { price: 10 } });
-  await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[1].startTime), endTime: new Date(new Date(initialSlots[1].startTime).getTime() + 30 * 60000) }), (error) => error instanceof BookingError && error.status === 409);
+  await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date(initialSlots[0].startTime), endTime: new Date(new Date(initialSlots[0].startTime).getTime() + 30 * 60000) }), (error) => error instanceof BookingError && error.status === 409);
   await assert.rejects(repository.validateBooking({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, startTime: new Date("2030-10-20T02:15:00Z"), endTime: new Date("2030-10-20T03:00:00Z") }), (error) => error instanceof BookingError && error.status === 409);
 
-  await assert.rejects(repository.update(shift.id, { ...body, startAt: "2030-10-20T09:30:00+07:00" }), (error) => error instanceof BookingError && error.status === 409);
+  await assert.rejects(repository.update(shift.id, { ...body, startAt: "2030-10-20T10:30:00+07:00" }), (error) => error instanceof BookingError && error.status === 409);
   await assert.rejects(repository.remove(shift.id), (error) => error instanceof BookingError && error.status === 409);
-  await Calendar.updateOne({ _id: userId }, { $set: { "appointments.0.status": "cancelled" } });
-  assert.equal((await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date })).length, 4);
+  await Calendar.updateOne({ _id: userId }, { $set: { "appointments.0.status": "cancelled", "appointments.1.status": "cancelled" } });
+  assert.equal((await repository.availableSlots({ branchId: body.branchId, serviceId: String(service.id), stylistId: body.stylistId, date: body.date })).length, 13);
   const updateResponse = await fetch(`${base}/work-shifts/${shift.id}`, { method: "PUT", headers: adminHeaders, body: JSON.stringify({ ...body, endAt: "2030-10-20T11:30:00+07:00" }) });
   assert.equal(updateResponse.status, 200);
   assert.equal((await updateResponse.json()).workShift.endAt, "2030-10-20T04:30:00.000Z");

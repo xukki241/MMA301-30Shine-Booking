@@ -8,6 +8,7 @@ export type CustomerAppointment = {
   serviceName?: string;
   serviceId?: string;
   stylistName?: string;
+  stylistPhone?: string | null;
   stylistId?: string;
   startTime: string;
   endTime?: string;

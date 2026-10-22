@@ -4,19 +4,19 @@ const { ACTIVE_STATUSES, BookingError, isId, parseTime } = require("../booking/r
 function buildSlotOptions(shifts, appointments, durationMinutes, now = new Date(), excludeAppointmentId = null) {
   if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return [];
   const durationMs = durationMinutes * 60_000;
+  const cadenceMs = 20 * 60_000;
   const slots = [];
   for (const shift of shifts) {
     const firstStart = new Date(shift.startAt).getTime();
     const shiftEnd = new Date(shift.endAt).getTime();
-    for (let startMs = firstStart; startMs + durationMs <= shiftEnd;) {
+    for (let startMs = firstStart; startMs <= shiftEnd; startMs += cadenceMs) {
       const startTime = new Date(startMs);
       const endTime = new Date(startMs + durationMs);
       const conflicts = appointments.filter((appointment) => String(appointment._id || appointment.id) !== excludeAppointmentId &&
         ACTIVE_STATUSES.includes(appointment.status) &&
         startTime < appointment.endTime && endTime > appointment.startTime);
-      if (startMs > now.getTime()) slots.push({ startTime, endTime, available: conflicts.length === 0 });
-      const earliestEnd = conflicts.length ? Math.min(...conflicts.map((appointment) => new Date(appointment.endTime).getTime())) : Infinity;
-      startMs = Math.min(startMs + durationMs, earliestEnd);
+      slots.push({ startTime, endTime,
+        available: startMs > now.getTime() && startMs + durationMs <= shiftEnd && conflicts.length === 0 });
     }
   }
   return slots;

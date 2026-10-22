@@ -59,7 +59,7 @@ export function createCoreApiAppointmentDataSource(
       const data = await request<{ appointments: CustomerAppointment[] }>(path);
       const branches = new Map<string, Promise<{ name: string; address?: string } | null>>();
       const services = new Map<string, Promise<{ name: string } | null>>();
-      const stylists = new Map<string, Promise<Array<{ userId: string; displayName: string }>>>();
+      const stylists = new Map<string, Promise<Array<{ userId: string; displayName: string; phone?: string | null }>>>();
       return Promise.all((data.appointments || []).map(async (item) => {
         if (item.branchId && (!item.branchName || !item.branchAddress) && !branches.has(item.branchId)) {
           branches.set(item.branchId, request<{ branch: { name: string; address?: string } }>(
@@ -69,8 +69,8 @@ export function createCoreApiAppointmentDataSource(
           services.set(item.serviceId, request<{ service: { name: string } }>(
             `/services/${encodeURIComponent(item.serviceId)}`).then((value) => value.service).catch(() => null));
         }
-        if (item.branchId && item.stylistId && !item.stylistName && !stylists.has(item.branchId)) {
-          stylists.set(item.branchId, request<{ stylists: Array<{ userId: string; displayName: string }> }>(
+        if (item.branchId && item.stylistId && !stylists.has(item.branchId)) {
+          stylists.set(item.branchId, request<{ stylists: Array<{ userId: string; displayName: string; phone?: string | null }> }>(
             `/branches/${encodeURIComponent(item.branchId)}/stylists`).then((value) => value.stylists).catch(() => []));
         }
         const [branch, service, branchStylists] = await Promise.all([
@@ -78,10 +78,12 @@ export function createCoreApiAppointmentDataSource(
           item.serviceId ? services.get(item.serviceId) : undefined,
           item.branchId ? stylists.get(item.branchId) : undefined,
         ]);
+        const matchingStylist = branchStylists?.find((stylist) => stylist.userId === item.stylistId);
         return { ...item, branchName: item.branchName || branch?.name,
           branchAddress: item.branchAddress || branch?.address,
           serviceName: item.serviceName || service?.name,
-          stylistName: item.stylistName || branchStylists?.find((stylist) => stylist.userId === item.stylistId)?.displayName };
+          stylistName: matchingStylist?.displayName || item.stylistName,
+          stylistPhone: matchingStylist?.phone || item.stylistPhone };
       }));
     },
 

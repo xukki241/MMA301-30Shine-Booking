@@ -56,7 +56,7 @@ function createUserRepository(User) {
     findByEmail: (email) => User.findOne({ email }).select("+passwordHash").exec(),
     findById: (id) => User.findById(id).exec(),
     list: () => User.find({ role: { $in: ROLES } }).sort({ createdAt: -1 }).exec(),
-    listActiveStylists: () => User.find({ role: "stylist", status: "active" }).select("email fullName").sort({ fullName: 1, email: 1 }).exec(),
+    listActiveStylists: () => User.find({ role: "stylist", status: "active" }).select("email fullName phone").sort({ fullName: 1, email: 1 }).exec(),
     create: (data) => User.create(data),
     updateById: (id, changes) => User.findByIdAndUpdate(id, {
       $set: changes, $inc: { authVersion: 1 },

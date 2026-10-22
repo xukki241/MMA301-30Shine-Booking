@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAppTheme } from "@/constants/theme";
 import { dateLabel, shiftDate, vietnamToday } from "@/stylist/date";
 
@@ -23,6 +23,7 @@ export function ManagerSelect({ label, value, options, onChange, placeholder = "
       <Ionicons name="chevron-down" size={18} color={theme.brand} />
     </Pressable>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={styles.overlay}><View style={[styles.modal, { backgroundColor: theme.surface }]}>
         <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: theme.text }]}>{label}</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="Đóng" onPress={() => setOpen(false)}>
@@ -41,6 +42,7 @@ export function ManagerSelect({ label, value, options, onChange, placeholder = "
           </Pressable>)}
         </ScrollView>
       </View></View>
+      </KeyboardAvoidingView>
     </Modal>
   </View>;
 }

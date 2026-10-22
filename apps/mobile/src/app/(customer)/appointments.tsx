@@ -8,7 +8,6 @@ import {
   Linking,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +23,7 @@ import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appoi
 import type { PaymentInput } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
 import { PrimaryButton } from "@/components/screen";
+import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
 import { type AppointmentSummary, isAppointmentSummary } from "@/offline/appointments";
@@ -103,7 +103,8 @@ export default function CustomerAppointmentsScreen() {
       serviceId: item.serviceId,
       serviceName: item.serviceName,
       stylistId: item.stylistId,
-      stylistName: item.stylistName
+      stylistName: item.stylistName,
+      stylistPhone: item.stylistPhone
     }));
   }, [dataSource, token, isDemo]);
 
@@ -285,7 +286,7 @@ export default function CustomerAppointmentsScreen() {
         </SafeAreaView>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
@@ -508,6 +509,11 @@ export default function CustomerAppointmentsScreen() {
                       Stylist: <Text style={{ fontWeight: "700" }}>{item.stylistName || "Chưa có thông tin"}</Text>
                     </Text>
                   </View>
+
+                  {item.stylistPhone ? <View style={styles.detailItem}>
+                    <Ionicons name="call-outline" size={16} color={theme.gold} />
+                    <Text style={[styles.detailText, { color: theme.text }]}>SĐT stylist: {item.stylistPhone}</Text>
+                  </View> : null}
 
                   <View style={styles.detailItem}>
                     <Ionicons name="cut-outline" size={16} color="#3B82F6" />
@@ -787,7 +793,7 @@ export default function CustomerAppointmentsScreen() {
             <Ionicons name="call" size={14} color="#FFFFFF" />
           </Pressable>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

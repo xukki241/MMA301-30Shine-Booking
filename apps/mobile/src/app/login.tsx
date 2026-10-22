@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
 import { staffLanding } from "@/providers/auth-utils";
 import { useAppTheme } from "@/constants/theme";
 import { customerLanding } from "@/customer/profile-navigation";
+import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
 
 type Step = "phone" | "login" | "registerOtp" | "registerDetails" | "resetOtp" | "resetPassword";
 const labels: Record<Step, [string, string]> = {
@@ -75,7 +76,7 @@ export default function EntryScreen() {
   if (!hydrated) return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}><ActivityIndicator /></SafeAreaView>;
   const inputStyle = [styles.input, { color: theme.text, borderColor: theme.border }];
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView contentContainerStyle={styles.content}>
       <Text style={[styles.brand, { color: theme.brand }]}>30SHINE MEMBER</Text>
       <Text style={[styles.title, { color: theme.text }]}>{staffMode ? (staffHelp ? "Quên mật khẩu?" : "Đăng nhập nhân sự") : labels[step][0]}</Text>
       {!staffMode && step === "phone" ? <Text style={{ color: theme.textMuted }}>Nhập số điện thoại để đăng nhập hoặc đăng ký. Bạn cũng có thể khám phá ứng dụng trước.</Text> : null}
@@ -108,7 +109,7 @@ export default function EntryScreen() {
       {!staffMode && step !== "phone" ? <Pressable style={styles.link} onPress={() => { setStep("phone"); setError(null); setCode(""); setPassword(""); }}><Text style={{ color: theme.brand }}>Đổi số điện thoại</Text></Pressable> : null}
       {!staffMode ? <Pressable style={styles.link} onPress={() => { selectRole("customer"); router.replace("/(customer)/home"); }}><Text style={{ color: theme.brand }}>Tôi muốn khám phá thêm</Text></Pressable> : null}
       <Pressable style={styles.link} onPress={() => { setStaffMode(!staffMode); setStaffHelp(false); setError(null); }}><Text style={{ color: theme.textMuted }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự 30Shine"}</Text></Pressable>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   </SafeAreaView>;
 }
 

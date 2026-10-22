@@ -49,7 +49,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   let directoryName = "Stylist Nam Phong";
   const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true,
     verifyActiveStylist: async () => true,
-    stylistDirectory: async () => [{ id: "507f191e810c19729de860ea", email: "nam@example.test", fullName: directoryName }] });
+    stylistDirectory: async () => [{ id: "507f191e810c19729de860ea", email: "nam@example.test", fullName: directoryName, phone: "0912345678" }] });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -379,6 +379,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       const data = await res.json();
       assert.equal(data.stylists.length, 1);
       assert.equal(data.stylists[0].id, createdStylistId);
+      assert.equal(data.stylists[0].phone, "0912345678");
     });
 
     await tStylist.test("GET /stylists/:id returns stylist profile", async () => {

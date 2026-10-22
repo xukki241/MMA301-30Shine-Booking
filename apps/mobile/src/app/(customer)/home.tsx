@@ -17,6 +17,7 @@ import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adap
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import { selectUpcomingAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment } from "@/appointments/types";
+import { listHomeStylists, listPublicHomeServices, type HomeService, type HomeStylist } from "@/booking/http-adapter";
 import { RoleResetButton } from "@/components/role-reset-button";
 import { Badge, BrandButton, Card, PrimaryButton } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
@@ -42,6 +43,12 @@ export default function CustomerHomeScreen() {
   const theme = useAppTheme();
   const { token, user } = useAuth();
   const [upcoming, setUpcoming] = useState<CustomerAppointment | null>(null);
+  const [homeServices, setHomeServices] = useState<HomeService[]>([]);
+  const [servicesLoading, setServicesLoading] = useState(true);
+  const [servicesError, setServicesError] = useState(false);
+  const [homeStylists, setHomeStylists] = useState<HomeStylist[]>([]);
+  const [stylistsLoading, setStylistsLoading] = useState(true);
+  const [stylistsError, setStylistsError] = useState(false);
 
   const isDemo = process.env.EXPO_PUBLIC_USE_DEMO_API === "true";
 
@@ -83,6 +90,31 @@ export default function CustomerHomeScreen() {
     }, [dataSource, token, isDemo])
   );
 
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setServicesLoading(true);
+    setServicesError(false);
+    setHomeServices([]);
+    listPublicHomeServices().then((items) => {
+      if (active) { setHomeServices(items); setServicesError(false); }
+    }).catch(() => { if (active) setServicesError(true); })
+      .finally(() => { if (active) setServicesLoading(false); });
+    return () => { active = false; };
+  }, []));
+
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    setHomeStylists([]);
+    setStylistsLoading(true);
+    setStylistsError(false);
+    if (!token) { setStylistsLoading(false); return () => { active = false; }; }
+    listHomeStylists(token).then((items) => {
+      if (active) setHomeStylists(items);
+    }).catch(() => { if (active) setStylistsError(true); })
+      .finally(() => { if (active) setStylistsLoading(false); });
+    return () => { active = false; };
+  }, [token]));
+
   function showGuaranteeAlert() {
     Alert.alert(
       "Cam kết bảo hành tóc 7 ngày",
@@ -122,7 +154,7 @@ export default function CustomerHomeScreen() {
               <View style={styles.logoCircle}>
                 <Ionicons name="cut" size={16} color={theme.brand} />
               </View>
-              <Text style={styles.brandTitleText}>30SHINE MEMBER</Text>
+              <Text style={styles.brandTitleText}>30SHINE ĐẶT LỊCH</Text>
             </View>
 
             <View style={styles.topRightActions}>
@@ -161,16 +193,12 @@ export default function CustomerHomeScreen() {
               </View>
               <Text style={styles.userSubtitle}>
                 {user?.phone
-                  ? "Tích điểm & nhận ưu đãi thành viên"
-                  : "Đăng nhập để nhận ngập tràn ưu đãi"}
+                  ? "Chọn dịch vụ, stylist và giờ phù hợp"
+                  : "Đăng nhập để đặt lịch với stylist"}
               </Text>
               {!token ? <Text style={{ color: "#FFFFFF", fontWeight: "800", marginTop: 6 }}>Xem tài khoản ›</Text> : null}
             </View>
 
-            <View style={styles.shinePointBadge}>
-              <Text style={styles.pointLabel}>ĐIỂM SHINE</Text>
-              <Text style={styles.pointValue}>0 Shine</Text>
-            </View>
           </Pressable>
         </SafeAreaView>
       </View>
@@ -217,7 +245,7 @@ export default function CustomerHomeScreen() {
             Chào Mừng Quý Khách Đến 30Shine
           </Text>
           <Text style={[styles.welcomeDesc, { color: theme.textMuted }]}>
-            Đăng nhập số điện thoại để nâng hạng thành viên, tích điểm giảm giá và lưu trữ hình ảnh kiểu tóc sau mỗi lần cắt.
+            Chọn salon, dịch vụ và stylist phù hợp, sau đó đặt giờ còn trống ngay trên ứng dụng.
           </Text>
 
           <Pressable
@@ -250,69 +278,38 @@ export default function CustomerHomeScreen() {
           </View>
         </View>
 
-        {/* 4. Shine Member Privileges Card (Matching Stitch Screen 1) */}
-        <View style={styles.privilegeCard}>
-          <View style={styles.privilegeTopRow}>
+        <View style={styles.stylistSection}>
+          <View style={styles.stylistHeadingRow}>
             <View style={styles.crownRow}>
-              <Ionicons name="ribbon" size={18} color={theme.gold} />
-              <Text style={[styles.privilegeHeaderTitle, { color: theme.gold }]}>
-                ĐẶC QUYỀN SHINE MEMBER 2025
-              </Text>
+              <Ionicons name="people-outline" size={20} color={theme.brand} />
+              <Text style={[styles.sectionTitleText, { color: theme.text }]}>ĐỘI NGŨ STYLIST</Text>
             </View>
             <Pressable onPress={() => router.push("/(customer)/book")}>
-              <Text style={[styles.privilegeDetailsLink, { color: theme.gold }]}>Chi tiết ›</Text>
+              <Text style={[styles.viewAllText, { color: theme.brand }]}>Đặt lịch ›</Text>
             </Pressable>
           </View>
-          <Text style={styles.privilegeSubheader}>Tích lũy & Đổi dịch vụ cao cấp</Text>
-
-          {/* Member Tiers Row */}
-          <View style={styles.tiersRow}>
-            <View style={styles.tierItem}>
-              <View style={[styles.tierCircle, { backgroundColor: "#B45309" }]}>
-                <Text style={styles.tierLetter}>Đ</Text>
+          {stylistsLoading ? <Text style={{ color: theme.textMuted }}>Đang tải stylist...</Text> : null}
+          {stylistsError ? <Text style={{ color: theme.textMuted }}>Không tải được stylist. Vui lòng thử lại.</Text> : null}
+          {!stylistsLoading && !stylistsError && homeStylists.length === 0
+            ? <Text style={{ color: theme.textMuted }}>Chưa có stylist đang hoạt động.</Text> : null}
+          {homeStylists.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.stylistList}>
+            {homeStylists.map(({ branch, stylist }) => <Pressable key={`${branch.id}-${stylist.id}`}
+              accessibilityRole="button"
+              accessibilityLabel={`Đặt lịch với ${stylist.name} tại ${branch.name}`}
+              onPress={() => router.push({ pathname: "/(customer)/book",
+                params: { branchId: branch.id, stylistId: stylist.id } })}
+              style={[styles.stylistProfileCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <View style={[styles.stylistAvatar, { backgroundColor: theme.brandMuted }]}>
+                <Ionicons name="person" size={30} color={theme.brand} />
               </View>
-              <Text style={styles.tierName}>Đồng</Text>
-            </View>
-
-            <View style={styles.tierItem}>
-              <View style={[styles.tierCircle, { backgroundColor: "#64748B" }]}>
-                <Text style={styles.tierLetter}>B</Text>
-              </View>
-              <Text style={styles.tierName}>Bạc</Text>
-            </View>
-
-            <View style={styles.tierItem}>
-              <View style={[styles.tierCircle, { backgroundColor: theme.gold }]}>
-                <Text style={[styles.tierLetter, { color: "#1B2A4A" }]}>V</Text>
-              </View>
-              <Text style={[styles.tierName, { color: theme.gold, fontWeight: "800" }]}>Vàng</Text>
-            </View>
-
-            <View style={styles.tierItem}>
-              <View style={[styles.tierCircle, { backgroundColor: "#06B6D4" }]}>
-                <Text style={styles.tierLetter}>KC</Text>
-              </View>
-              <Text style={styles.tierName}>Kim Cương</Text>
-            </View>
-          </View>
-
-          {/* Benefits bullets */}
-          <View style={styles.benefitsList}>
-            <View style={styles.benefitRow}>
-              <Ionicons name="checkmark" size={14} color={theme.gold} />
-              <Text style={styles.benefitText}>
-                Hoàn tới <Text style={{ fontWeight: "800", color: "#FFFFFF" }}>10%</Text> giá trị hóa đơn quy đổi ra Shine Point
-              </Text>
-            </View>
-            <View style={styles.benefitRow}>
-              <Ionicons name="checkmark" size={14} color={theme.gold} />
-              <Text style={styles.benefitText}>Miễn phí cắt tóc tháng sinh nhật của bạn</Text>
-            </View>
-            <View style={styles.benefitRow}>
-              <Ionicons name="checkmark" size={14} color={theme.gold} />
-              <Text style={styles.benefitText}>Ưu tiên chọn Stylist Top 1 & Phục vụ không chờ đợi</Text>
-            </View>
-          </View>
+              <Text style={[styles.serviceNameText, { color: theme.text }]} numberOfLines={1}>{stylist.name}</Text>
+              <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>{branch.name}</Text>
+              {stylist.phone ? <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={1}>
+                {stylist.phone}</Text> : null}
+              <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn stylist ›</Text>
+            </Pressable>)}
+          </ScrollView> : null}
         </View>
 
         {/* 5. Signature Hair Services Section (From Screenshot 4 & code) */}
@@ -326,48 +323,29 @@ export default function CustomerHomeScreen() {
           </Pressable>
         </View>
 
+        {servicesLoading && homeServices.length === 0 ? <Text style={{ color: theme.textMuted }}>
+          Đang tải dịch vụ...</Text> : null}
+        {servicesError ? <Text style={{ color: theme.textMuted }}>Không tải được dịch vụ. Vui lòng thử lại.</Text> : null}
+        {!servicesLoading && !servicesError && homeServices.length === 0 ? <Text style={{ color: theme.textMuted }}>
+          Chưa có dịch vụ đang hoạt động.</Text> : null}
         <View style={styles.servicesGrid}>
-          {/* Service 1: Combo 10 bước */}
-          <Pressable
+          {homeServices.map(({ branch, service, description }) => <Pressable key={`${branch.id}-${service.id}`}
             style={[styles.serviceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            onPress={() => router.push("/(customer)/book")}
-          >
-            <View style={[styles.serviceBadge, { backgroundColor: "#EF4444" }]}>
-              <Text style={styles.serviceBadgeText}>TOP 1</Text>
-            </View>
+            onPress={() => router.push({ pathname: "/(customer)/book",
+              params: { branchId: branch.id, serviceId: service.id } })}>
             <View style={[styles.serviceIconContainer, { backgroundColor: theme.brandMuted }]}>
               <Ionicons name="cut" size={32} color={theme.brand} />
             </View>
-            <Text style={[styles.serviceNameText, { color: theme.text }]}>Shine Combo 10 bước</Text>
-            <Text style={[styles.servicePriceText, { color: theme.brand }]}>100.000 VNĐ</Text>
+            <Text style={[styles.serviceNameText, { color: theme.text }]}>{service.name}</Text>
+            <Text style={[styles.servicePriceText, { color: theme.brand }]}>
+              {new Intl.NumberFormat("vi-VN").format(service.priceVnd)} VNĐ</Text>
             <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>
-              Cắt gội, massage bấm huyệt, vuốt sáp tạo kiểu chuẩn men
+              {branch.name} · {service.durationMinutes} phút{description ? ` · ${description}` : ""}
             </Text>
             <View style={styles.serviceSelectRow}>
               <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn dịch vụ ›</Text>
             </View>
-          </Pressable>
-
-          {/* Service 2: Uốn tóc */}
-          <Pressable
-            style={[styles.serviceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
-            onPress={() => router.push("/(customer)/book")}
-          >
-            <View style={[styles.serviceBadge, { backgroundColor: "#F59E0B" }]}>
-              <Text style={styles.serviceBadgeText}>HOT</Text>
-            </View>
-            <View style={[styles.serviceIconContainer, { backgroundColor: theme.goldMuted }]}>
-              <Ionicons name="sparkles" size={32} color={theme.gold} />
-            </View>
-            <Text style={[styles.serviceNameText, { color: theme.text }]}>Uốn định hình Hàn Quốc</Text>
-            <Text style={[styles.servicePriceText, { color: theme.brand }]}>Từ 386.000 VNĐ</Text>
-            <Text style={[styles.serviceSubtext, { color: theme.textMuted }]} numberOfLines={2}>
-              Giữ form 3-4 tháng, bồng bềnh tự nhiên, dễ sấy tạo kiểu
-            </Text>
-            <View style={styles.serviceSelectRow}>
-              <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn dịch vụ ›</Text>
-            </View>
-          </Pressable>
+          </Pressable>)}
         </View>
 
         {/* 6. Menu List Items (Matching Stitch Screen 1) */}
@@ -592,26 +570,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2
   },
-  shinePointBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)"
-  },
-  pointLabel: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 9,
-    fontWeight: "800"
-  },
-  pointValue: {
-    color: "#F5B731",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 1
-  },
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -740,13 +698,11 @@ const styles = StyleSheet.create({
   trustDot: {
     fontSize: 10
   },
-  privilegeCard: {
-    backgroundColor: "#111827",
-    borderRadius: 18,
-    padding: 18,
-    gap: 12
-  },
-  privilegeTopRow: {
+  stylistSection: { gap: 14 },
+  stylistList: { gap: 12, paddingRight: 20 },
+  stylistProfileCard: { width: 150, borderWidth: 1, borderRadius: 16, padding: 14, gap: 8 },
+  stylistAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
+  stylistHeadingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
@@ -755,63 +711,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6
-  },
-  privilegeHeaderTitle: {
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 0.5
-  },
-  privilegeDetailsLink: {
-    fontSize: 12,
-    fontWeight: "700"
-  },
-  privilegeSubheader: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "800"
-  },
-  tiersRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 4
-  },
-  tierItem: {
-    alignItems: "center",
-    gap: 4
-  },
-  tierCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  tierLetter: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  tierName: {
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "600"
-  },
-  benefitsList: {
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
-    paddingTop: 10
-  },
-  benefitRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  benefitText: {
-    color: "#E2E8F0",
-    fontSize: 12,
-    flex: 1
   },
   sectionHeadingRow: {
     flexDirection: "row",

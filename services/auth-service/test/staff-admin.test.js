@@ -86,7 +86,7 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   const directory = await fetch(`${base}/internal/stylists`, { headers: { Authorization: `Bearer ${directoryToken}` } });
   assert.equal(directory.status, 200);
   assert.deepEqual((await directory.json()).stylists, [{ id: body.user.id,
-    email: "stylist@example.test", fullName: "Thợ thử nghiệm" }]);
+    email: "stylist@example.test", fullName: "Thợ thử nghiệm", phone: "0912345678" }]);
   assert.equal((await fetch(`${base}/internal/stylists`, { headers: { Authorization: `Bearer ${manager}` } })).status, 401);
   assert.equal(JSON.stringify(body).includes("passwordHash"), false);
   const stylistToken = await login("stylist@example.test");

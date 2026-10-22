@@ -196,6 +196,7 @@ export default function ManagerOperations() {
         `${new Intl.NumberFormat("vi-VN").format((item as Service).price)} ₫ · ${(item as Service).durationMinutes} phút` :
         kind === "stylist" ? ((item as Stylist).isActive ? "Đang hoạt động tại chi nhánh" : "Tạm ngưng tại chi nhánh") :
         `Thợ: ${stylists.find((stylist) => stylist.userId === (item as Shift).stylistId)?.displayName || (item as Shift).stylistId}`}</CardText>
+      {kind === "stylist" && (item as Stylist).phone ? <CardText>SĐT: {(item as Stylist).phone}</CardText> : null}
       <View style={styles.row}><Action label="Sửa" icon="create-outline" onPress={() => open(item)} disabled={busy} />
         <Action label="Xóa" icon="trash-outline" danger onPress={() => remove(item)} disabled={busy} /></View></Card>)}
   </Screen>;

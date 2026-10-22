@@ -126,9 +126,9 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   const slotsResponse = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   assert.equal(slotsResponse.status, 200);
   const slots = (await slotsResponse.json()).slots;
-  assert.equal(slots.length, 4);
+  assert.equal(slots.length, 10);
   assert.equal(slots[0].startTime, "2030-10-20T02:00:00.000Z");
-  assert.equal(slots[1].startTime, "2030-10-20T02:45:00.000Z");
+  assert.equal(slots[1].startTime, "2030-10-20T02:20:00.000Z");
 
   const booking = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: slots[0].startTime, endTime: slots[0].endTime }) });
   assert.equal(booking.status, 201);
@@ -137,10 +137,12 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   assert.equal(tamperedPrice.status, 400);
   const refreshedSlots = await fetch(`${base}/time-slots?branchId=${ids.branch}&serviceId=${ids.service}&stylistId=${ids.stylist}&date=2030-10-20`, { headers: customer });
   const refreshed = (await refreshedSlots.json()).slots;
-  assert.equal(refreshed.length, 4);
+  assert.equal(refreshed.length, 10);
   assert.equal(refreshed[0].available, false);
-  assert.equal(refreshed[1].available, true);
-  assert.equal(refreshed[2].available, true);
+  assert.equal(refreshed[1].available, false);
+  assert.equal(refreshed[2].available, false);
+  assert.equal(refreshed[3].available, true);
+  assert.equal(refreshed[9].available, false);
   const duplicate = await fetch(`${base}/appointments`, { method: "POST", headers: customer,
     body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist,
       startTime: slots[0].startTime, endTime: slots[0].endTime }) });
