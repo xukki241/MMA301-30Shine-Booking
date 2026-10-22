@@ -45,7 +45,7 @@ function encodeCursor(time, id) {
 
 function parseAppointmentsQuery(query) {
   const date = query.date || todayVietnam();
-  dayRange(date);
+  if (date !== "all") dayRange(date);
   const status = query.status;
   if (status && !STATUSES.includes(status)) throw new BookingError(400, "Invalid status");
   return { date, branchId: objectId(query.branchId, "branchId"),

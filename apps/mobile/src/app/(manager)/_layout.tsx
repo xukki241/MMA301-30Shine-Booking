@@ -1,4 +1,6 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Redirect, Tabs } from "expo-router";
+import { Platform, StyleSheet } from "react-native";
 import { RoleResetButton } from "@/components/role-reset-button";
 import { useAppTheme } from "@/constants/theme";
 import { useAuth } from "@/providers/auth-provider";
@@ -13,11 +15,20 @@ export default function ManagerLayout() {
   return <Tabs screenOptions={{ headerRight: () => <RoleResetButton />,
     headerStyle: { backgroundColor: theme.surface }, headerTintColor: theme.text,
     tabBarActiveTintColor: theme.brand, tabBarInactiveTintColor: theme.textMuted,
-    tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border } }}>
-    <Tabs.Screen name="overview" options={{ title: "Tổng quan" }} />
-    <Tabs.Screen name="appointments" options={{ title: "Lịch đặt" }} />
-    <Tabs.Screen name="operations" options={{ title: "Vận hành" }} />
-    <Tabs.Screen name="payments" options={{ title: "Thanh toán" }} />
+    tabBarLabelStyle: styles.tabLabel,
+    tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border,
+      height: Platform.OS === "ios" ? 78 : 68, paddingBottom: Platform.OS === "ios" ? 22 : 10,
+      paddingTop: 8, elevation: 8 } }}>
+    <Tabs.Screen name="overview" options={{ title: "Tổng quan", tabBarIcon: ({ color, focused }) =>
+      <Ionicons name={focused ? "grid" : "grid-outline"} size={21} color={color} /> }} />
+    <Tabs.Screen name="appointments" options={{ title: "Lịch đặt", tabBarIcon: ({ color, focused }) =>
+      <Ionicons name={focused ? "calendar" : "calendar-outline"} size={21} color={color} /> }} />
+    <Tabs.Screen name="operations" options={{ title: "Vận hành", tabBarIcon: ({ color, focused }) =>
+      <Ionicons name={focused ? "construct" : "construct-outline"} size={21} color={color} /> }} />
+    <Tabs.Screen name="payments" options={{ title: "Thanh toán", tabBarIcon: ({ color, focused }) =>
+      <Ionicons name={focused ? "wallet" : "wallet-outline"} size={21} color={color} /> }} />
     <Tabs.Screen name="appointment-detail" options={{ title: "Chi tiết lịch", href: null }} />
   </Tabs>;
 }
+
+const styles = StyleSheet.create({ tabLabel: { fontSize: 10, fontWeight: "700" } });

@@ -1,12 +1,13 @@
-export type AppointmentStatus = "booked" | "completed" | "paid" | "cancelled";
+export type AppointmentStatus = "booked" | "checked_in" | "completed" | "paid" | "cancelled" | "no_show";
 export type PaymentStatus = "success" | "failed";
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type Branch = { id: string; name: string; address: string; phone?: string; isActive: boolean };
 export type Service = { id: string; branchId: string; name: string; price: number; durationMinutes: number; description?: string; isActive: boolean };
 export type Stylist = { id: string; userId: string; branchId: string; displayName: string; isActive: boolean };
+export type StylistCandidate = { id: string; email: string; fullName: string };
 export type Shift = { id: string; stylistId: string; branchId: string; date: string; startAt: string; endAt: string };
 export type ManagerAppointment = { id: string; customerName?: string; customerPhone?: string; branchId: string;
-  serviceId: string; stylistId: string; bookedPrice?: number; startTime: string; endTime: string; status: AppointmentStatus };
+  serviceId: string; stylistId: string; bookedPrice?: number; startTime: string; endTime: string; status: AppointmentStatus; checkedInAt?: string };
 export type ManagerPayment = { id: string; appointmentId: string; branchId: string; amount: number;
   provider: "momo" | "vnpay"; status: PaymentStatus; attemptedAt: string; customerName?: string };
 export type Overview = { date: string; counts: Record<AppointmentStatus, number> };
