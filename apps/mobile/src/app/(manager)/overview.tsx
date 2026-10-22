@@ -1,3 +1,4 @@
+// Manager overview - branch KPIs and daily summary dashboard
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
