@@ -47,7 +47,7 @@ async function authContract(t, { users, inspect, secret }) {
   const create = async (email, role) => {
     const response = await fetch(base + "/admin/users", { method: "POST", headers: {
       Authorization: "Bearer " + adminToken, "Content-Type": "application/json",
-    }, body: JSON.stringify({ email, password, role }) });
+    }, body: JSON.stringify({ email, fullName: "Nhân sự thử nghiệm", password, role }) });
     return { status: response.status, body: await response.json() };
   };
   for (const role of ["stylist", "general_manager", "system_admin"]) {

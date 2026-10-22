@@ -41,8 +41,16 @@ async function bookingContract(t, firstRepository, secondRepository = firstRepos
     assert.equal(response.status, 201, JSON.stringify(response.body));
     return response.body.appointment;
   }
-  const act = (appointment, action, actor) => post("/appointments/" + appointment.id + "/" + action, actor,
-    action === "pay" ? { provider: "momo", outcome: "success", requestId: id() } : undefined);
+  const act = async (appointment, action, actor) => {
+    if (action === "complete") {
+      const current = await firstRepository.findById(appointment.id);
+      if (current?.status === "booked" && actor.role === "stylist" && actor.userId === appointment.stylistId) {
+        await post(`/appointments/${appointment.id}/check_in`, actor);
+      }
+    }
+    return post("/appointments/" + appointment.id + "/" + action, actor,
+      action === "pay" ? { provider: "momo", outcome: "success", requestId: id() } : undefined);
+  };
 
   await t.test("mock payment records failed and successful attempts with idempotent retry", async () => {
     const appointment = await book();

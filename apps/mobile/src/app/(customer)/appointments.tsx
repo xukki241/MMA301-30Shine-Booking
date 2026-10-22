@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import { orderCustomerAppointments } from "@/appointments/order";
+import { customerAppointmentStatusLabel, isOverdueUnconfirmedAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
 import type { PaymentInput } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
@@ -31,13 +32,6 @@ import { type ReadResult, readCachedList } from "@/offline/read-cache";
 import { useAuth } from "@/providers/auth-provider";
 
 const cacheKeyPrefix = "shine:customer-appointments:v4";
-
-const statusLabels: Record<CustomerAppointment["status"], string> = {
-  booked: "Đã đặt",
-  completed: "Hoàn thành",
-  paid: "Đã thanh toán",
-  cancelled: "Đã hủy"
-};
 
 function formattedTime(value: string): string {
   try {
@@ -81,6 +75,11 @@ export default function CustomerAppointmentsScreen() {
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
 
   const isDemo = process.env.EXPO_PUBLIC_USE_DEMO_API === "true";
+  useEffect(() => {
+    if (!token || isDemo || connectivity === "offline") return;
+    const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval);
+  }, [token, isDemo, connectivity]);
   const cacheKey = `${cacheKeyPrefix}:${user?.id || "demo"}:${
     user?.phoneVerified ? "verified" : "device"
   }`;
@@ -429,12 +428,14 @@ export default function CustomerAppointmentsScreen() {
             const isPaid = item.status === "paid";
             const isBooked = item.status === "booked";
             const isCancelled = item.status === "cancelled";
+            const isNoShow = item.status === "no_show";
+            const isOverdueBooked = isOverdueUnconfirmedAppointment(item);
 
             const statusBg = isCompleted
               ? "#DCFCE7"
               : isPaid
               ? "#DBEAFE"
-              : isCancelled
+              : isCancelled || isNoShow
               ? "#FEE2E2"
               : theme.brandMuted;
 
@@ -442,7 +443,7 @@ export default function CustomerAppointmentsScreen() {
               ? "#166534"
               : isPaid
               ? "#1E40AF"
-              : isCancelled
+              : isCancelled || isNoShow
               ? "#991B1B"
               : theme.brand;
 
@@ -453,8 +454,14 @@ export default function CustomerAppointmentsScreen() {
                   borderColor: isBooked ? theme.brand : theme.border }, isBooked && styles.bookedCard]}
               >
                 {isBooked ? <View style={styles.bookedBanner}>
-                  <Ionicons name="calendar" size={16} color={theme.brand} />
-                  <Text style={[styles.bookedBannerText, { color: theme.brand }]}>LỊCH ĐÃ ĐẶT</Text>
+                  <Ionicons name={isOverdueBooked ? "time-outline" : "calendar"} size={16} color={theme.brand} />
+                  <Text style={[styles.bookedBannerText, { color: theme.brand }]}>
+                    {isOverdueBooked ? "CHƯA GHI NHẬN KHÁCH ĐẾN" : "LỊCH ĐÃ ĐẶT"}
+                  </Text>
+                </View> : null}
+                {isNoShow ? <View style={styles.bookedBanner}>
+                  <Ionicons name="alert-circle-outline" size={16} color={theme.danger} />
+                  <Text style={[styles.bookedBannerText, { color: theme.danger }]}>BẠN ĐÃ KHÔNG ĐẾN</Text>
                 </View> : null}
                 {/* Top Header of Card */}
                 <View style={styles.cardHeaderRow}>
@@ -475,7 +482,7 @@ export default function CustomerAppointmentsScreen() {
                     ) : null}
                     <View style={[styles.statusTag, { backgroundColor: statusBg }]}>
                       <Text style={[styles.statusTagText, { color: statusTextColor }]}>
-                        {statusLabels[item.status] || item.status.toUpperCase()}
+                        {customerAppointmentStatusLabel(item.status, item.startTime)}
                       </Text>
                     </View>
                   </View>
@@ -511,7 +518,7 @@ export default function CustomerAppointmentsScreen() {
                 </View>
 
                 {/* Flow 1: Cancel for booked appointments */}
-                {isBooked && confirmingCancelId !== item.id ? (
+                {isBooked && Date.now() < new Date(item.startTime).getTime() && confirmingCancelId !== item.id ? (
                   <View style={styles.actionBtnRow}>
                     <Pressable
                       accessibilityRole="button"

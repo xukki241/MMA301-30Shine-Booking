@@ -27,6 +27,12 @@ function createCalendarModel(connection, collection = "stylist_calendars") {
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     status: { type: String, enum: STATUSES, default: "booked", required: true },
+    checkedInAt: { type: Date },
+    checkedInBy: { type: mongoose.Schema.Types.ObjectId },
+    noShowAt: { type: Date },
+    noShowBy: { type: mongoose.Schema.Types.ObjectId },
+    statusHistory: { type: [new mongoose.Schema({ from: String, to: String,
+      actorId: mongoose.Schema.Types.ObjectId, actorRole: String, at: Date }, { _id: false })], default: [] },
   }, { timestamps: true, versionKey: false });
   appointment.pre("validate", function () {
     if (this.startTime && this.endTime && this.startTime >= this.endTime) {

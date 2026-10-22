@@ -25,7 +25,7 @@ Work Shift là một khoảng làm việc trong một ngày lịch, gắn với 
 | DELETE | `/work-shifts/:id` | General Manager | Xóa nếu không có Appointment active trong ca |
 | GET | `/time-slots?branchId=&serviceId=&stylistId=&date=` | Customer Guest hoặc General Manager | Slot tương lai theo ca và thời lượng dịch vụ |
 
-Slot có cùng độ dài `Service.durationMinutes`; API loại slot giao với Appointment `booked`, `completed`, `paid`. `POST /appointments` khi Work Shift đã bật cần gửi `branchId`, `serviceId`, `stylistId`, `startTime`, `endTime`; Core xác thực service/duration/ca trước khi ghi lịch. Appointment trùng thời gian vẫn được chặn atomically bởi calendar repository.
+Slot có cùng độ dài `Service.durationMinutes`; API loại slot giao với Appointment `booked`, `checked_in`, `completed`, `paid`. `POST /appointments` khi Work Shift đã bật cần gửi `branchId`, `serviceId`, `stylistId`, `startTime`, `endTime`; Core xác thực service/duration/ca trước khi ghi lịch. Appointment trùng thời gian vẫn được chặn atomically bởi calendar repository.
 
 Sửa ca chỉ được phép nếu mọi Appointment active đang nằm trong khoảng thời gian mới; hủy ca hoặc đổi stylist có lịch liên quan trả 409. Database lưu thời gian dưới dạng instant UTC; `date` giữ ngày nghiệp vụ tại địa phương để truy vấn lịch.
 
@@ -86,7 +86,7 @@ Không có repository in-memory cho server.
 
 Collection `stylist_calendars`: mỗi document có `_id = stylistId`.
 Mỗi phần tử `appointments` có `_id, customerId, stylistId, branchId, serviceId, startTime, endTime, bookedPrice, status,
-paymentAttempts, createdAt, updatedAt`. Trạng thái chỉ gồm booked/completed/paid/cancelled.
+paymentAttempts, createdAt, updatedAt`. Trạng thái gồm booked/checked_in/completed/paid/cancelled/no_show.
 Khoảng giờ phải có startTime < endTime.
 
 1. Bootstrap calendar rỗng bằng upsert trên `_id` (unique index có sẵn).
@@ -95,7 +95,7 @@ Khoảng giờ phải có startTime < endTime.
    vừa `$push` appointment booked vào document đó.
    Không upsert ở bước kiểm tra overlap.
 3. Overlap: `newStart < existingEnd && newEnd > existingStart`.
-   booked/completed/paid chiếm giờ; cancelled giải phóng giờ.
+   booked/checked_in/completed/paid chiếm giờ; cancelled/no_show giải phóng giờ.
 4. Với hai request cùng slot, sau khi một update thành công, filter của request kia
    không còn khớp: trả 409. Không dùng mutex chỉ nằm trong một Node process.
 
@@ -118,8 +118,8 @@ Mọi endpoint yêu cầu header `Authorization: Bearer <accessToken>`, dùng mi
 | POST | /appointments/:id/complete | stylist được gán; body rỗng | 200 + completed |
 | POST | /appointments/:id/cancel | customer sở hữu; body rỗng | 200 + cancelled |
 | POST | /appointments/:id/pay | customer sở hữu; `{provider, outcome, requestId}` | 200 + attempt; chỉ `outcome=success` chuyển `paid` |
-| GET | /manager/overview | general_manager; date, branchId tùy chọn | Tổng quan lịch và tổng thu mô phỏng |
-| GET | /manager/appointments | general_manager; lọc date/branchId/stylistId/status, phân trang | Danh sách lịch chỉ đọc |
+| GET | /manager/overview | general_manager; date (`YYYY-MM-DD` hoặc `all`), branchId tùy chọn | Đếm lịch theo trạng thái |
+| GET | /manager/appointments | general_manager; lọc date (`YYYY-MM-DD` hoặc `all`)/branchId/stylistId/status, phân trang | Danh sách lịch chỉ đọc |
 | GET | /manager/appointments/:id | general_manager | Chi tiết lịch chỉ đọc |
 | GET | /manager/payments | general_manager; branchId bắt buộc, `from`/`to` tùy chọn, phân trang | Payment Attempt thành công và thất bại, tổng thành công |
 
@@ -150,15 +150,17 @@ Response:
 ### State machine
 
 ```text
-booked -- assigned stylist complete --> completed -- owner customer pay --> paid
-   |
-   +---- owner customer cancel ------> cancelled
+booked -- assigned stylist check_in --> checked_in -- complete --> completed -- customer pay --> paid
+   |                                      |
+   |                                      +-- stylist undo_check_in within 5 minutes --> booked
+   +-- customer cancel before start --> cancelled
+   +-- stylist confirms no_show after 15 minutes --> no_show
 ```
 
 Thanh toán thất bại giữ lịch ở `completed` để Customer thử lại; requestId lặp lại trả cùng kết quả attempt. Lịch cũ thiếu `bookedPrice` không thể thanh toán mô phỏng và trả 409.
 Mọi transition khác (kể cả lặp cùng action, ngoại trừ requestId thanh toán lặp) trả 400 với actor hợp lệ.
 Mỗi update chứa cả id, owner và trạng thái nguồn trong filter (compare-and-set).
-Nếu complete và cancel chạy cùng lúc, chỉ một transition được lưu; request còn lại trả 400.
+Nếu check-in và cancel chạy cùng lúc, chỉ một transition được lưu; request còn lại trả 400.
 Không có PATCH/PUT generic để bypass state machine.
 
 ### Chạy test

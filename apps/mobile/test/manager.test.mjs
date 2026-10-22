@@ -47,6 +47,8 @@ test("Operations ignores an older branch response after a faster branch selectio
 });
 
 test("Manager pagination preserves filters and payment history requires a branch", () => {
+  assert.equal(buildAppointmentQuery({ date: "all", status: "booked" }), "date=all&status=booked");
+  assert.equal(buildPaymentQuery({ branchId: "b1" }), "branchId=b1");
   assert.equal(buildAppointmentQuery({ date: "2030-10-21", branchId: "b1", status: "paid" }, "next"),
     "date=2030-10-21&branchId=b1&status=paid&cursor=next");
   assert.throws(() => buildPaymentQuery({ branchId: "", from: "2030-10-20", to: "2030-10-21" }), /chi nhánh/i);

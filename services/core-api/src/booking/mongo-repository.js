@@ -39,6 +39,12 @@ function plain(appointment) {
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     status: appointment.status,
+    ...(appointment.checkedInAt ? { checkedInAt: appointment.checkedInAt } : {}),
+    ...(appointment.checkedInBy ? { checkedInBy: String(appointment.checkedInBy) } : {}),
+    ...(appointment.noShowAt ? { noShowAt: appointment.noShowAt } : {}),
+    ...(appointment.noShowBy ? { noShowBy: String(appointment.noShowBy) } : {}),
+    statusHistory: (appointment.statusHistory || []).map((entry) => ({ from: entry.from, to: entry.to,
+      actorId: entry.actorId ? String(entry.actorId) : undefined, actorRole: entry.actorRole, at: entry.at })),
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   };
@@ -91,8 +97,8 @@ function createBookingRepository(Calendar) {
       let list = calendar.appointments.map(plain);
       if (date) {
         list = list.filter((a) => {
-          const d = new Date(a.startTime);
-          const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh",
+            year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(a.startTime));
           return localDate === date;
         });
       }
@@ -119,7 +125,7 @@ function createBookingRepository(Calendar) {
     },
 
     /**
-     * Return all booked/completed appointments for a stylist on a given date.
+     * Return all booked/checked-in/completed appointments for a stylist on a given date.
      * Used by work-shift service to compute available time slots.
      * @param {string} stylistId - lowercase hex ObjectId string
      * @param {string} date - "YYYY-MM-DD" local date
@@ -167,15 +173,47 @@ function createBookingRepository(Calendar) {
       if (!rule || actor.role !== rule.role) throw new BookingError(403, "Action not permitted");
       // Compare-and-set prevents concurrent transitions from overwriting a new state.
       const owner = { [rule.owner]: actor.userId };
+      const now = actor.now || new Date();
       const calendar = await Calendar.findOneAndUpdate({
         appointments: { $elemMatch: {
           _id: id, status: rule.from, ...owner,
+          ...(action === "undo_check_in" ? { checkedInAt: { $gte: new Date(now.getTime() - 5 * 60000) } } : {}),
+          ...(action === "no_show" ? { startTime: { $lte: new Date(now.getTime() - 15 * 60000) } } : {}),
+          ...(action === "cancel" ? { startTime: { $gt: now } } : {}),
         } },
       }, { $set: {
         "appointments.$.status": rule.to,
-        "appointments.$.updatedAt": new Date(),
-      } }, {
+        "appointments.$.updatedAt": now,
+        ...(action === "check_in" ? { "appointments.$.checkedInAt": now,
+          "appointments.$.checkedInBy": actor.userId } : {}),
+        ...(action === "no_show" ? { "appointments.$.noShowAt": now,
+          "appointments.$.noShowBy": actor.userId } : {}),
+      }, $push: { "appointments.$.statusHistory": { from: rule.from, to: rule.to,
+        actorId: actor.userId, actorRole: actor.role, at: now } },
+        ...(action === "undo_check_in" ? { $unset: { "appointments.$.checkedInAt": "",
+          "appointments.$.checkedInBy": "" } } : {}) }, {
         returnDocument: "after", runValidators: true,
+        projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
+      }).lean().exec();
+      return calendar ? plain(calendar.appointments[0]) : null;
+    },
+
+    async restoreNoShow(id, actor) {
+      const now = new Date();
+      const original = await this.findById(id);
+      if (!original || original.status !== "no_show") return null;
+      const calendar = await Calendar.findOneAndUpdate({ $and: [
+        { appointments: { $elemMatch: { _id: id, status: "no_show" } } },
+        { appointments: { $not: { $elemMatch: { _id: { $ne: new mongoose.Types.ObjectId(id) },
+          status: { $in: ACTIVE_STATUSES }, startTime: { $lt: original.endTime },
+          endTime: { $gt: original.startTime } } } } },
+      ] }, { $set: { "appointments.$[target].status": "checked_in",
+        "appointments.$[target].checkedInAt": now, "appointments.$[target].checkedInBy": actor.userId,
+        "appointments.$[target].updatedAt": now },
+      $push: { "appointments.$[target].statusHistory": { from: "no_show", to: "checked_in",
+        actorId: actor.userId, actorRole: actor.role, at: now } } }, {
+        returnDocument: "after", runValidators: true,
+        arrayFilters: [{ "target._id": new mongoose.Types.ObjectId(id), "target.status": "no_show" }],
         projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
       }).lean().exec();
       return calendar ? plain(calendar.appointments[0]) : null;
@@ -228,21 +266,21 @@ function createBookingRepository(Calendar) {
     },
 
     async managerOverview({ date, branchId }) {
-      const [start, end] = dayRange(date);
-      const match = { "appointments.startTime": { $gte: start, $lt: end },
+      const [start, end] = date === "all" ? [] : dayRange(date);
+      const match = { ...(date === "all" ? {} : { "appointments.startTime": { $gte: start, $lt: end } }),
         ...(branchId ? { "appointments.branchId": new mongoose.Types.ObjectId(branchId) } : {}) };
       const rows = await Calendar.aggregate([
         { $unwind: "$appointments" }, { $match: match },
         { $group: { _id: "$appointments.status", count: { $sum: 1 } } },
       ]).exec();
-      const counts = { booked: 0, completed: 0, paid: 0, cancelled: 0 };
+      const counts = { booked: 0, checked_in: 0, completed: 0, paid: 0, cancelled: 0, no_show: 0 };
       for (const row of rows) if (row._id in counts) counts[row._id] = row.count;
       return { date, counts };
     },
 
     async managerAppointments({ date, branchId, stylistId, status, cursor, limit }) {
-      const [start, end] = dayRange(date);
-      const match = { startTime: { $gte: start, $lt: end },
+      const [start, end] = date === "all" ? [] : dayRange(date);
+      const match = { ...(date === "all" ? {} : { startTime: { $gte: start, $lt: end } }),
         ...(branchId ? { branchId: new mongoose.Types.ObjectId(branchId) } : {}),
         ...(stylistId ? { stylistId: new mongoose.Types.ObjectId(stylistId) } : {}),
         ...(status ? { status } : {}), ...cursorMatch("startTime", cursor) };
@@ -250,7 +288,8 @@ function createBookingRepository(Calendar) {
         { $unwind: "$appointments" }, { $replaceRoot: { newRoot: "$appointments" } },
         { $match: match }, { $sort: { startTime: -1, _id: -1 } }, { $limit: limit + 1 },
         { $project: { customerName: 1, stylistId: 1, branchId: 1, serviceId: 1,
-          bookedPrice: 1, startTime: 1, endTime: 1, status: 1, createdAt: 1, updatedAt: 1 } },
+          bookedPrice: 1, startTime: 1, endTime: 1, status: 1, checkedInAt: 1,
+          noShowAt: 1, createdAt: 1, updatedAt: 1 } },
       ]).exec();
       return paged(rows, limit, "startTime");
     },

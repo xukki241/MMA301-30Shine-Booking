@@ -96,7 +96,7 @@ function createWorkShiftService(workShiftRepository, calendarRepository, service
 
       if (rawShifts.length === 0) return [];
 
-      // Fetch active appointments for this stylist on this date (booked + completed).
+      // Fetch active appointments for this stylist on this date (booked, checked_in, completed).
       const appointments = await calendarRepository.getActiveAppointmentsForStylistDate(
         stylistId.toLowerCase(),
         date

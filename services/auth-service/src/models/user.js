@@ -7,6 +7,7 @@ const ROLES = Object.freeze(["stylist", "system_admin", "general_manager"]);
 function createUserModel(connection, collection = "users") {
   const schema = new mongoose.Schema({
     email: { type: String, required: true, trim: true, lowercase: true, maxlength: 254 },
+    fullName: { type: String, trim: true, minlength: 2, maxlength: 100 },
     passwordHash: {
       type: String, required: true, select: false,
       match: /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/,
@@ -54,6 +55,7 @@ function createUserRepository(User) {
     findByEmail: (email) => User.findOne({ email }).select("+passwordHash").exec(),
     findById: (id) => User.findById(id).exec(),
     list: () => User.find({ role: { $in: ROLES } }).sort({ createdAt: -1 }).exec(),
+    listActiveStylists: () => User.find({ role: "stylist", status: "active" }).select("email fullName").sort({ fullName: 1, email: 1 }).exec(),
     create: (data) => User.create(data),
     updateById: (id, changes) => User.findByIdAndUpdate(id, {
       $set: changes, $inc: { authVersion: 1 },

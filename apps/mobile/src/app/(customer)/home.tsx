@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
+import { selectUpcomingAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment } from "@/appointments/types";
 import { RoleResetButton } from "@/components/role-reset-button";
 import { Badge, BrandButton, Card, PrimaryButton } from "@/components/screen";
@@ -63,19 +64,21 @@ export default function CustomerHomeScreen() {
         };
       }
 
-      void dataSource
-        .list()
+      setUpcoming(null);
+      const refresh = () => { void dataSource.list()
         .then((items) => {
           if (!active) return;
-          const next = items.find((item) => item.status === "booked");
-          setUpcoming(next || null);
+          setUpcoming(selectUpcomingAppointment(items));
         })
         .catch(() => {
           if (active) setUpcoming(null);
-        });
+        }); };
+      refresh();
+      const interval = setInterval(refresh, 30000);
 
       return () => {
         active = false;
+        clearInterval(interval);
       };
     }, [dataSource, token, isDemo])
   );

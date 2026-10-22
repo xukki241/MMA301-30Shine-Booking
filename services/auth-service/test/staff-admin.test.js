@@ -2,6 +2,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 const { createApp } = require("../src/app");
 const { serve, post } = require("./helpers");
@@ -21,6 +22,7 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
     findByEmail: async (email) => [...records.values()].find((user) => user.email === email) || null,
     findById: async (id) => records.get(String(id)) || null,
     list: async () => [...records.values()],
+    listActiveStylists: async () => [...records.values()].filter((user) => user.role === "stylist" && user.status === "active"),
     create: async (data) => { const user = { ...data, _id: new mongoose.Types.ObjectId(), status: "active", authVersion: 0 }; records.set(String(user._id), user); return user; },
     updateById: async (id, changes) => {
       const user = records.get(String(id));
@@ -70,13 +72,21 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   coreAvailable = true;
   const create = (token) => fetch(`${base}/admin/users`, { method: "POST", headers: {
     Authorization: `Bearer ${token}`, "Content-Type": "application/json",
-  }, body: JSON.stringify({ email: "stylist@example.test", password: "Password123!", role: "stylist" }) });
+  }, body: JSON.stringify({ email: "stylist@example.test", fullName: "Thợ thử nghiệm", password: "Password123!", role: "stylist" }) });
   assert.equal((await create(manager)).status, 403);
   const response = await create(admin);
   assert.equal(response.status, 201);
   const body = await response.json();
   assert.equal(body.user.email, "stylist@example.test");
   assert.equal(body.user.role, "stylist");
+  assert.equal(body.user.fullName, "Thợ thử nghiệm");
+  const directoryToken = jwt.sign({ scope: "stylist-directory" }, secret,
+    { algorithm: "HS256", issuer: "core-api", expiresIn: 30 });
+  const directory = await fetch(`${base}/internal/stylists`, { headers: { Authorization: `Bearer ${directoryToken}` } });
+  assert.equal(directory.status, 200);
+  assert.deepEqual((await directory.json()).stylists, [{ id: body.user.id,
+    email: "stylist@example.test", fullName: "Thợ thử nghiệm" }]);
+  assert.equal((await fetch(`${base}/internal/stylists`, { headers: { Authorization: `Bearer ${manager}` } })).status, 401);
   assert.equal(JSON.stringify(body).includes("passwordHash"), false);
   const stylistToken = await login("stylist@example.test");
   assert.equal((await fetch(`${base}/auth/introspect`, { headers: { Authorization: `Bearer ${stylistToken}` } })).status, 200);
@@ -110,7 +120,7 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   assert.equal((await post(base, "/auth/register", { email: "x@example.test", password: "Password123!", role: "system_admin" })).status, 410);
 
   const secondAdmin = await fetch(`${base}/admin/users`, { method: "POST", headers,
-    body: JSON.stringify({ email: "second-admin@example.test", password: "Password123!", role: "system_admin" }) });
+    body: JSON.stringify({ email: "second-admin@example.test", fullName: "Quản trị viên thứ hai", password: "Password123!", role: "system_admin" }) });
   assert.equal(secondAdmin.status, 201);
   const secondAdminId = (await secondAdmin.json()).user.id;
   const removalResults = await Promise.all([String(adminId), secondAdminId].map(async (id) =>

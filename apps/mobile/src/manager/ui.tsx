@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useAppTheme } from "@/constants/theme";
 
 export function ManagerField({ label, value, onChange, placeholder }: { label: string; value: string;
@@ -14,16 +15,21 @@ export function ManagerAction({
   onPress,
   selected = false,
   disabled = false,
-  danger = false
+  danger = false,
+  variant = "outline",
+  icon,
 }: {
   label: string;
   onPress: () => void;
   selected?: boolean;
   disabled?: boolean;
   danger?: boolean;
+  variant?: "outline" | "primary" | "quiet";
+  icon?: keyof typeof Ionicons.glyphMap;
 }) {
   const theme = useAppTheme();
   const activeColor = danger ? theme.danger : theme.brand;
+  const filled = selected || variant === "primary";
   return (
     <Pressable
       accessibilityRole="button"
@@ -32,19 +38,20 @@ export function ManagerAction({
       style={[
         styles.action,
         {
-          borderColor: activeColor,
-          backgroundColor: selected
+          borderColor: variant === "quiet" ? "transparent" : filled ? activeColor : theme.border,
+          backgroundColor: filled
             ? activeColor
             : danger
             ? theme.isDark
               ? "rgba(220, 38, 38, 0.15)"
               : "rgba(220, 38, 38, 0.08)"
-            : theme.surface,
+            : variant === "quiet" ? "transparent" : theme.surface,
           opacity: disabled ? 0.5 : 1
         }
       ]}
     >
-      <Text style={{ color: selected ? "white" : activeColor, fontWeight: "700" }}>{label}</Text>
+      {icon && <Ionicons name={icon} size={16} color={filled ? "#FFFFFF" : activeColor} />}
+      <Text style={{ color: filled ? "white" : activeColor, fontWeight: "700" }}>{label}</Text>
     </Pressable>
   );
 }
@@ -63,5 +70,6 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   field: { gap: 5 },
   input: { borderWidth: 1, borderRadius: 10, minHeight: 44, paddingHorizontal: 12 },
-  action: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, alignSelf: "flex-start" },
+  action: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, minHeight: 42,
+    flexDirection: "row", alignItems: "center", gap: 7, alignSelf: "flex-start" },
 });

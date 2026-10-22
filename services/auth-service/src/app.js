@@ -21,7 +21,7 @@ function credentials(body, register) {
 }
 
 function publicUser(user) {
-  return { id: String(user._id), email: user.email, role: user.role };
+  return { id: String(user._id), email: user.email, fullName: user.fullName || null, role: user.role };
 }
 
 function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, otpLogger, staffChangeGuard, coreHealthProbe, coreAuditProbe, coreApiUrl, audit }) {
@@ -44,6 +44,24 @@ function createApp({ users, guests, customers, secret, expiresIn, otpEnabled, ot
       if (!/^[a-f0-9]{24}$/i.test(req.params.id)) return res.status(400).json({ error: "Invalid user id" });
       const user = await users.findById(req.params.id);
       return res.json({ active: Boolean(user && user.role === "stylist" && user.status !== "locked") });
+    } catch (error) {
+      if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
+        return res.status(401).json({ error: "Invalid internal token" });
+      }
+      return next(error);
+    }
+  });
+
+  app.get("/internal/stylists", async (req, res, next) => {
+    const match = /^Bearer ([^\s]+)$/i.exec(req.get("Authorization") || "");
+    if (!match) return res.status(401).json({ error: "Internal authentication required" });
+    try {
+      const claims = jwt.verify(match[1], secret, { algorithms: ["HS256"], issuer: "core-api" });
+      if (claims.scope !== "stylist-directory") return res.status(403).json({ error: "Invalid scope" });
+      const stylists = await users.listActiveStylists();
+      res.set("Cache-Control", "no-store");
+      return res.json({ stylists: stylists.map((user) => ({ id: String(user._id),
+        email: user.email, fullName: user.fullName || null })) });
     } catch (error) {
       if (["JsonWebTokenError", "TokenExpiredError", "NotBeforeError"].includes(error.name)) {
         return res.status(401).json({ error: "Invalid internal token" });

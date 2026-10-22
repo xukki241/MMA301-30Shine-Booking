@@ -8,6 +8,7 @@ function createStylistModel(connection, collection = "stylist_profiles") {
         required: [true, "Mã tài khoản (userId) là bắt buộc"],
         index: true,
       },
+      assignmentKey: { type: String, select: false },
       branchId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Branch",
@@ -35,6 +36,7 @@ function createStylistModel(connection, collection = "stylist_profiles") {
           ret.userId = String(ret.userId);
           ret.branchId = String(ret.branchId);
           delete ret._id;
+          delete ret.assignmentKey;
           return ret;
         },
       },
@@ -42,6 +44,7 @@ function createStylistModel(connection, collection = "stylist_profiles") {
   );
 
   schema.index({ userId: 1, branchId: 1 }, { unique: true });
+  schema.index({ assignmentKey: 1 }, { unique: true, sparse: true });
 
   return connection.model("StylistProfile", schema, collection);
 }

@@ -16,7 +16,7 @@ function createInternalStylistRouter({ models, secret }) {
       const [shift, appointment] = await Promise.all([
         models.WorkShift.exists({ stylistId: req.params.id, endAt: { $gt: now } }),
         models.Calendar.exists({ _id: req.params.id, appointments: {
-          $elemMatch: { status: { $in: ["booked", "completed"] } },
+          $elemMatch: { status: { $in: ["booked", "checked_in", "completed"] } },
         } }),
       ]);
       res.set("Cache-Control", "no-store");
