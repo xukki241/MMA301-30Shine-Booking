@@ -72,7 +72,7 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   coreAvailable = true;
   const create = (token) => fetch(`${base}/admin/users`, { method: "POST", headers: {
     Authorization: `Bearer ${token}`, "Content-Type": "application/json",
-  }, body: JSON.stringify({ email: "stylist@example.test", fullName: "Thợ thử nghiệm", password: "Password123!", role: "stylist" }) });
+  }, body: JSON.stringify({ email: "stylist@example.test", fullName: "Thợ thử nghiệm", phone: "0912345678", password: "Password123!", role: "stylist" }) });
   assert.equal((await create(manager)).status, 403);
   const response = await create(admin);
   assert.equal(response.status, 201);
@@ -80,6 +80,7 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   assert.equal(body.user.email, "stylist@example.test");
   assert.equal(body.user.role, "stylist");
   assert.equal(body.user.fullName, "Thợ thử nghiệm");
+  assert.equal(body.user.phone, "0912345678");
   const directoryToken = jwt.sign({ scope: "stylist-directory" }, secret,
     { algorithm: "HS256", issuer: "core-api", expiresIn: 30 });
   const directory = await fetch(`${base}/internal/stylists`, { headers: { Authorization: `Bearer ${directoryToken}` } });
@@ -102,9 +103,10 @@ test("System Admin creates staff; Manager cannot manage accounts; public registr
   const restore = await fetch(`${base}/admin/users/${body.user.id}/restore`, { method: "POST", headers });
   assert.equal(restore.status, 200);
   const edited = await fetch(`${base}/admin/users/${body.user.id}`, { method: "PATCH", headers,
-    body: JSON.stringify({ role: "general_manager" }) });
+    body: JSON.stringify({ role: "general_manager", phone: "0987654321" }) });
   assert.equal(edited.status, 200);
   assert.equal((await edited.json()).user.role, "general_manager");
+  assert.equal((await (await fetch(`${base}/admin/users/${body.user.id}`, { headers })).json()).user.phone, "0987654321");
   const list = await fetch(`${base}/admin/users`, { headers });
   assert.equal(list.status, 200);
   assert.equal((await list.json()).users.length, 3);

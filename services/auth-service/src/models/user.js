@@ -13,6 +13,7 @@ function createUserModel(connection, collection = "users") {
       match: /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/,
     },
     role: { type: String, required: true, enum: ROLES },
+    phone: { type: String, trim: true, default: null },
     status: { type: String, required: true, enum: ["active", "locked"], default: "active" },
     authVersion: { type: Number, required: true, default: 0, min: 0 },
   }, {

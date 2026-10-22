@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="020c5553-d2dd-4cdc-beb6-dad3b95ec6df" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+<<<<<<< HEAD
       <change beforePath="$PROJECT_DIR$/apps/mobile/expo-env.d.ts" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/expo-env.d.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/package.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/src/app/(customer)/home.tsx" afterDir="false" />
@@ -15,6 +16,15 @@
       <change beforePath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/src/work-shifts/repository.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/booking-slot-cadence.test.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/core-api/test/work-shifts.test.js" afterDir="false" />
+=======
+      <change beforePath="$PROJECT_DIR$/apps/admin-web/src/AdminApp.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/admin-web/src/AdminApp.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/admin-web/src/SystemAdminApp.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/apps/admin-web/src/SystemAdminApp.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/admin-web/src/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/apps/admin-web/src/styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/apps/mobile/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/apps/mobile/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth-service/src/models/user.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/src/models/user.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth-service/src/staff-admin.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/src/staff-admin.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/services/auth-service/test/staff-admin.test.js" beforeDir="false" afterPath="$PROJECT_DIR$/services/auth-service/test/staff-admin.test.js" afterDir="false" />
+>>>>>>> 51a41eed0f4c3f3c1445e4e11ee9195cae11c002
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,13 +55,20 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+<<<<<<< HEAD
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+=======
+>>>>>>> 51a41eed0f4c3f3c1445e4e11ee9195cae11c002
     "RunOnceActivity.cidr.known.project.marker": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.readMode.enableVisualFormatting": "true",
     "cf.first.check.clang-format": "false",
     "cidr.known.project.marker": "true",
+<<<<<<< HEAD
     "git-widget-placeholder": "shine-26-role-based-access-system-administration",
+=======
+    "git-widget-placeholder": "develop",
+>>>>>>> 51a41eed0f4c3f3c1445e4e11ee9195cae11c002
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "E:/project/MMA301-30Shine-Booking"
   }
