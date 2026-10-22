@@ -747,13 +747,13 @@
       "get": {
         "tags": ["SHINE-05 · Catalog API"],
         "summary": "Tài khoản Stylist có thể gán vào chi nhánh",
-        "description": "Yêu cầu vai trò: **general_manager**. Họ tên và email lấy từ Auth Service; loại tài khoản đã gán tại chi nhánh.",
+        "description": "Yêu cầu vai trò: **general_manager**. Họ tên và email lấy từ Auth Service; loại tài khoản đã gán ở bất kỳ chi nhánh nào.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "branchId", "in": "query", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Danh sách tài khoản Stylist đang hoạt động, có họ tên và chưa gán tại chi nhánh" }
+          "200": { "description": "Danh sách tài khoản Stylist đang hoạt động, có họ tên và chưa gán ở chi nhánh nào" }
         }
       }
     },

@@ -402,6 +402,49 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       });
       assert.equal(res.status, 400);
     });
+
+    await tStylist.test("a stylist can only belong to one branch and Manager transfers the existing profile", async () => {
+      const other = await Branch.create({ name: "30Shine Hoa Lac", address: "Hoa Lac, Ha Noi" });
+      const otherBranchId = String(other.id);
+      const headers = { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" };
+      const available = await fetch(`${base}/stylists/candidates?branchId=${otherBranchId}`, { headers });
+      assert.equal(available.status, 200);
+      assert.deepEqual((await available.json()).candidates, []);
+      const duplicate = await fetch(`${base}/branches/${otherBranchId}/stylists`, {
+        method: "POST", headers, body: JSON.stringify({ userId: stylistUserId }),
+      });
+      assert.equal(duplicate.status, 409);
+      assert.match((await duplicate.json()).error, /chi nhánh khác/i);
+      const moved = await fetch(`${base}/stylists/${createdStylistId}`, {
+        method: "PUT", headers, body: JSON.stringify({ branchId: otherBranchId }),
+      });
+      assert.equal(moved.status, 200);
+      assert.equal((await moved.json()).stylist.branchId, otherBranchId);
+      const oldList = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
+      const newList = await fetch(`${base}/branches/${otherBranchId}/stylists`, customerRead);
+      assert.deepEqual((await oldList.json()).stylists, []);
+      assert.equal((await newList.json()).stylists.length, 1);
+    });
+
+    await tStylist.test("legacy duplicate assignments are shown only at the original profile's branch", async () => {
+      await StylistProfile.create({ userId: stylistUserId, branchId: createdBranchId,
+        displayName: "Legacy duplicate" });
+      const oldList = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
+      assert.deepEqual((await oldList.json()).stylists, []);
+      const own = await fetch(`${base}/stylists/me`, {
+        headers: { Authorization: `Bearer ${sign("stylist", stylistUserId)}` },
+      });
+      assert.equal((await own.json()).profiles.length, 1);
+    });
+    await tStylist.test("transferring to a branch with a hidden legacy duplicate keeps one profile", async () => {
+      const response = await fetch(`${base}/stylists/${createdStylistId}`, {
+        method: "PUT", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId: createdBranchId }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).stylist.branchId, createdBranchId);
+      assert.equal(await StylistProfile.countDocuments({ userId: stylistUserId }), 1);
+    });
   });
 
   // --- 4. Deletions & Cascade Tests ---

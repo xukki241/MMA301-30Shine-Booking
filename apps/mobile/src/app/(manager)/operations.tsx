@@ -74,7 +74,10 @@ export default function ManagerOperations() {
       draft.stylistId ||= stylists[0]?.userId || "";
       draft.start = shift ? localTime(shift.startAt) : "09:00";
       draft.end = shift ? localTime(shift.endAt) : "17:00";
-    } else draft.isActive = String(value?.isActive ?? true);
+    } else {
+      draft.isActive = String(value?.isActive ?? true);
+      if (kind === "stylist") draft.branchId = String(value?.branchId ?? branchId);
+    }
     setEditing({ id: item?.id, draft }); setError(""); setNotice("");
   }
 
@@ -95,7 +98,7 @@ export default function ManagerOperations() {
       if (!editing.id && !candidates.some((item) => item.id === d.userId)) {
         setError("Hãy chọn tài khoản Stylist trong danh sách."); return;
       }
-      payload = { ...(!editing.id ? { userId: d.userId } : {}), isActive: d.isActive === "true" };
+      payload = { ...(!editing.id ? { userId: d.userId } : { branchId: d.branchId }), isActive: d.isActive === "true" };
     } else {
       payload = { branchId, stylistId: d.stylistId, date: d.date,
         startAt: `${d.date}T${d.start}:00+07:00`, endAt: `${d.date}T${d.end}:00+07:00` };
@@ -160,7 +163,12 @@ export default function ManagerOperations() {
           options={candidates.map((candidate) => ({ value: candidate.id, label: `${candidate.fullName} · ${candidate.email}` }))} />
         {candidates.length === 0 && <CardText>Chưa có tài khoản Stylist phù hợp. Nhờ System Admin tạo tài khoản hoặc bổ sung họ tên.</CardText>}
       </>}
-      {kind === "stylist" && editing.id && <CardText>Họ tên do System Admin quản lý. Manager chỉ điều chỉnh trạng thái tại chi nhánh.</CardText>}
+      {kind === "stylist" && editing.id && <>
+        <CardText>Họ tên do System Admin quản lý. Bạn có thể chuyển thợ sang chi nhánh khác hoặc đổi trạng thái.</CardText>
+        <ManagerSelect label="Chi nhánh làm việc" value={editing.draft.branchId || branchId}
+          onChange={(value) => setEditing({ ...editing, draft: { ...editing.draft, branchId: value } })}
+          options={branches.map((branch) => ({ value: branch.id, label: branch.name }))} />
+      </>}
       {kind === "shift" && <ManagerDatePicker label="Ngày phân ca" value={editing.draft.date}
         onChange={(value) => setEditing({ ...editing, draft: { ...editing.draft, date: value } })} />}
       {kind === "shift" && <><CardText>Chọn thợ:</CardText><View style={styles.row}>{stylists.map((stylist) =>

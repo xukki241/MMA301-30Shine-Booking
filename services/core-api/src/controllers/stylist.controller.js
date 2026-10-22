@@ -8,13 +8,22 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
   };
   const currentName = (profile, staff) => staff.find((item) => item.id === String(profile.userId))?.fullName || profile.displayName;
   const publicProfile = (profile, staff) => ({ ...profile.toJSON(), displayName: currentName(profile, staff) });
+  const primaryProfileIds = (profiles) => {
+    const first = new Map();
+    for (const profile of [...profiles].sort((a, b) =>
+      new Date(a.createdAt) - new Date(b.createdAt) || String(a._id).localeCompare(String(b._id)))) {
+      const userId = String(profile.userId);
+      if (!first.has(userId)) first.set(userId, String(profile._id));
+    }
+    return new Set(first.values());
+  };
   return {
     async candidates(req, res, next) {
       try {
         const branchId = req.query.branchId;
         if (!isValidObjectId(branchId)) return res.status(400).json({ error: "Chi nhánh không hợp lệ" });
         if (!await Branch.findById(branchId)) return res.status(404).json({ error: "Không tìm thấy chi nhánh" });
-        const [staff, assigned] = await Promise.all([directory(), StylistProfile.find({ branchId })]);
+        const [staff, assigned] = await Promise.all([directory(), StylistProfile.find({})]);
         const existing = new Set(assigned.map((item) => String(item.userId)));
         return res.json({ candidates: staff.filter((item) => item.fullName && !existing.has(item.id))
           .map((item) => ({ id: item.id, email: item.email, fullName: item.fullName })) });
@@ -22,7 +31,9 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
     },
     async getMe(req, res, next) {
       try {
-        const assignments = await StylistProfile.find({ userId: req.auth.userId, isActive: true }).sort({ createdAt: -1 });
+        const allAssignments = await StylistProfile.find({ userId: req.auth.userId });
+        const primary = primaryProfileIds(allAssignments);
+        const assignments = allAssignments.filter((item) => item.isActive && primary.has(String(item._id)));
         const branches = await Branch.find({ _id: { $in: assignments.map((item) => item.branchId) } });
         const staff = assignments.length ? await directory() : [];
         const byId = new Map(branches.map((branch) => [String(branch.id), branch]));
@@ -53,13 +64,15 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
         if (!staff) return res.status(409).json({ error: "Cần tài khoản Stylist đang hoạt động" });
         if (!staff.fullName) return res.status(409).json({ error: "Admin cần bổ sung họ tên cho tài khoản Stylist" });
 
-        const existing = await StylistProfile.findOne({ userId, branchId });
+        const existing = await StylistProfile.findOne({ userId });
         if (existing) {
-          return res.status(409).json({ error: "Stylist đã được gán vào chi nhánh này" });
+          return res.status(409).json({ error: String(existing.branchId) === branchId ?
+            "Stylist đã được gán vào chi nhánh này" : "Stylist đã được gán ở chi nhánh khác. Hãy chuyển chi nhánh trong hồ sơ hiện có." });
         }
 
         const stylist = await StylistProfile.create({
           userId,
+          assignmentKey: userId,
           branchId,
           displayName: staff.fullName,
           ...(typeof isActive === "boolean" ? { isActive } : {}),
@@ -68,7 +81,7 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
         return res.status(201).json({ stylist });
       } catch (error) {
         if (error.code === 11000) {
-          return res.status(409).json({ error: "Stylist đã được gán vào chi nhánh này" });
+          return res.status(409).json({ error: "Stylist đã được gán vào một chi nhánh" });
         }
         if (error.name === "ValidationError") {
           return res.status(400).json({ error: error.message });
@@ -90,8 +103,11 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
           query.isActive = req.query.isActive === "true";
         }
         const stylists = await StylistProfile.find(query).sort({ createdAt: -1 });
+        const related = stylists.length ? await StylistProfile.find({ userId: { $in: stylists.map((item) => item.userId) } }) : [];
+        const primary = primaryProfileIds(related);
         const staff = stylists.length ? await directory() : [];
-        return res.json({ stylists: stylists.map((item) => publicProfile(item, staff)) });
+        return res.json({ stylists: stylists.filter((item) => primary.has(String(item._id)))
+          .map((item) => publicProfile(item, staff)) });
       } catch (error) {
         return next(error);
       }
@@ -127,9 +143,12 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyA
           }
           const current = await StylistProfile.findById(req.params.id);
           if (!current) return res.status(404).json({ error: "Không tìm thấy stylist" });
-          if (String(current.branchId) !== String(branchId) && WorkShift && await WorkShift.exists({ stylistId: current.userId })) {
-            return res.status(409).json({ error: "Delete this stylist's Work Shifts before changing branch assignment" });
+          if (String(current.branchId) !== String(branchId) && WorkShift &&
+              await WorkShift.exists({ stylistId: current.userId, endAt: { $gt: new Date() } })) {
+            return res.status(409).json({ error: "Hãy xử lý các ca làm sắp tới trước khi chuyển chi nhánh" });
           }
+          const duplicate = await StylistProfile.findOne({ userId: current.userId, branchId, _id: { $ne: current._id } });
+          if (duplicate) await StylistProfile.deleteOne({ _id: duplicate._id, userId: current.userId, branchId });
           updateData.branchId = branchId;
         }
 
