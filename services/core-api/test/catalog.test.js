@@ -46,7 +46,10 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   await Promise.all([Branch.init(), Service.init(), StylistProfile.init()]);
 
   const models = { Branch, Service, StylistProfile };
-  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true, verifyActiveStylist: async () => true });
+  let directoryName = "Stylist Nam Phong";
+  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true,
+    verifyActiveStylist: async () => true,
+    stylistDirectory: async () => [{ id: "507f191e810c19729de860ea", email: "nam@example.test", fullName: directoryName }] });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -300,6 +303,17 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.deepEqual(data.stylists, []);
     });
 
+    await tStylist.test("Manager sees selectable staff without entering User ID", async () => {
+      const response = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual((await response.json()).candidates, [{ id: stylistUserId,
+        email: "nam@example.test", fullName: "Stylist Nam Phong" }]);
+      const denied = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, customerRead);
+      assert.equal(denied.status, 403);
+    });
+
     await tStylist.test("POST /branches/:id/stylists assigns stylist to branch", async () => {
       const res = await fetch(`${base}/branches/${createdBranchId}/stylists`, {
         method: "POST",
@@ -309,7 +323,6 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({
           userId: stylistUserId,
-          displayName: "Stylist Nam Phong",
         }),
       });
       assert.equal(res.status, 201);
@@ -320,6 +333,10 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.equal(data.stylist.userId, stylistUserId);
       assert.equal(data.stylist.displayName, "Stylist Nam Phong");
       createdStylistId = data.stylist.id;
+      const candidates = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      assert.deepEqual((await candidates.json()).candidates, []);
     });
 
     await tStylist.test("GET /stylists/me returns only the signed-in stylist's active assignment", async () => {
@@ -349,7 +366,6 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({
           userId: stylistUserId,
-          displayName: "Stylist Nam Phong",
         }),
       });
       assert.equal(res.status, 409);
@@ -372,7 +388,10 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.equal(data.stylist.id, createdStylistId);
     });
 
-    await tStylist.test("PUT /stylists/:id updates display name", async () => {
+    await tStylist.test("profile name follows the staff directory and Manager cannot rename it", async () => {
+      directoryName = "Master Nam Phong";
+      const current = await fetch(`${base}/stylists/${createdStylistId}`, customerRead);
+      assert.equal((await current.json()).stylist.displayName, "Master Nam Phong");
       const res = await fetch(`${base}/stylists/${createdStylistId}`, {
         method: "PUT",
         headers: {
@@ -381,9 +400,7 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({ displayName: "Master Nam Phong" }),
       });
-      assert.equal(res.status, 200);
-      const data = await res.json();
-      assert.equal(data.stylist.displayName, "Master Nam Phong");
+      assert.equal(res.status, 400);
     });
   });
 

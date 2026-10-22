@@ -40,7 +40,8 @@ export default function ManagerAppointmentDetail() {
     return () => { active = false; };
   }, [api, id, revision]));
   return <Screen eyebrow="General Manager" title="Chi tiết lịch" description="Thông tin liên hệ chỉ hiển thị trong màn chi tiết đã đăng nhập.">
-    <ManagerAction label="Tải lại" onPress={() => setRevision((value) => value + 1)} disabled={loading} />
+    <ManagerAction label="Làm mới" icon="refresh-outline" variant="quiet"
+      onPress={() => setRevision((value) => value + 1)} disabled={loading} />
     {loading && <Text style={{ color: theme.textMuted }}>Đang tải...</Text>}
     {!!error && <Text style={{ color: theme.danger }}>{error}</Text>}
     {item && <Card><CardTitle>{item.customerName || "Khách hàng"}</CardTitle>
@@ -54,7 +55,7 @@ export default function ManagerAppointmentDetail() {
       <CardText>Dịch vụ: {names.service || (item.serviceId ? `Đã xóa (${item.serviceId})` : "Không có")}</CardText>
       <CardText>Thợ: {names.stylist || `Đã xóa (${item.stylistId})`}</CardText>
       <CardText>Giá chốt: {item.bookedPrice === undefined ? "Lịch cũ chưa có giá chốt" : money(item.bookedPrice)}</CardText>
-      {item.status === "no_show" && <ManagerAction label="Khôi phục: khách đã đến"
+      {item.status === "no_show" && <ManagerAction label="Khôi phục lịch khách đã đến" icon="arrow-undo-outline" variant="primary"
         onPress={() => Alert.alert("Khôi phục lịch?", "Chỉ dùng khi khách thực sự đã đến và bị đánh dấu nhầm.", [
           { text: "Quay lại", style: "cancel" },
           { text: "Khôi phục", onPress: () => { void api.restoreNoShow(item.id)

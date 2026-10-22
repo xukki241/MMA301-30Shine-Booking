@@ -173,17 +173,15 @@
       },
       "StylistAssignRequest": {
         "type": "object",
-        "required": ["userId", "displayName"],
+        "required": ["userId"],
         "properties": {
           "userId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
-          "displayName": { "type": "string", "minLength": 2, "example": "Stylist Minh Đức" },
           "isActive": { "type": "boolean", "default": true, "example": true }
         }
       },
       "StylistUpdateRequest": {
         "type": "object",
         "properties": {
-          "displayName": { "type": "string", "minLength": 2, "example": "Stylist Minh Đức" },
           "branchId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "660c11112222333344445555" },
           "isActive": { "type": "boolean", "example": true }
         }
@@ -745,6 +743,20 @@
         }
       }
     },
+    "/stylists/candidates": {
+      "get": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Tài khoản Stylist có thể gán vào chi nhánh",
+        "description": "Yêu cầu vai trò: **general_manager**. Họ tên và email lấy từ Auth Service; loại tài khoản đã gán tại chi nhánh.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "branchId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách tài khoản Stylist đang hoạt động, có họ tên và chưa gán tại chi nhánh" }
+        }
+      }
+    },
     "/stylists/{id}": {
       "get": {
         "security": [{ "bearerAuth": [] }],
@@ -1028,14 +1040,14 @@
       }
     },
     "/manager/overview": {
-      "get": { "tags": ["General Manager · Read API"], "summary": "Đếm lịch theo trạng thái trong ngày Việt Nam", "security": [{ "bearerAuth": [] }], "parameters": [
-        { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+      "get": { "tags": ["General Manager · Read API"], "summary": "Đếm lịch theo trạng thái theo ngày hoặc toàn thời gian", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD theo giờ Việt Nam; dùng all để xem mọi ngày. Mặc định hôm nay." },
         { "name": "branchId", "in": "query", "schema": { "type": "string" } }
       ], "responses": { "200": { "description": "{date, counts: {booked, checked_in, completed, paid, cancelled, no_show}}" }, "403": { "description": "General Manager required" } } }
     },
     "/manager/appointments": {
       "get": { "tags": ["General Manager · Read API"], "summary": "Lọc lịch mọi chi nhánh, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
-        { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD theo giờ Việt Nam; dùng all để xem mọi ngày. Mặc định hôm nay." },
         { "name": "branchId", "in": "query", "schema": { "type": "string" } },
         { "name": "stylistId", "in": "query", "schema": { "type": "string" } },
         { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["booked", "checked_in", "completed", "paid", "cancelled", "no_show"] } },

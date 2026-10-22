@@ -266,8 +266,8 @@ function createBookingRepository(Calendar) {
     },
 
     async managerOverview({ date, branchId }) {
-      const [start, end] = dayRange(date);
-      const match = { "appointments.startTime": { $gte: start, $lt: end },
+      const [start, end] = date === "all" ? [] : dayRange(date);
+      const match = { ...(date === "all" ? {} : { "appointments.startTime": { $gte: start, $lt: end } }),
         ...(branchId ? { "appointments.branchId": new mongoose.Types.ObjectId(branchId) } : {}) };
       const rows = await Calendar.aggregate([
         { $unwind: "$appointments" }, { $match: match },
@@ -279,8 +279,8 @@ function createBookingRepository(Calendar) {
     },
 
     async managerAppointments({ date, branchId, stylistId, status, cursor, limit }) {
-      const [start, end] = dayRange(date);
-      const match = { startTime: { $gte: start, $lt: end },
+      const [start, end] = date === "all" ? [] : dayRange(date);
+      const match = { ...(date === "all" ? {} : { startTime: { $gte: start, $lt: end } }),
         ...(branchId ? { branchId: new mongoose.Types.ObjectId(branchId) } : {}),
         ...(stylistId ? { stylistId: new mongoose.Types.ObjectId(stylistId) } : {}),
         ...(status ? { status } : {}), ...cursorMatch("startTime", cursor) };

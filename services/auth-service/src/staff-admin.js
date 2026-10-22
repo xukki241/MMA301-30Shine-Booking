@@ -3,18 +3,20 @@ const bcrypt = require("bcryptjs");
 const { ROLES } = require("./models/user");
 
 function publicStaff(user) {
-  return { id: String(user._id), email: user.email, role: user.role,
+  return { id: String(user._id), email: user.email, fullName: user.fullName || null, role: user.role,
     status: user.status || "active", createdAt: user.createdAt, updatedAt: user.updatedAt };
 }
 
 function validNewUser(body) {
   if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((key) => !["email", "password", "role"].includes(key))) return null;
+      Object.keys(body).some((key) => !["email", "password", "role", "fullName"].includes(key))) return null;
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+      fullName.length < 2 || fullName.length > 100 ||
       typeof body.password !== "string" || body.password.length < 8 ||
       Buffer.byteLength(body.password, "utf8") > 72 || !ROLES.includes(body.role)) return null;
-  return { email, password: body.password, role: body.role };
+  return { email, fullName, password: body.password, role: body.role };
 }
 
 function createCoreHealthProbe(coreApiUrl) {
@@ -128,7 +130,7 @@ function installStaffAdminRoutes(app, { users, secret, staffChangeGuard, coreHea
     try {
       if (await users.findByEmail(data.email)) return res.status(409).json({ error: "Email already registered" });
       const passwordHash = await bcrypt.hash(data.password, 12);
-      const user = await users.create({ email: data.email, passwordHash, role: data.role });
+      const user = await users.create({ email: data.email, fullName: data.fullName, passwordHash, role: data.role });
       await recordAudit({ actorId: String(req.staff._id), action: "staff.create",
         targetType: "staff", targetId: String(user._id), result: "success" });
       return res.status(201).json({ user: publicStaff(user) });
@@ -193,10 +195,15 @@ function installStaffAdminRoutes(app, { users, secret, staffChangeGuard, coreHea
   app.patch("/admin/users/:id", currentStaff, onlyAdmin, loadTarget, async (req, res, next) => {
     const body = req.body;
     if (!body || typeof body !== "object" || Array.isArray(body) || !Object.keys(body).length ||
-        Object.keys(body).some((key) => !["email", "password", "role"].includes(key))) {
+        Object.keys(body).some((key) => !["email", "password", "role", "fullName"].includes(key))) {
       return res.status(400).json({ error: "Invalid staff update" });
     }
     const change = {};
+    if (body.fullName !== undefined) {
+      const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
+      if (fullName.length < 2 || fullName.length > 100) return res.status(400).json({ error: "Invalid full name" });
+      change.fullName = fullName;
+    }
     if (body.email !== undefined) {
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {

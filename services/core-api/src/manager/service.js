@@ -9,7 +9,7 @@ function createManagerService(repository) {
     async overview(actor, query) {
       onlyManager(actor);
       const date = query.date || todayVietnam();
-      dayRange(date);
+      if (date !== "all") dayRange(date);
       return repository.managerOverview({ date, branchId: objectId(query.branchId, "branchId") });
     },
     async appointments(actor, query) {

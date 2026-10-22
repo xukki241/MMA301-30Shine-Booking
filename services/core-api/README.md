@@ -118,8 +118,8 @@ Mọi endpoint yêu cầu header `Authorization: Bearer <accessToken>`, dùng mi
 | POST | /appointments/:id/complete | stylist được gán; body rỗng | 200 + completed |
 | POST | /appointments/:id/cancel | customer sở hữu; body rỗng | 200 + cancelled |
 | POST | /appointments/:id/pay | customer sở hữu; `{provider, outcome, requestId}` | 200 + attempt; chỉ `outcome=success` chuyển `paid` |
-| GET | /manager/overview | general_manager; date, branchId tùy chọn | Tổng quan lịch và tổng thu mô phỏng |
-| GET | /manager/appointments | general_manager; lọc date/branchId/stylistId/status, phân trang | Danh sách lịch chỉ đọc |
+| GET | /manager/overview | general_manager; date (`YYYY-MM-DD` hoặc `all`), branchId tùy chọn | Đếm lịch theo trạng thái |
+| GET | /manager/appointments | general_manager; lọc date (`YYYY-MM-DD` hoặc `all`)/branchId/stylistId/status, phân trang | Danh sách lịch chỉ đọc |
 | GET | /manager/appointments/:id | general_manager | Chi tiết lịch chỉ đọc |
 | GET | /manager/payments | general_manager; branchId bắt buộc, `from`/`to` tùy chọn, phân trang | Payment Attempt thành công và thất bại, tổng thành công |
 

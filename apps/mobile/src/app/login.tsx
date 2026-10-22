@@ -23,6 +23,7 @@ export default function EntryScreen() {
   const { selectRole } = useRole();
   const [step, setStep] = useState<Step>("phone");
   const [staffMode, setStaffMode] = useState(false);
+  const [staffHelp, setStaffHelp] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
@@ -76,9 +77,18 @@ export default function EntryScreen() {
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={[styles.brand, { color: theme.brand }]}>30SHINE MEMBER</Text>
-      <Text style={[styles.title, { color: theme.text }]}>{staffMode ? "Đăng nhập nhân sự" : labels[step][0]}</Text>
+      <Text style={[styles.title, { color: theme.text }]}>{staffMode ? (staffHelp ? "Quên mật khẩu?" : "Đăng nhập nhân sự") : labels[step][0]}</Text>
       {!staffMode && step === "phone" ? <Text style={{ color: theme.textMuted }}>Nhập số điện thoại để đăng nhập hoặc đăng ký. Bạn cũng có thể khám phá ứng dụng trước.</Text> : null}
-      {staffMode ? <>
+      {staffMode && staffHelp ? <>
+        <Text style={[styles.helpIntro, { color: theme.textMuted }]}>Tài khoản nhân sự được quản lý bởi System Admin.</Text>
+        <Text style={[styles.helpBody, { color: theme.text }]}>Hãy liên hệ System Admin của 30Shine và cung cấp email đăng nhập để được đặt lại mật khẩu.</Text>
+        {email.trim() ? <Text style={[styles.helpEmail, { color: theme.brand }]}>Email tài khoản: {email.trim()}</Text> : null}
+        <Text style={[styles.helpNote, { color: theme.textMuted }]}>Không chia sẻ mật khẩu cũ hoặc mã đăng nhập với người khác.</Text>
+        <Pressable accessibilityRole="button" style={[styles.primary, { backgroundColor: theme.brand }]}
+          onPress={() => { setStaffHelp(false); setStaffPassword(""); setError(null); }}>
+          <Text style={styles.primaryText}>Quay lại đăng nhập</Text>
+        </Pressable>
+      </> : staffMode ? <>
         <TextInput style={inputStyle} accessibilityLabel="Email nhân sự" placeholder="Email nhân sự" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
         <TextInput style={inputStyle} accessibilityLabel="Mật khẩu nhân sự" placeholder="Mật khẩu" secureTextEntry value={staffPassword} onChangeText={setStaffPassword} />
       </> : <>
@@ -88,14 +98,16 @@ export default function EntryScreen() {
         {step === "login" || step === "registerDetails" || step === "resetPassword" ? <TextInput style={inputStyle} accessibilityLabel="Mật khẩu khách hàng" placeholder="Mật khẩu gồm 6 chữ số" keyboardType="number-pad" maxLength={6} secureTextEntry value={password} onChangeText={setPassword} /> : null}
       </>}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Pressable disabled={busy} style={[styles.primary, { backgroundColor: theme.brand }]} onPress={() => void run(staffMode ? submitStaff : submitCustomer)}>
+      {!staffHelp ? <Pressable disabled={busy} style={[styles.primary, { backgroundColor: theme.brand }]} onPress={() => void run(staffMode ? submitStaff : submitCustomer)}>
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{staffMode ? "Đăng nhập nhân sự" : labels[step][1]}</Text>}
-      </Pressable>
+      </Pressable> : null}
+      {staffMode && !staffHelp ? <Pressable accessibilityRole="button" style={styles.link}
+        onPress={() => { setStaffHelp(true); setError(null); }}><Text style={{ color: theme.brand, fontWeight: "700" }}>Quên mật khẩu?</Text></Pressable> : null}
       {!staffMode && step === "login" ? <Pressable style={styles.link} onPress={() => void run(async () => { await requestCustomerCode("reset", phone); setCode(""); setPassword(""); setStep("resetOtp"); })}><Text style={{ color: theme.brand }}>Quên mật khẩu?</Text></Pressable> : null}
       {!staffMode && (step === "registerOtp" || step === "resetOtp") ? <Pressable style={styles.link} onPress={() => void run(async () => requestCustomerCode(step === "registerOtp" ? "register" : "reset", phone))}><Text style={{ color: theme.brand }}>Gửi lại OTP</Text></Pressable> : null}
       {!staffMode && step !== "phone" ? <Pressable style={styles.link} onPress={() => { setStep("phone"); setError(null); setCode(""); setPassword(""); }}><Text style={{ color: theme.brand }}>Đổi số điện thoại</Text></Pressable> : null}
       {!staffMode ? <Pressable style={styles.link} onPress={() => { selectRole("customer"); router.replace("/(customer)/home"); }}><Text style={{ color: theme.brand }}>Tôi muốn khám phá thêm</Text></Pressable> : null}
-      <Pressable style={styles.link} onPress={() => { setStaffMode(!staffMode); setError(null); }}><Text style={{ color: theme.textMuted }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự 30Shine"}</Text></Pressable>
+      <Pressable style={styles.link} onPress={() => { setStaffMode(!staffMode); setStaffHelp(false); setError(null); }}><Text style={{ color: theme.textMuted }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự 30Shine"}</Text></Pressable>
     </ScrollView>
   </SafeAreaView>;
 }
@@ -107,4 +119,8 @@ const styles = StyleSheet.create({
   primary: { borderRadius: 12, minHeight: 52, alignItems: "center", justifyContent: "center" },
   primaryText: { color: "#fff", fontSize: 16, fontWeight: "800" }, link: { alignItems: "center", padding: 8 },
   error: { color: "#c62828" },
+  helpIntro: { fontSize: 14, lineHeight: 21 },
+  helpBody: { fontSize: 16, lineHeight: 24, fontWeight: "600" },
+  helpEmail: { fontSize: 14, fontWeight: "700" },
+  helpNote: { fontSize: 13, lineHeight: 19 },
 });

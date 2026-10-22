@@ -1,15 +1,34 @@
 const { isValidObjectId } = require("../middleware/validation");
 
-function createStylistController({ Branch, StylistProfile, WorkShift }, verifyActiveStylist) {
+function createStylistController({ Branch, StylistProfile, WorkShift }, _verifyActiveStylist, stylistDirectory) {
+  const directory = async () => {
+    if (!stylistDirectory) throw Object.assign(new Error("Stylist directory unavailable"), { status: 503 });
+    try { return await stylistDirectory(); }
+    catch { throw Object.assign(new Error("Stylist directory unavailable"), { status: 503 }); }
+  };
+  const currentName = (profile, staff) => staff.find((item) => item.id === String(profile.userId))?.fullName || profile.displayName;
+  const publicProfile = (profile, staff) => ({ ...profile.toJSON(), displayName: currentName(profile, staff) });
   return {
+    async candidates(req, res, next) {
+      try {
+        const branchId = req.query.branchId;
+        if (!isValidObjectId(branchId)) return res.status(400).json({ error: "Chi nhánh không hợp lệ" });
+        if (!await Branch.findById(branchId)) return res.status(404).json({ error: "Không tìm thấy chi nhánh" });
+        const [staff, assigned] = await Promise.all([directory(), StylistProfile.find({ branchId })]);
+        const existing = new Set(assigned.map((item) => String(item.userId)));
+        return res.json({ candidates: staff.filter((item) => item.fullName && !existing.has(item.id))
+          .map((item) => ({ id: item.id, email: item.email, fullName: item.fullName })) });
+      } catch (error) { return next(error); }
+    },
     async getMe(req, res, next) {
       try {
         const assignments = await StylistProfile.find({ userId: req.auth.userId, isActive: true }).sort({ createdAt: -1 });
         const branches = await Branch.find({ _id: { $in: assignments.map((item) => item.branchId) } });
+        const staff = assignments.length ? await directory() : [];
         const byId = new Map(branches.map((branch) => [String(branch.id), branch]));
         return res.json({ profiles: assignments.map((item) => {
           const branch = byId.get(String(item.branchId));
-          return { id: String(item.id), userId: String(item.userId), displayName: item.displayName,
+          return { id: String(item.id), userId: String(item.userId), displayName: currentName(item, staff),
             branchId: String(item.branchId), branchName: branch?.name || null,
             branchAddress: branch?.address || null };
         }) });
@@ -23,18 +42,16 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
           return res.status(404).json({ error: "Không tìm thấy chi nhánh" });
         }
 
-        const { userId, displayName, isActive } = req.body || {};
+        const { userId, isActive } = req.body || {};
+        if (!req.body || Object.keys(req.body).some((key) => !["userId", "isActive"].includes(key))) {
+          return res.status(400).json({ error: "Chỉ chọn tài khoản Stylist và trạng thái" });
+        }
         if (!userId || !isValidObjectId(userId)) {
           return res.status(400).json({ error: "Mã tài khoản (userId) 24 ký tự hex hợp lệ là bắt buộc" });
         }
-        if (!displayName || typeof displayName !== "string" || displayName.trim().length < 2) {
-          return res.status(400).json({ error: "Tên hiển thị là bắt buộc và phải có ít nhất 2 ký tự" });
-        }
-        if (!verifyActiveStylist) return res.status(503).json({ error: "Stylist verification unavailable" });
-        let active;
-        try { active = await verifyActiveStylist(userId); }
-        catch { return res.status(503).json({ error: "Stylist verification unavailable" }); }
-        if (!active) return res.status(409).json({ error: "Active Stylist staff account required" });
+        const staff = (await directory()).find((item) => item.id === userId);
+        if (!staff) return res.status(409).json({ error: "Cần tài khoản Stylist đang hoạt động" });
+        if (!staff.fullName) return res.status(409).json({ error: "Admin cần bổ sung họ tên cho tài khoản Stylist" });
 
         const existing = await StylistProfile.findOne({ userId, branchId });
         if (existing) {
@@ -44,7 +61,7 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
         const stylist = await StylistProfile.create({
           userId,
           branchId,
-          displayName: displayName.trim(),
+          displayName: staff.fullName,
           ...(typeof isActive === "boolean" ? { isActive } : {}),
         });
 
@@ -73,7 +90,8 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
           query.isActive = req.query.isActive === "true";
         }
         const stylists = await StylistProfile.find(query).sort({ createdAt: -1 });
-        return res.json({ stylists });
+        const staff = stylists.length ? await directory() : [];
+        return res.json({ stylists: stylists.map((item) => publicProfile(item, staff)) });
       } catch (error) {
         return next(error);
       }
@@ -85,7 +103,7 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
         if (!stylist) {
           return res.status(404).json({ error: "Không tìm thấy stylist" });
         }
-        return res.json({ stylist });
+        return res.json({ stylist: publicProfile(stylist, await directory()) });
       } catch (error) {
         return next(error);
       }
@@ -93,14 +111,10 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
 
     async update(req, res, next) {
       try {
-        const { displayName, branchId, isActive } = req.body || {};
+        const { branchId, isActive } = req.body || {};
         const updateData = {};
-
-        if (typeof displayName === "string") {
-          if (displayName.trim().length < 2) {
-            return res.status(400).json({ error: "Tên hiển thị phải có ít nhất 2 ký tự" });
-          }
-          updateData.displayName = displayName.trim();
+        if (!req.body || !Object.keys(req.body).length || Object.keys(req.body).some((key) => !["branchId", "isActive"].includes(key))) {
+          return res.status(400).json({ error: "Họ tên do System Admin quản lý" });
         }
 
         if (typeof branchId !== "undefined") {
@@ -137,7 +151,7 @@ function createStylistController({ Branch, StylistProfile, WorkShift }, verifyAc
         if (!stylist) {
           return res.status(404).json({ error: "Không tìm thấy stylist" });
         }
-        return res.json({ stylist });
+        return res.json({ stylist: publicProfile(stylist, await directory()) });
       } catch (error) {
         if (error.code === 11000) {
           return res.status(409).json({ error: "Stylist đã được gán vào chi nhánh này" });

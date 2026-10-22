@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { authenticate, createStaffVerifier, createCustomerVerifier, createActiveStylistVerifier } = require("./middleware/auth");
+const { authenticate, createStaffVerifier, createCustomerVerifier, createActiveStylistVerifier, createStylistDirectory } = require("./middleware/auth");
 const { createModels } = require("./models");
 const { createBranchController } = require("./controllers/branch.controller");
 const { createServiceController } = require("./controllers/service.controller");
@@ -33,6 +33,7 @@ function createApp(optionsOrSecret, extraBookingRepository) {
   const verifyStaff = opts.verifyStaff || createStaffVerifier(opts.authServiceUrl);
   const verifyCustomer = opts.verifyCustomer || createCustomerVerifier(opts.authServiceUrl);
   const verifyActiveStylist = opts.verifyActiveStylist || createActiveStylistVerifier(opts.authServiceUrl, secret);
+  const stylistDirectory = opts.stylistDirectory || createStylistDirectory(opts.authServiceUrl, secret);
   let bookingRepository = opts.bookingRepository;
   let workShiftRepository = opts.workShiftRepository;
 
@@ -102,7 +103,7 @@ function createApp(optionsOrSecret, extraBookingRepository) {
       serviceController = createServiceController(models);
     }
     if (!stylistController && models.StylistProfile) {
-      stylistController = createStylistController(models, verifyActiveStylist);
+      stylistController = createStylistController(models, verifyActiveStylist, stylistDirectory);
     }
   }
 

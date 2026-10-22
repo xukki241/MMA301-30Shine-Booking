@@ -48,6 +48,12 @@ test("Manager Mongo reads respect Vietnam date, branch and full-filter totals", 
   const overview = await repo.managerOverview({ date: "2030-10-21", branchId: String(branchA) });
   assert.deepEqual(overview.counts, { booked: 0, checked_in: 0, completed: 1, paid: 1,
     cancelled: 0, no_show: 0 });
+  const allAppointments = await repo.managerAppointments(parseAppointmentsQuery({ date: "all", branchId: String(branchA), limit: "20" }));
+  assert.equal(allAppointments.items.length, 3);
+  const allOverview = await repo.managerOverview({ date: "all", branchId: String(branchA) });
+  assert.equal(allOverview.counts.booked, 1);
+  assert.equal(allOverview.counts.completed, 1);
+  assert.equal(allOverview.counts.paid, 1);
   const payments = await repo.managerPayments(parsePaymentsQuery({ branchId: String(branchA), limit: "1" }));
   assert.equal(payments.simulatedTotal, 120000);
   assert.equal(payments.items.length, 1);

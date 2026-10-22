@@ -1,5 +1,5 @@
 import type { AppointmentFilters, Branch, ManagerAppointment, Overview, Page, PaymentFilters,
-  PaymentPage, Service, Shift, Stylist } from "./types";
+  PaymentPage, Service, Shift, Stylist, StylistCandidate } from "./types";
 import { buildAppointmentQuery, buildPaymentQuery, queryString } from "./filters.ts";
 
 const host = typeof window !== "undefined" || typeof document !== "undefined" ? "localhost" : "10.0.2.2";
@@ -46,6 +46,8 @@ export function createManagerApi(getToken: () => string | null, onUnauthorized: 
     updateService: (id: string, value: Partial<Service>) => request<{ service: Service }>(`/services/${encodeURIComponent(id)}`, body("PUT", value)),
     deleteService: (id: string) => request<unknown>(`/services/${encodeURIComponent(id)}`, { method: "DELETE" }),
     stylists: async (branchId: string) => (await request<{ stylists: Stylist[] }>(`/branches/${encodeURIComponent(branchId)}/stylists`)).stylists,
+    stylistCandidates: async (branchId: string) => (await request<{ candidates: StylistCandidate[] }>(
+      `/stylists/candidates?branchId=${encodeURIComponent(branchId)}`)).candidates,
     createStylist: (branchId: string, value: Partial<Stylist>) => request<{ stylist: Stylist }>(`/branches/${encodeURIComponent(branchId)}/stylists`, body("POST", value)),
     updateStylist: (id: string, value: Partial<Stylist>) => request<{ stylist: Stylist }>(`/stylists/${encodeURIComponent(id)}`, body("PUT", value)),
     deleteStylist: (id: string) => request<unknown>(`/stylists/${encodeURIComponent(id)}`, { method: "DELETE" }),
