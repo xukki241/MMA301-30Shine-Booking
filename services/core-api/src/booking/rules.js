@@ -1,7 +1,10 @@
-const STATUSES = Object.freeze(["booked", "completed", "paid", "cancelled"]);
-const ACTIVE_STATUSES = Object.freeze(["booked", "completed", "paid"]);
+const STATUSES = Object.freeze(["booked", "checked_in", "completed", "paid", "cancelled", "no_show"]);
+const ACTIVE_STATUSES = Object.freeze(["booked", "checked_in", "completed", "paid"]);
 const ACTIONS = Object.freeze({
-  complete: { from: "booked", to: "completed", role: "stylist", owner: "stylistId" },
+  check_in: { from: "booked", to: "checked_in", role: "stylist", owner: "stylistId" },
+  undo_check_in: { from: "checked_in", to: "booked", role: "stylist", owner: "stylistId" },
+  no_show: { from: "booked", to: "no_show", role: "stylist", owner: "stylistId" },
+  complete: { from: "checked_in", to: "completed", role: "stylist", owner: "stylistId" },
   cancel: { from: "booked", to: "cancelled", role: "customer", owner: "customerId" },
   pay: { from: "completed", to: "paid", role: "customer", owner: "customerId" },
 });

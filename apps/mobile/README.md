@@ -34,8 +34,8 @@ npm run export:android
 ## Current scope
 
 - Customer: Home công khai, trang Tài khoản và hồ sơ, catalog, slot từ Work Shift, đặt/hủy lịch, lịch sử tài khoản và thanh toán MoMo/VNPay mô phỏng sau khi Stylist hoàn thành. Mọi màn thanh toán ghi rõ không trừ tiền thật.
-- Stylist: đăng nhập nhân sự, xem lịch được giao và xác nhận hoàn thành.
-- General Manager: bốn khu vực **Tổng quan**, **Lịch đặt**, **Vận hành** và **Thanh toán**. Manager quản lý chi nhánh/dịch vụ/hồ sơ thợ/ca, chỉ xem và lọc lịch, xem các lần thanh toán thành công hoặc thất bại theo chi nhánh.
+- Stylist: đăng nhập nhân sự, xem lịch được giao, ghi nhận khách đã đến, hoàn thành phục vụ; sau 15 phút chưa ghi nhận có cảnh báo để kiểm tra và xác nhận `no_show`. Có thể hoàn tác check-in trong 5 phút.
+- General Manager: bốn khu vực **Tổng quan**, **Lịch đặt**, **Vận hành** và **Thanh toán**. Manager chọn một ngày hoặc tất cả ngày để xem báo cáo/lịch đặt, chọn chi nhánh bằng dropdown, quản lý chi nhánh/dịch vụ/hồ sơ thợ/ca và xem thanh toán theo khoảng ngày hoặc toàn thời gian.
 - System Admin chỉ dùng Admin Web, không vào mobile.
 - Booking source is `src/booking/http-adapter.ts`; the interface is `src/booking/types.ts`.
 - Metro giữ cache cũ: `npm start -- --clear`.

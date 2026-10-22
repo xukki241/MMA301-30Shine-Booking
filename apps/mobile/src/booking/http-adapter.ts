@@ -49,12 +49,36 @@ export async function loginStylist(email: string, password: string) {
 export interface StylistAppointmentItem {
   id: string;
   customerId: string;
+  customerName?: string;
+  customerPhone?: string;
+  serviceName?: string;
+  branchName?: string;
+  wishes?: {
+    stylistPreference?: string;
+    specialRequest?: string;
+    referenceImages?: string[];
+  };
   stylistId: string;
   startTime: string;
   endTime: string;
-  status: "booked" | "completed" | "paid" | "cancelled";
+  status: "booked" | "checked_in" | "completed" | "paid" | "cancelled" | "no_show";
+  checkedInAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface StylistProfileItem {
+  id: string;
+  userId: string;
+  displayName: string;
+  branchId: string;
+  branchName: string | null;
+  branchAddress: string | null;
+}
+
+export async function getStylistProfiles(token: string): Promise<StylistProfileItem[]> {
+  const data = await request<{ profiles: StylistProfileItem[] }>(coreApi, "/stylists/me", token);
+  return data.profiles || [];
 }
 
 export async function getStylistTodayAppointments(token: string, date?: string): Promise<StylistAppointmentItem[]> {
@@ -73,6 +97,13 @@ export async function completeStylistAppointment(token: string, appointmentId: s
   return data.appointment;
 }
 
+export async function actOnStylistAppointment(token: string, appointmentId: string,
+  action: "check_in" | "undo_check_in" | "no_show"): Promise<StylistAppointmentItem> {
+  const data = await request<{ appointment: StylistAppointmentItem }>(coreApi,
+    `/appointments/${encodeURIComponent(appointmentId)}/${action}`, token, { method: "POST" });
+  return data.appointment;
+}
+
 export interface CustomerAppointmentItem {
   id: string;
   customerId: string;
@@ -81,7 +112,7 @@ export interface CustomerAppointmentItem {
   stylistId: string;
   startTime: string;
   endTime?: string;
-  status: "booked" | "completed" | "paid" | "cancelled";
+  status: "booked" | "checked_in" | "completed" | "paid" | "cancelled" | "no_show";
   createdAt?: string;
   updatedAt?: string;
 }

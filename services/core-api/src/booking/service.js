@@ -21,8 +21,19 @@ function createBookingService(repository) {
         throw new BookingError(403, "Appointment does not belong to this actor");
       }
       if (appointment.status !== rule.from) throw new BookingError(400, "Invalid appointment state");
+      const now = new Date();
+      if (action === "cancel" && now >= new Date(appointment.startTime)) {
+        throw new BookingError(400, "Appointment can only be cancelled before it starts");
+      }
+      if (action === "no_show" && now.getTime() < new Date(appointment.startTime).getTime() + 15 * 60000) {
+        throw new BookingError(400, "Wait 15 minutes after the appointment start before marking no-show");
+      }
+      if (action === "undo_check_in" && (!appointment.checkedInAt ||
+          now.getTime() - new Date(appointment.checkedInAt).getTime() > 5 * 60000)) {
+        throw new BookingError(400, "Check-in can only be undone within five minutes");
+      }
       const updated = await repository.transition(id.toLowerCase(), action, {
-        ...actor, userId: actor.userId.toLowerCase(),
+        ...actor, userId: actor.userId.toLowerCase(), now,
       });
       if (!updated) throw new BookingError(400, "Appointment state changed; reload and retry");
       return updated;

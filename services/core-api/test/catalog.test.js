@@ -46,7 +46,10 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
   await Promise.all([Branch.init(), Service.init(), StylistProfile.init()]);
 
   const models = { Branch, Service, StylistProfile };
-  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true, verifyActiveStylist: async () => true });
+  let directoryName = "Stylist Nam Phong";
+  const app = createApp({ secret, models, verifyStaff: async () => true, verifyCustomer: async () => true,
+    verifyActiveStylist: async () => true,
+    stylistDirectory: async () => [{ id: "507f191e810c19729de860ea", email: "nam@example.test", fullName: directoryName }] });
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
 
@@ -300,6 +303,17 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.deepEqual(data.stylists, []);
     });
 
+    await tStylist.test("Manager sees selectable staff without entering User ID", async () => {
+      const response = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      assert.equal(response.status, 200);
+      assert.deepEqual((await response.json()).candidates, [{ id: stylistUserId,
+        email: "nam@example.test", fullName: "Stylist Nam Phong" }]);
+      const denied = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, customerRead);
+      assert.equal(denied.status, 403);
+    });
+
     await tStylist.test("POST /branches/:id/stylists assigns stylist to branch", async () => {
       const res = await fetch(`${base}/branches/${createdBranchId}/stylists`, {
         method: "POST",
@@ -309,7 +323,6 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({
           userId: stylistUserId,
-          displayName: "Stylist Nam Phong",
         }),
       });
       assert.equal(res.status, 201);
@@ -320,6 +333,28 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.equal(data.stylist.userId, stylistUserId);
       assert.equal(data.stylist.displayName, "Stylist Nam Phong");
       createdStylistId = data.stylist.id;
+      const candidates = await fetch(`${base}/stylists/candidates?branchId=${createdBranchId}`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      assert.deepEqual((await candidates.json()).candidates, []);
+    });
+
+    await tStylist.test("GET /stylists/me returns only the signed-in stylist's active assignment", async () => {
+      const own = await fetch(`${base}/stylists/me`, {
+        headers: { Authorization: `Bearer ${sign("stylist", stylistUserId)}` },
+      });
+      assert.equal(own.status, 200);
+      const data = await own.json();
+      assert.equal(data.profiles.length, 1);
+      assert.equal(data.profiles[0].displayName, "Stylist Nam Phong");
+      assert.equal(data.profiles[0].branchName, "30Shine Cau Giay Premium");
+      assert.equal(data.profiles[0].branchAddress, "123 Cau Giay, Dich Vong, Hanoi");
+
+      const other = await fetch(`${base}/stylists/me`, { headers: { Authorization: `Bearer ${stylistToken}` } });
+      assert.equal(other.status, 200);
+      assert.deepEqual((await other.json()).profiles, []);
+      const customer = await fetch(`${base}/stylists/me`, customerRead);
+      assert.equal(customer.status, 403);
     });
 
     await tStylist.test("POST /branches/:id/stylists rejects duplicate assignment", async () => {
@@ -331,7 +366,6 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({
           userId: stylistUserId,
-          displayName: "Stylist Nam Phong",
         }),
       });
       assert.equal(res.status, 409);
@@ -354,7 +388,10 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       assert.equal(data.stylist.id, createdStylistId);
     });
 
-    await tStylist.test("PUT /stylists/:id updates display name", async () => {
+    await tStylist.test("profile name follows the staff directory and Manager cannot rename it", async () => {
+      directoryName = "Master Nam Phong";
+      const current = await fetch(`${base}/stylists/${createdStylistId}`, customerRead);
+      assert.equal((await current.json()).stylist.displayName, "Master Nam Phong");
       const res = await fetch(`${base}/stylists/${createdStylistId}`, {
         method: "PUT",
         headers: {
@@ -363,9 +400,50 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
         },
         body: JSON.stringify({ displayName: "Master Nam Phong" }),
       });
-      assert.equal(res.status, 200);
-      const data = await res.json();
-      assert.equal(data.stylist.displayName, "Master Nam Phong");
+      assert.equal(res.status, 400);
+    });
+
+    await tStylist.test("a stylist can only belong to one branch and Manager transfers the existing profile", async () => {
+      const other = await Branch.create({ name: "30Shine Hoa Lac", address: "Hoa Lac, Ha Noi" });
+      const otherBranchId = String(other.id);
+      const headers = { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" };
+      const available = await fetch(`${base}/stylists/candidates?branchId=${otherBranchId}`, { headers });
+      assert.equal(available.status, 200);
+      assert.deepEqual((await available.json()).candidates, []);
+      const duplicate = await fetch(`${base}/branches/${otherBranchId}/stylists`, {
+        method: "POST", headers, body: JSON.stringify({ userId: stylistUserId }),
+      });
+      assert.equal(duplicate.status, 409);
+      assert.match((await duplicate.json()).error, /chi nhánh khác/i);
+      const moved = await fetch(`${base}/stylists/${createdStylistId}`, {
+        method: "PUT", headers, body: JSON.stringify({ branchId: otherBranchId }),
+      });
+      assert.equal(moved.status, 200);
+      assert.equal((await moved.json()).stylist.branchId, otherBranchId);
+      const oldList = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
+      const newList = await fetch(`${base}/branches/${otherBranchId}/stylists`, customerRead);
+      assert.deepEqual((await oldList.json()).stylists, []);
+      assert.equal((await newList.json()).stylists.length, 1);
+    });
+
+    await tStylist.test("legacy duplicate assignments are shown only at the original profile's branch", async () => {
+      await StylistProfile.create({ userId: stylistUserId, branchId: createdBranchId,
+        displayName: "Legacy duplicate" });
+      const oldList = await fetch(`${base}/branches/${createdBranchId}/stylists`, customerRead);
+      assert.deepEqual((await oldList.json()).stylists, []);
+      const own = await fetch(`${base}/stylists/me`, {
+        headers: { Authorization: `Bearer ${sign("stylist", stylistUserId)}` },
+      });
+      assert.equal((await own.json()).profiles.length, 1);
+    });
+    await tStylist.test("transferring to a branch with a hidden legacy duplicate keeps one profile", async () => {
+      const response = await fetch(`${base}/stylists/${createdStylistId}`, {
+        method: "PUT", headers: { Authorization: `Bearer ${adminToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ branchId: createdBranchId }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).stylist.branchId, createdBranchId);
+      assert.equal(await StylistProfile.countDocuments({ userId: stylistUserId }), 1);
     });
   });
 

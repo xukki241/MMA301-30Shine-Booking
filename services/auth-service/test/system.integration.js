@@ -79,7 +79,7 @@ test("SHINE-26: Auth and Core enforce staff roles against real MongoDB", async (
   assert.equal(adminLogin.status, 200);
   const admin = adminLogin.body.accessToken;
   const createStaff = async (email, role) => request(authBase, "/admin/users", { token: admin,
-    method: "POST", body: { email, password: "Password123!", role } });
+    method: "POST", body: { email, fullName: email.startsWith("stylist") ? "Thợ thử nghiệm" : "Nhân sự thử nghiệm", password: "Password123!", role } });
   const managerCreated = await createStaff("manager@example.test", "general_manager");
   const stylistCreated = await createStaff("stylist@example.test", "stylist");
   assert.equal(managerCreated.status, 201);
@@ -100,16 +100,21 @@ test("SHINE-26: Auth and Core enforce staff roles against real MongoDB", async (
   assert.equal((await request(coreBase, "/branches", { token: admin })).status, 403);
   assert.equal((await request(coreBase, "/branches")).status, 401);
   assert.equal((await request(coreBase, `/branches/${branchId}/stylists`, { token: manager,
-    method: "POST", body: { userId: managerCreated.body.user.id, displayName: "Sai role" } })).status, 409);
+    method: "POST", body: { userId: managerCreated.body.user.id } })).status, 409);
   const lockedStylist = await createStaff("locked-stylist@example.test", "stylist");
   assert.equal(lockedStylist.status, 201);
   assert.equal((await request(authBase, `/admin/users/${lockedStylist.body.user.id}/lock`, {
     token: admin, method: "POST" })).status, 200);
   assert.equal((await request(coreBase, `/branches/${branchId}/stylists`, { token: manager,
-    method: "POST", body: { userId: lockedStylist.body.user.id, displayName: "Thợ đã khóa" } })).status, 409);
+    method: "POST", body: { userId: lockedStylist.body.user.id } })).status, 409);
   const assignment = await request(coreBase, `/branches/${branchId}/stylists`, { token: manager,
-    method: "POST", body: { userId: stylistId, displayName: "Thợ thử nghiệm" } });
+    method: "POST", body: { userId: stylistId } });
   assert.equal(assignment.status, 201);
+  assert.equal(assignment.body.stylist.displayName, "Thợ thử nghiệm");
+  assert.equal((await request(authBase, `/admin/users/${stylistId}`, { token: admin, method: "PATCH",
+    body: { fullName: "Thợ đổi tên" } })).status, 200);
+  const renamed = await request(coreBase, `/branches/${branchId}/stylists`, { token: manager });
+  assert.equal(renamed.body.stylists[0].displayName, "Thợ đổi tên");
   const shift = await request(coreBase, "/work-shifts", { token: manager, method: "POST",
     body: { branchId, stylistId, date: "2030-01-01", startAt: "2030-01-01T09:00:00+07:00",
       endAt: "2030-01-01T10:00:00+07:00" } });

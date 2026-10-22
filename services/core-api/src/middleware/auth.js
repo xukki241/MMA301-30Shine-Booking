@@ -44,6 +44,22 @@ function createActiveStylistVerifier(authServiceUrl, secret) {
   };
 }
 
+function createStylistDirectory(authServiceUrl, secret) {
+  if (!authServiceUrl) return null;
+  const base = authServiceUrl.replace(/\/$/, "");
+  return async () => {
+    const token = jwt.sign({ scope: "stylist-directory" }, secret,
+      { algorithm: "HS256", issuer: "core-api", expiresIn: 30 });
+    const response = await fetch(`${base}/internal/stylists`, {
+      headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(3000),
+    });
+    if (!response.ok) throw new Error("Stylist directory unavailable");
+    const data = await response.json();
+    if (!Array.isArray(data.stylists)) throw new Error("Invalid stylist directory response");
+    return data.stylists;
+  };
+}
+
 function authenticate(secret, verifyStaff, verifyCustomer) {
   return async (req, res, next) => {
     const match = /^Bearer ([^\s]+)$/i.exec(req.get("Authorization") || "");
@@ -84,4 +100,4 @@ function authenticate(secret, verifyStaff, verifyCustomer) {
     return next();
   };
 }
-module.exports = { authenticate, readJwtSecret, createStaffVerifier, createCustomerVerifier, createActiveStylistVerifier };
+module.exports = { authenticate, readJwtSecret, createStaffVerifier, createCustomerVerifier, createActiveStylistVerifier, createStylistDirectory };

@@ -13,6 +13,8 @@ test("Manager day range uses Vietnam midnight", () => {
 });
 
 test("Manager query rejects malformed filters and requires branch for payment", () => {
+  assert.equal(parseAppointmentsQuery({ date: "all" }).date, "all");
+  assert.throws(() => parseAppointmentsQuery({ date: "tomorrow" }), /date/i);
   assert.throws(() => parseAppointmentsQuery({ limit: "0" }), /limit/i);
   assert.throws(() => parseAppointmentsQuery({ branchId: "bad" }), /branchId/i);
   assert.throws(() => parsePaymentsQuery({}), /branchId/i);
@@ -21,9 +23,11 @@ test("Manager query rejects malformed filters and requires branch for payment", 
 
 test("Manager endpoints reject other roles and revoked staff", async (t) => {
   const secret = randomBytes(32).toString("hex");
+  let overviewFilter;
+  let appointmentFilter;
   const repository = {
-    managerOverview: async () => ({ date: "2030-10-21", counts: { booked: 1, completed: 0, paid: 0, cancelled: 0 } }),
-    managerAppointments: async () => ({ items: [], nextCursor: null }),
+    managerOverview: async (filter) => { overviewFilter = filter; return { date: filter.date, counts: { booked: 1, completed: 0, paid: 0, cancelled: 0 } }; },
+    managerAppointments: async (filter) => { appointmentFilter = filter; return { items: [], nextCursor: null }; },
     managerAppointment: async () => null,
     managerPayments: async () => ({ items: [], nextCursor: null, simulatedTotal: 0 }),
   };
@@ -34,5 +38,10 @@ test("Manager endpoints reject other roles and revoked staff", async (t) => {
     assert.equal((await fetch(base + "/manager/overview", { headers: { Authorization: `Bearer ${token(role)}` } })).status, 403);
   }
   assert.equal((await fetch(base + "/manager/overview", { headers: { Authorization: `Bearer ${token("general_manager")}` } })).status, 200);
+  const managerToken = token("general_manager");
+  assert.equal((await fetch(base + "/manager/overview?date=all", { headers: { Authorization: `Bearer ${managerToken}` } })).status, 200);
+  assert.equal(overviewFilter.date, "all");
+  assert.equal((await fetch(base + "/manager/appointments?date=all", { headers: { Authorization: `Bearer ${managerToken}` } })).status, 200);
+  assert.equal(appointmentFilter.date, "all");
   assert.equal((await fetch(base + "/manager/overview", { headers: { Authorization: `Bearer ${token("general_manager", "000000000000000000000001")}` } })).status, 401);
 });

@@ -14,7 +14,7 @@
 
 ## Phạm vi MVP (một dòng)
 
-Branch → Service → Stylist → Slot → `booked` → Stylist `completed` → Customer pay mô phỏng → `paid`  
+Branch → Service → Stylist → Slot → `booked` → Stylist `checked_in` → `completed` → Customer pay mô phỏng → `paid`. Sau 15 phút chưa check-in, Stylist kiểm tra và có thể xác nhận `no_show`.
 
 **Thiết kế mục tiêu:** General Manager xếp Work Shift và quản lý mọi chi nhánh; System Admin chỉ quản lý tài khoản/quyền, health và audit log. Xem [phạm vi](./SCOPE.md), [flow và màn hình](./docs/03-thiet-ke-he-thong.md), [ADR 0006](./docs/adr/0006-separate-system-admin-and-general-manager.md).
 
