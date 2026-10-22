@@ -2,6 +2,19 @@ const { isValidObjectId } = require("../middleware/validation");
 
 function createStylistController({ Branch, StylistProfile, WorkShift }, verifyActiveStylist) {
   return {
+    async getMe(req, res, next) {
+      try {
+        const assignments = await StylistProfile.find({ userId: req.auth.userId, isActive: true }).sort({ createdAt: -1 });
+        const branches = await Branch.find({ _id: { $in: assignments.map((item) => item.branchId) } });
+        const byId = new Map(branches.map((branch) => [String(branch.id), branch]));
+        return res.json({ profiles: assignments.map((item) => {
+          const branch = byId.get(String(item.branchId));
+          return { id: String(item.id), userId: String(item.userId), displayName: item.displayName,
+            branchId: String(item.branchId), branchName: branch?.name || null,
+            branchAddress: branch?.address || null };
+        }) });
+      } catch (error) { return next(error); }
+    },
     async assignToBranch(req, res, next) {
       try {
         const { branchId } = req.params;

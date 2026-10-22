@@ -58,7 +58,7 @@ function bookingRoutes(repository, workShiftRepository) {
     const appointment = await service.reschedule(req.auth, req.params.id, req.body, workShiftRepository);
     res.json({ appointment });
   }));
-  for (const action of ["complete", "cancel"]) {
+  for (const action of ["check_in", "undo_check_in", "no_show", "complete", "cancel"]) {
     router.post("/:id/" + action, handle(async (req, res) => {
       if (req.body && (Array.isArray(req.body) || typeof req.body !== "object" || Object.keys(req.body).length)) {
         throw new BookingError(400, "Action does not accept update fields");

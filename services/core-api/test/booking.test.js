@@ -28,6 +28,8 @@ function memoryDouble() {
       if (!current || current.status !== rule.from || actor.role !== rule.role ||
         current[rule.owner] !== actor.userId) return null;
       current.status = rule.to;
+      if (action === "check_in") current.checkedInAt = new Date();
+      if (action === "undo_check_in") delete current.checkedInAt;
       return structuredClone(current);
     },
     async recordPayment(key, actor, input) {

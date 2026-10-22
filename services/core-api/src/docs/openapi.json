@@ -236,7 +236,7 @@
           "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
           "status": {
             "type": "string",
-            "enum": ["booked", "completed", "paid", "cancelled"],
+            "enum": ["booked", "checked_in", "completed", "paid", "cancelled", "no_show"],
             "example": "booked"
           },
           "createdAt": { "type": "string", "format": "date-time" },
@@ -981,11 +981,26 @@
           "409": { "description": "Giờ mới không khả dụng" } }
       }
     },
+    "/appointments/{id}/check_in": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist ghi nhận khách đã đến",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment checked_in" }, "403": { "description": "Không phải stylist được giao" } } }
+    },
+    "/appointments/{id}/undo_check_in": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist hoàn tác check-in trong 5 phút",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment booked" }, "400": { "description": "Hết hạn hoàn tác" } } }
+    },
+    "/appointments/{id}/no_show": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist xác nhận khách không đến sau 15 phút",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment no_show" }, "400": { "description": "Chưa đủ 15 phút" } } }
+    },
     "/appointments/{id}/complete": {
       "post": {
         "tags": ["SHINE-03/07 · Booking API"],
         "summary": "Stylist hoàn thành phục vụ lịch hẹn",
-        "description": "Chuyển trạng thái từ `booked` sang `completed`.\n\nYêu cầu vai trò: **stylist** và phải là stylist được giao phục vụ lịch hẹn này.",
+        "description": "Chuyển trạng thái từ `checked_in` sang `completed`. Yêu cầu stylist được giao lịch.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
@@ -1001,7 +1016,7 @@
       "post": {
         "tags": ["SHINE-03/07 · Booking API"],
         "summary": "Khách hàng hủy lịch hẹn",
-        "description": "Chuyển trạng thái từ `booked` sang `cancelled`.\n\nYêu cầu vai trò: **customer** và phải chính là người đặt lịch.",
+        "description": "Chuyển từ `booked` sang `cancelled` trước giờ hẹn. Yêu cầu khách là chủ lịch.",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
@@ -1016,14 +1031,14 @@
       "get": { "tags": ["General Manager · Read API"], "summary": "Đếm lịch theo trạng thái trong ngày Việt Nam", "security": [{ "bearerAuth": [] }], "parameters": [
         { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
         { "name": "branchId", "in": "query", "schema": { "type": "string" } }
-      ], "responses": { "200": { "description": "{date, counts: {booked, completed, paid, cancelled}}" }, "403": { "description": "General Manager required" } } }
+      ], "responses": { "200": { "description": "{date, counts: {booked, checked_in, completed, paid, cancelled, no_show}}" }, "403": { "description": "General Manager required" } } }
     },
     "/manager/appointments": {
       "get": { "tags": ["General Manager · Read API"], "summary": "Lọc lịch mọi chi nhánh, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
         { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
         { "name": "branchId", "in": "query", "schema": { "type": "string" } },
         { "name": "stylistId", "in": "query", "schema": { "type": "string" } },
-        { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["booked", "completed", "paid", "cancelled"] } },
+        { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["booked", "checked_in", "completed", "paid", "cancelled", "no_show"] } },
         { "name": "cursor", "in": "query", "schema": { "type": "string" } },
         { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
       ], "responses": { "200": { "description": "{items, nextCursor}; số khách chỉ có trong chi tiết" }, "403": { "description": "General Manager required" } } }
@@ -1032,6 +1047,11 @@
       "get": { "tags": ["General Manager · Read API"], "summary": "Chi tiết lịch, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
         { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
       ], "responses": { "200": { "description": "Appointment gồm giá chốt và liên hệ khách" }, "403": { "description": "General Manager required" }, "404": { "description": "Không thấy lịch" } } }
+    },
+    "/manager/appointments/{id}/restore-no-show": {
+      "post": { "tags": ["General Manager · Read API"], "summary": "Manager khôi phục no_show thành checked_in nếu slot chưa được đặt lại",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment checked_in" }, "409": { "description": "Lịch trùng hoặc đã thay đổi" } } }
     },
     "/manager/payments": {
       "get": { "tags": ["General Manager · Read API"], "summary": "Payment Attempt theo chi nhánh", "description": "Thanh toán mô phỏng, không trừ tiền thật. Tổng thu chỉ cộng attempt thành công trên toàn bộ bộ lọc.", "security": [{ "bearerAuth": [] }], "parameters": [

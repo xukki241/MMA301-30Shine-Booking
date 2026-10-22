@@ -322,6 +322,24 @@ test("SHINE-05 Catalog API (Branch, Service, Stylist)", async (t) => {
       createdStylistId = data.stylist.id;
     });
 
+    await tStylist.test("GET /stylists/me returns only the signed-in stylist's active assignment", async () => {
+      const own = await fetch(`${base}/stylists/me`, {
+        headers: { Authorization: `Bearer ${sign("stylist", stylistUserId)}` },
+      });
+      assert.equal(own.status, 200);
+      const data = await own.json();
+      assert.equal(data.profiles.length, 1);
+      assert.equal(data.profiles[0].displayName, "Stylist Nam Phong");
+      assert.equal(data.profiles[0].branchName, "30Shine Cau Giay Premium");
+      assert.equal(data.profiles[0].branchAddress, "123 Cau Giay, Dich Vong, Hanoi");
+
+      const other = await fetch(`${base}/stylists/me`, { headers: { Authorization: `Bearer ${stylistToken}` } });
+      assert.equal(other.status, 200);
+      assert.deepEqual((await other.json()).profiles, []);
+      const customer = await fetch(`${base}/stylists/me`, customerRead);
+      assert.equal(customer.status, 403);
+    });
+
     await tStylist.test("POST /branches/:id/stylists rejects duplicate assignment", async () => {
       const res = await fetch(`${base}/branches/${createdBranchId}/stylists`, {
         method: "POST",

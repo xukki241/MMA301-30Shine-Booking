@@ -82,8 +82,8 @@ function computeTimeSlots(shifts, appointments, durationMinutes, now = new Date(
   if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) return [];
   const durationMs = durationMinutes * 60_000;
 
-  // Only booked/completed appointments block slots.
-  const active = appointments.filter((a) => a.status === "booked" || a.status === "completed");
+  // A customer already checked in still occupies the stylist's time.
+  const active = appointments.filter((a) => ["booked", "checked_in", "completed"].includes(a.status));
 
   const slots = [];
   for (const shift of shifts) {

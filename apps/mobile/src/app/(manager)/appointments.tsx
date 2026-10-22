@@ -1,5 +1,5 @@
 import { router, useFocusEffect, type Href } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
@@ -9,7 +9,8 @@ import type { AppointmentStatus, Branch, ManagerAppointment, Stylist } from "@/m
 import { useManagerApi } from "@/manager/use-manager-api";
 
 const statuses: Array<[AppointmentStatus | "", string]> = [["", "Tất cả"], ["booked", "Đã đặt"],
-  ["completed", "Hoàn thành"], ["paid", "Đã trả"], ["cancelled", "Đã hủy"]];
+  ["checked_in", "Đã đến"], ["completed", "Hoàn thành"], ["paid", "Đã trả"],
+  ["cancelled", "Đã hủy"], ["no_show", "Không đến"]];
 export default function ManagerAppointments() {
   const api = useManagerApi();
   const theme = useAppTheme();
@@ -25,6 +26,8 @@ export default function ManagerAppointments() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval); }, []);
   const requestId = useRef(0);
 
   useFocusEffect(useCallback(() => {
@@ -61,7 +64,7 @@ export default function ManagerAppointments() {
     } catch (cause) { if (current === requestId.current) setError(cause instanceof Error ? cause.message : "Không tải được trang tiếp."); }
     finally { setLoadingMore(false); }
   }
-  return <Screen eyebrow="General Manager" title="Lịch đặt" description="Chỉ xem và lọc; Stylist và Customer đổi trạng thái theo quyền của họ.">
+  return <Screen eyebrow="General Manager" title="Lịch đặt" description="Theo dõi trạng thái; khôi phục lịch no-show bị đánh dấu nhầm trong màn chi tiết.">
     <ManagerField label="Ngày YYYY-MM-DD" value={date} onChange={setDate} />
     <Card><CardTitle>Chi nhánh</CardTitle><ManagerRow>
       <ManagerAction label="Tất cả" selected={!branchId} onPress={() => { setBranchId(""); setStylistId(""); }} />

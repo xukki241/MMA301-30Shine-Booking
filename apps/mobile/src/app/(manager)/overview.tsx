@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Text } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
@@ -10,7 +10,8 @@ import { useManagerApi } from "@/manager/use-manager-api";
 import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
 
-const labels = { booked: "Đã đặt", completed: "Đã hoàn thành", paid: "Đã thanh toán", cancelled: "Đã hủy" };
+const labels = { booked: "Đã đặt", checked_in: "Đã đến", completed: "Đã hoàn thành",
+  paid: "Đã thanh toán", cancelled: "Đã hủy", no_show: "Khách không đến" };
 export default function ManagerOverview() {
   const api = useManagerApi();
   const theme = useAppTheme();
@@ -23,6 +24,8 @@ export default function ManagerOverview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval); }, []);
 
   function handleLogout() {
     Alert.alert(

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Pressable,
+  Alert,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   View,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
@@ -15,30 +17,13 @@ import { useAppTheme } from "@/constants/theme";
 import { useAuth } from "@/providers/auth-provider";
 import {
   completeStylistAppointment,
+  actOnStylistAppointment,
   getStylistTodayAppointments,
+  getStylistProfiles,
   loginStylist,
   type StylistAppointmentItem,
 } from "@/booking/http-adapter";
-
-function getTodayLocalDate(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDisplayDate(dateStr: string): string {
-  try {
-    const parts = dateStr.split("-").map(Number);
-    const d = new Date(parts[0], parts[1] - 1, parts[2]);
-    return new Intl.DateTimeFormat("vi-VN", {
-      weekday: "long",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    }).format(d);
-  } catch {
-    return dateStr;
-  }
-}
+import { dateLabel, shiftDate, vietnamToday } from "@/stylist/date";
 
 export default function StylistTodayScreen() {
   const theme = useAppTheme();
@@ -46,8 +31,8 @@ export default function StylistTodayScreen() {
   const [localToken, setLocalToken] = useState<string | null>(null);
   const token = (authRole === "stylist" ? contextToken : null) || localToken;
 
-  const [email, setEmail] = useState("stylist@30shine.vn");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -57,8 +42,13 @@ export default function StylistTodayScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(vietnamToday);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => vietnamToday().slice(0, 7));
+  const [stylistName, setStylistName] = useState<string | null>(null);
+  const [branchName, setBranchName] = useState<string | null>(null);
 
-  const todayStr = getTodayLocalDate();
+  const todayStr = vietnamToday();
 
   const fetchAppointments = useCallback(
     async (authToken: string, isPullRefresh = false) => {
@@ -70,7 +60,7 @@ export default function StylistTodayScreen() {
       setLoadError(null);
       setActionError(null);
       try {
-        const data = await getStylistTodayAppointments(authToken, todayStr);
+        const data = await getStylistTodayAppointments(authToken, selectedDate);
         setAppointments(data);
       } catch (cause) {
         setLoadError(cause instanceof Error ? cause.message : "Không thể tải lịch làm việc.");
@@ -79,14 +69,42 @@ export default function StylistTodayScreen() {
         setRefreshing(false);
       }
     },
-    [todayStr]
+    [selectedDate]
   );
 
   useEffect(() => {
     if (token) {
       void fetchAppointments(token);
+      const interval = setInterval(() => { void fetchAppointments(token); }, 30000);
+      return () => clearInterval(interval);
     }
   }, [token, fetchAppointments]);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    void getStylistProfiles(token).then((profiles) => {
+      if (active) {
+        setStylistName(profiles[0]?.displayName || null);
+        setBranchName(profiles[0]?.branchName || null);
+      }
+    }).catch(() => { if (active) setStylistName(null); });
+    return () => { active = false; };
+  }, [token]);
+
+  function moveMonth(offset: number) {
+    setCalendarMonth((month) => shiftDate(`${month}-01`, offset > 0 ? 32 : -1).slice(0, 7));
+  }
+
+  function chooseDate(date: string) {
+    setSelectedDate(date);
+    setCalendarMonth(date.slice(0, 7));
+    setCalendarOpen(false);
+  }
+
+  const [year, month] = calendarMonth.split("-").map(Number);
+  const firstWeekday = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+  const monthDays = new Date(Date.UTC(year, month, 0)).getUTCDate();
 
   async function handleLogin() {
     setLoggingIn(true);
@@ -118,10 +136,29 @@ export default function StylistTodayScreen() {
     }
   }
 
+  async function handleAction(appointmentId: string, action: "check_in" | "undo_check_in" | "no_show") {
+    if (!token) return;
+    setCompletingId(appointmentId);
+    setActionError(null);
+    try {
+      const updated = await actOnStylistAppointment(token, appointmentId, action);
+      setAppointments((prev) => prev.map((item) => item.id === updated.id ? updated : item));
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : "Không cập nhật được lịch.");
+    } finally { setCompletingId(null); }
+  }
+
+  function confirmNoShow(id: string) {
+    Alert.alert("Xác nhận khách không đến", "Hãy kiểm tra khách không đang chờ tại salon.", [
+      { text: "Quay lại", style: "cancel" },
+      { text: "Khách không đến", style: "destructive", onPress: () => { void handleAction(id, "no_show"); } },
+    ]);
+  }
+
   function formatTime(isoStr: string) {
     try {
       const date = new Date(isoStr);
-      return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit" }).format(date);
+      return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Ho_Chi_Minh" }).format(date);
     } catch {
       return isoStr;
     }
@@ -171,9 +208,9 @@ export default function StylistTodayScreen() {
 
   return (
     <Screen
-      eyebrow="Stylist · Lịch hôm nay"
-      title="Lịch phục vụ hôm nay"
-      description={`Ngày: ${formatDisplayDate(todayStr)}. Bấm Hoàn thành sau khi phục vụ xong.`}
+      eyebrow={branchName || "Lịch làm việc · Stylist"}
+      title={stylistName ? `Xin chào, ${stylistName}` : "Lịch làm việc"}
+      description="Chọn ngày để xem lịch hẹn và cập nhật trạng thái khách."
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
@@ -186,13 +223,16 @@ export default function StylistTodayScreen() {
       }
     >
       <View style={styles.topControlRow}>
-        <View style={styles.todayPill}>
-          <Ionicons name="calendar-outline" size={14} color={theme.brand} style={{ marginRight: 6 }} />
-          <Text style={[styles.todayPillText, { color: theme.brand }]}>{todayStr}</Text>
-        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Chọn ngày xem lịch"
+          onPress={() => { setCalendarMonth(selectedDate.slice(0, 7)); setCalendarOpen(true); }} style={styles.dateButton}>
+          <Ionicons name="calendar-outline" size={18} color={theme.brand} />
+          <View><Text style={styles.dateCaption}>LỊCH NGÀY</Text>
+            <Text style={styles.dateValue}>{dateLabel(selectedDate, { weekday: "long", day: "numeric", month: "numeric", year: "numeric" })}</Text></View>
+          <Ionicons name="chevron-down" size={16} color={theme.brand} />
+        </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Làm mới lịch hôm nay"
+          accessibilityLabel="Làm mới lịch"
           onPress={() => {
             if (token) void fetchAppointments(token, true);
           }}
@@ -202,20 +242,55 @@ export default function StylistTodayScreen() {
           <Text style={[styles.refreshButtonText, { color: theme.textMuted }]}>Làm mới</Text>
         </Pressable>
       </View>
+      <View style={styles.dayStrip}>
+        {Array.from({ length: 7 }, (_, index) => shiftDate(selectedDate, index - 3)).map((date) => (
+          <Pressable key={date} accessibilityRole="button" accessibilityLabel={`Xem lịch ${date}`}
+            onPress={() => setSelectedDate(date)} style={[styles.dayChip, date === selectedDate && { backgroundColor: theme.brand }]}>
+            <Text style={[styles.dayWeek, date === selectedDate && styles.selectedDayText]}>{dateLabel(date, { weekday: "short" })}</Text>
+            <Text style={[styles.dayNumber, date === selectedDate && styles.selectedDayText]}>{date.slice(-2)}</Text>
+            {date === todayStr && <View style={[styles.todayDot, date === selectedDate && { backgroundColor: "#fff" }]} />}
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Lịch hẹn · {appointments.length}</Text>
+        {selectedDate !== todayStr && <Pressable onPress={() => chooseDate(todayStr)}><Text style={{ color: theme.brand, fontWeight: "700" }}>Về hôm nay</Text></Pressable>}</View>
+
+      <Modal visible={calendarOpen} transparent animationType="fade" onRequestClose={() => setCalendarOpen(false)}>
+        <View style={styles.modalOverlay}><View style={styles.calendarCard}>
+          <View style={styles.calendarHeader}>
+            <Pressable accessibilityLabel="Tháng trước" onPress={() => moveMonth(-1)}><Ionicons name="chevron-back" size={24} color={theme.brand} /></Pressable>
+            <Text style={styles.calendarTitle}>{dateLabel(`${calendarMonth}-01`, { month: "long", year: "numeric" })}</Text>
+            <Pressable accessibilityLabel="Tháng sau" onPress={() => moveMonth(1)}><Ionicons name="chevron-forward" size={24} color={theme.brand} /></Pressable>
+          </View>
+          <View style={styles.calendarGrid}>
+            {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => <Text key={day} style={styles.calendarWeekday}>{day}</Text>)}
+            {Array.from({ length: firstWeekday }, (_, index) => <View key={`empty-${index}`} style={styles.calendarCell} />)}
+            {Array.from({ length: monthDays }, (_, index) => {
+              const date = `${calendarMonth}-${String(index + 1).padStart(2, "0")}`;
+              return <Pressable key={date} accessibilityRole="button" accessibilityLabel={`Chọn ${date}`} onPress={() => chooseDate(date)}
+                style={[styles.calendarCell, date === selectedDate && { backgroundColor: theme.brand, borderRadius: 22 }]}>
+                <Text style={[styles.calendarDay, date === selectedDate && { color: "#fff" }, date === todayStr && date !== selectedDate && { color: theme.brand, fontWeight: "800" }]}>{index + 1}</Text>
+              </Pressable>;
+            })}
+          </View>
+          <Pressable onPress={() => chooseDate(todayStr)} style={styles.calendarToday}><Text style={{ color: theme.brand, fontWeight: "700" }}>Hôm nay</Text></Pressable>
+          <Pressable onPress={() => setCalendarOpen(false)} style={styles.calendarClose}><Text style={{ color: theme.textMuted }}>Đóng</Text></Pressable>
+        </View></View>
+      </Modal>
 
       {actionError ? (
         <InlineError message={actionError} onRetry={() => setActionError(null)} />
       ) : null}
 
       {loading ? (
-        <LoadingState label="Đang tải lịch hôm nay..." />
+        <LoadingState label="Đang tải lịch hẹn..." />
       ) : loadError ? (
         <InlineError message={loadError} onRetry={() => { void fetchAppointments(token); }} />
       ) : appointments.length === 0 ? (
         <EmptyState
           icon="calendar-outline"
-          title="Hôm nay chưa có khách"
-          description="Các lịch hẹn mới do khách đặt sẽ tự động xuất hiện tại đây khi làm mới."
+          title="Ngày này chưa có lịch hẹn"
+          description="Hãy chọn ngày khác để xem lịch phục vụ."
         />
       ) : (
         appointments.map((item) => (
@@ -237,11 +312,11 @@ export default function StylistTodayScreen() {
                   styles.badge,
                   {
                     backgroundColor:
-                      item.status === "completed"
+                      item.status === "completed" || item.status === "checked_in"
                         ? "#DCFCE7"
                         : item.status === "paid"
                         ? "#DBEAFE"
-                        : item.status === "cancelled"
+                      : item.status === "cancelled" || item.status === "no_show"
                         ? "#FEE2E2"
                         : "#FEF3C7",
                   },
@@ -252,39 +327,53 @@ export default function StylistTodayScreen() {
                     styles.badgeText,
                     {
                       color:
-                        item.status === "completed"
+                        item.status === "completed" || item.status === "checked_in"
                           ? "#166534"
                           : item.status === "paid"
                           ? "#1E40AF"
-                          : item.status === "cancelled"
+                          : item.status === "cancelled" || item.status === "no_show"
                           ? "#991B1B"
                           : "#92400E",
                     },
                   ]}
                 >
-                  {item.status.toUpperCase()}
+                  {({ booked: "Đã đặt", checked_in: "Đã đến", completed: "Hoàn thành", paid: "Đã trả",
+                    cancelled: "Đã hủy", no_show: "Không đến" } as const)[item.status]}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Mã lịch:</Text>
-              <Text style={styles.detailValue}>{item.id}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Khách hàng:</Text>
-              <Text style={styles.detailValue}>{item.customerId}</Text>
-            </View>
+            <Text style={styles.customerName}>{item.customerName || item.customerPhone || "Khách hàng"}</Text>
+            <View style={styles.serviceRow}><Ionicons name="cut-outline" size={17} color={theme.brand} />
+              <Text style={styles.serviceText}>{item.serviceName || "Dịch vụ chưa cập nhật"}</Text></View>
+            {item.branchName ? <View style={styles.serviceRow}><Ionicons name="location-outline" size={16} color={theme.textMuted} />
+              <Text style={styles.branchText}>{item.branchName}</Text></View> : null}
 
             {item.status === "booked" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
-                  label="Đánh dấu Hoàn thành"
-                  onPress={() => { void handleComplete(item.id); }}
+                  label="Khách đã đến"
+                  onPress={() => { void handleAction(item.id, "check_in"); }}
                   loading={completingId === item.id}
                 />
+                {Date.now() >= new Date(item.startTime).getTime() + 15 * 60000 && <>
+                  <Text style={{ color: theme.danger, marginTop: 8 }}>Quá 15 phút, chưa ghi nhận khách đến. Hãy kiểm tra.</Text>
+                  <WizardAction label="Khách không đến" onPress={() => confirmNoShow(item.id)}
+                    loading={completingId === item.id} />
+                </>}
               </View>
-            ) : item.status === "completed" ? (
+            ) : item.status === "checked_in" ? <View style={styles.actionWrap}>
+              <Text style={{ color: theme.textMuted, marginBottom: 8 }}>Khách đã đến, có thể đang chờ thợ.</Text>
+              <WizardAction label="Đánh dấu Hoàn thành" onPress={() => { void handleComplete(item.id); }}
+                loading={completingId === item.id} />
+              {item.checkedInAt && Date.now() - new Date(item.checkedInAt).getTime() <= 5 * 60000 &&
+                <Pressable onPress={() => Alert.alert("Hoàn tác check-in?", "Chỉ dùng khi bấm nhầm khách đã đến.", [
+                  { text: "Giữ nguyên", style: "cancel" },
+                  { text: "Hoàn tác", onPress: () => { void handleAction(item.id, "undo_check_in"); } },
+                ])}>
+                  <Text style={{ color: theme.brand, marginTop: 10 }}>Hoàn tác check-in</Text>
+                </Pressable>}
+            </View> : item.status === "completed" ? (
               <View style={styles.statusBoxSuccess}>
                 <Ionicons name="checkmark-circle" size={16} color="#166534" style={{ marginRight: 6 }} />
                 <Text style={styles.statusNoteSuccess}>
@@ -305,7 +394,9 @@ export default function StylistTodayScreen() {
                   Lịch hẹn đã bị hủy.
                 </Text>
               </View>
-            ) : null}
+            ) : item.status === "no_show" ? <Text style={{ color: theme.danger, marginTop: 12 }}>
+              Khách không đến. Manager có thể khôi phục nếu đánh dấu nhầm.
+            </Text> : null}
           </Card>
         ))
       )}
@@ -314,6 +405,32 @@ export default function StylistTodayScreen() {
 }
 
 const styles = StyleSheet.create({
+  dateButton: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10, padding: 12,
+    backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#DDE5EF", borderRadius: 14 },
+  dateCaption: { color: "#64748B", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
+  dateValue: { color: "#142443", fontSize: 13, fontWeight: "800", textTransform: "capitalize" },
+  dayStrip: { flexDirection: "row", marginHorizontal: 16, gap: 4, justifyContent: "space-between" },
+  dayChip: { flex: 1, alignItems: "center", paddingVertical: 9, borderRadius: 12, minHeight: 58 },
+  dayWeek: { color: "#64748B", fontSize: 11, fontWeight: "600" },
+  dayNumber: { color: "#142443", fontSize: 15, fontWeight: "800", marginTop: 2 },
+  selectedDayText: { color: "#FFFFFF" },
+  todayDot: { backgroundColor: "#1E3155", width: 4, height: 4, borderRadius: 2, marginTop: 4 },
+  sectionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 18, marginTop: 12 },
+  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#142443" },
+  modalOverlay: { flex: 1, justifyContent: "center", padding: 24, backgroundColor: "#0F172A99" },
+  calendarCard: { backgroundColor: "#FFFFFF", borderRadius: 22, padding: 18 },
+  calendarHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 18 },
+  calendarTitle: { fontSize: 17, fontWeight: "800", color: "#142443", textTransform: "capitalize" },
+  calendarGrid: { flexDirection: "row", flexWrap: "wrap" },
+  calendarWeekday: { width: "14.2857%", textAlign: "center", fontSize: 12, fontWeight: "700", color: "#64748B", paddingVertical: 7 },
+  calendarCell: { width: "14.2857%", height: 42, alignItems: "center", justifyContent: "center" },
+  calendarDay: { fontSize: 14, color: "#142443", fontWeight: "600" },
+  calendarToday: { alignSelf: "center", padding: 10, marginTop: 12 },
+  calendarClose: { alignSelf: "center", padding: 8 },
+  customerName: { color: "#142443", fontSize: 18, fontWeight: "800", marginTop: 4 },
+  serviceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  serviceText: { color: "#233655", fontSize: 14, fontWeight: "700", flex: 1 },
+  branchText: { color: "#64748B", fontSize: 12, flex: 1 },
   input: {
     borderWidth: 1,
     borderColor: "#CBD5E1",
@@ -330,6 +447,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 12,
+    marginHorizontal: 16,
   },
   todayPill: {
     flexDirection: "row",

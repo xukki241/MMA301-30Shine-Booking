@@ -27,6 +27,33 @@ test("SHINE-03 real Mongo atomic booking across two independent connections/app 
   await Promise.all(calendars.map((c) => c.init()));
   const repositories = calendars.map(createBookingRepository);
   await bookingContract(t, ...repositories);
+  const attendanceStylist = new mongoose.Types.ObjectId();
+  const attendanceCustomer = new mongoose.Types.ObjectId();
+  const attendanceId = new mongoose.Types.ObjectId();
+  const managerId = new mongoose.Types.ObjectId();
+  const attendanceStart = new Date(Date.now() - 20 * 60000);
+  await calendars[0].collection.insertOne({ _id: attendanceStylist, appointments: [{
+    _id: attendanceId, customerId: attendanceCustomer, stylistId: attendanceStylist,
+    startTime: attendanceStart, endTime: new Date(attendanceStart.getTime() + 45 * 60000),
+    status: "booked", createdAt: new Date(), updatedAt: new Date(),
+  }] });
+  const attendanceService = createBookingService(repositories[0]);
+  const actor = { role: "stylist", userId: String(attendanceStylist) };
+  assert.equal((await attendanceService.transition(actor, String(attendanceId), "check_in")).status, "checked_in");
+  assert.equal((await attendanceService.transition(actor, String(attendanceId), "undo_check_in")).status, "booked");
+  assert.equal((await attendanceService.transition(actor, String(attendanceId), "no_show")).status, "no_show");
+  const restored = await repositories[0].restoreNoShow(String(attendanceId),
+    { role: "general_manager", userId: String(managerId) });
+  assert.equal(restored.status, "checked_in");
+  assert.equal(restored.statusHistory.length, 4);
+  assert.equal(restored.statusHistory[3].actorRole, "general_manager");
+  await attendanceService.transition(actor, String(attendanceId), "undo_check_in");
+  await attendanceService.transition(actor, String(attendanceId), "no_show");
+  await repositories[0].book({ customerId: String(attendanceCustomer), stylistId: String(attendanceStylist),
+    startTime: attendanceStart, endTime: new Date(attendanceStart.getTime() + 45 * 60000) });
+  assert.equal(await repositories[0].restoreNoShow(String(attendanceId),
+    { role: "general_manager", userId: String(managerId) }), null,
+  "Manager cannot restore no-show over a replacement booking");
   const legacyId = new mongoose.Types.ObjectId();
   const legacyCustomer = new mongoose.Types.ObjectId();
   const legacyStylist = new mongoose.Types.ObjectId();
@@ -44,7 +71,7 @@ test("SHINE-03 real Mongo atomic booking across two independent connections/app 
   const docs = await calendars[0].collection.find({}).toArray();
   assert.ok(docs.length > 0);
   for (const calendar of docs) {
-    const active = calendar.appointments.filter((a) => a.status !== "cancelled");
+    const active = calendar.appointments.filter((a) => a.status !== "cancelled" && a.status !== "no_show");
     for (let i = 0; i < active.length; i++) {
       assert.equal(String(active[i].stylistId), String(calendar._id));
       for (let j = i + 1; j < active.length; j++) {

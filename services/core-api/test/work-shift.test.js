@@ -103,6 +103,13 @@ test("computeTimeSlots: completed appointment blocks slot", () => {
   assert.deepEqual(slots[0].startTime, d("2026-10-10T10:00:00Z"));
 });
 
+test("computeTimeSlots: checked-in appointment blocks, no-show releases", () => {
+  const shifts = [shift("2026-10-10T09:00:00Z", "2026-10-10T11:00:00Z")];
+  const interval = ["2026-10-10T09:00:00Z", "2026-10-10T10:00:00Z"];
+  assert.equal(computeTimeSlots(shifts, [appt(...interval, "checked_in")], 60, PAST_NOW).length, 1);
+  assert.equal(computeTimeSlots(shifts, [appt(...interval, "no_show")], 60, PAST_NOW).length, 2);
+});
+
 test("computeTimeSlots: paid and cancelled appointments do NOT block slots", () => {
   const shifts = [shift("2026-10-10T09:00:00Z", "2026-10-10T11:00:00Z")];
   const appointments = [

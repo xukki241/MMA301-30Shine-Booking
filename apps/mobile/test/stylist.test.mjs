@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   completeStylistAppointment,
+  actOnStylistAppointment,
   getStylistTodayAppointments,
+  getStylistProfiles,
   loginStylist,
 } from "../src/booking/http-adapter.ts";
 
@@ -41,6 +43,22 @@ test("loginStylist succeeds for stylist role and rejects non-stylist", async (t)
     loginStylist("customer@30shine.vn", "Password123!"),
     /Tài khoản này không có quyền Stylist/
   );
+});
+
+test("getStylistProfiles reads own display name and branch", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let path;
+  let authorization;
+  globalThis.fetch = async (url, options) => {
+    path = String(url); authorization = options.headers.Authorization;
+    return { ok: true, status: 200, json: async () => ({ profiles: [{ id: "p", displayName: "Toàn", branchName: "30Shine Phú Diễn" }] }) };
+  };
+  const profiles = await getStylistProfiles("staff-token");
+  assert.match(path, /\/stylists\/me$/);
+  assert.equal(authorization, "Bearer staff-token");
+  assert.equal(profiles[0].displayName, "Toàn");
+  assert.equal(profiles[0].branchName, "30Shine Phú Diễn");
 });
 
 test("getStylistTodayAppointments lists appointments and handles empty state", async (t) => {
@@ -101,7 +119,22 @@ test("getStylistTodayAppointments lists appointments and handles empty state", a
   );
 });
 
-test("completeStylistAppointment transitions booked appointment to completed", async (t) => {
+test("stylist attendance actions send authenticated requests", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const paths = [];
+  globalThis.fetch = async (url, options) => {
+    paths.push([String(url), options.method, options.headers.Authorization]);
+    return { ok: true, status: 200, json: async () => ({ appointment: { id: "a", status: "checked_in" } }) };
+  };
+  for (const action of ["check_in", "undo_check_in", "no_show"]) {
+    await actOnStylistAppointment("token", "a", action);
+  }
+  assert.deepEqual(paths.map(([path]) => path.split("/").at(-1)), ["check_in", "undo_check_in", "no_show"]);
+  assert.ok(paths.every(([, method, authorization]) => method === "POST" && authorization === "Bearer token"));
+});
+
+test("completeStylistAppointment sends the completion action", async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => {
     globalThis.fetch = originalFetch;

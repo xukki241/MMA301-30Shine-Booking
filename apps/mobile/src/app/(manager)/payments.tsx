@@ -1,5 +1,5 @@
 import { useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
@@ -22,6 +22,8 @@ export default function ManagerPayments() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval); }, []);
   const requestId = useRef(0);
   useFocusEffect(useCallback(() => {
     let active = true;
