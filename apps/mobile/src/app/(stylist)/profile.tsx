@@ -1,3 +1,4 @@
+// Stylist profile - professional info and specialties
 import { useCallback, useState } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
