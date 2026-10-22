@@ -349,6 +349,17 @@ export default function StylistTodayScreen() {
             {item.branchName ? <View style={styles.serviceRow}><Ionicons name="location-outline" size={16} color={theme.textMuted} />
               <Text style={styles.branchText}>{item.branchName}</Text></View> : null}
 
+            {item.wishes?.specialRequest?.trim() || item.wishes?.stylistPreference?.trim() ? (
+              <View style={styles.requestBox}>
+                <View style={styles.requestHeading}><Ionicons name="chatbox-ellipses-outline" size={16} color={theme.brand} />
+                  <Text style={styles.requestTitle}>Yêu cầu của khách</Text></View>
+                {item.wishes.specialRequest?.trim() ?
+                  <Text style={styles.requestText}>{item.wishes.specialRequest.trim()}</Text> : null}
+                {item.wishes.stylistPreference?.trim() ?
+                  <Text style={styles.requestSecondary}>Mong muốn về thợ: {item.wishes.stylistPreference.trim()}</Text> : null}
+              </View>
+            ) : null}
+
             {item.status === "booked" ? (
               <View style={styles.actionWrap}>
                 <WizardAction
@@ -394,9 +405,11 @@ export default function StylistTodayScreen() {
                   Lịch hẹn đã bị hủy.
                 </Text>
               </View>
-            ) : item.status === "no_show" ? <Text style={{ color: theme.danger, marginTop: 12 }}>
-              Khách không đến. Manager có thể khôi phục nếu đánh dấu nhầm.
-            </Text> : null}
+            ) : item.status === "no_show" ? <View style={styles.noShowBox}>
+              <Ionicons name="information-circle-outline" size={19} color="#9A3412" />
+              <View style={{ flex: 1 }}><Text style={styles.noShowTitle}>Đã ghi nhận khách không đến</Text>
+                <Text style={styles.noShowDescription}>Nếu cần điều chỉnh, hãy liên hệ Manager.</Text></View>
+            </View> : null}
           </Card>
         ))
       )}
@@ -431,6 +444,15 @@ const styles = StyleSheet.create({
   serviceRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   serviceText: { color: "#233655", fontSize: 14, fontWeight: "700", flex: 1 },
   branchText: { color: "#64748B", fontSize: 12, flex: 1 },
+  requestBox: { marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: "#F2F6FC", gap: 6 },
+  requestHeading: { flexDirection: "row", alignItems: "center", gap: 7 },
+  requestTitle: { fontSize: 12, fontWeight: "800", color: "#1E3155" },
+  requestText: { color: "#233655", fontSize: 13, lineHeight: 19, marginLeft: 23 },
+  requestSecondary: { color: "#526682", fontSize: 12, lineHeight: 18, marginLeft: 23 },
+  noShowBox: { marginTop: 12, flexDirection: "row", alignItems: "flex-start", gap: 9,
+    padding: 12, borderRadius: 12, backgroundColor: "#FFF7ED" },
+  noShowTitle: { color: "#9A3412", fontSize: 13, fontWeight: "800" },
+  noShowDescription: { color: "#7C4A32", fontSize: 12, lineHeight: 18, marginTop: 3 },
   input: {
     borderWidth: 1,
     borderColor: "#CBD5E1",

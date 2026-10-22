@@ -94,6 +94,7 @@ test("getStylistTodayAppointments lists appointments and handles empty state", a
       startTime: "2026-10-10T09:00:00.000Z",
       endTime: "2026-10-10T09:45:00.000Z",
       status: "booked",
+      wishes: { specialRequest: "Cắt gọn hai bên", stylistPreference: "Tư vấn kiểu tóc" },
       createdAt: "2026-10-09T00:00:00.000Z",
       updatedAt: "2026-10-09T00:00:00.000Z",
     },
@@ -108,6 +109,8 @@ test("getStylistTodayAppointments lists appointments and handles empty state", a
   assert.equal(list.length, 1);
   assert.equal(list[0].id, "appt_001");
   assert.equal(list[0].status, "booked");
+  assert.equal(list[0].wishes.specialRequest, "Cắt gọn hai bên");
+  assert.equal(list[0].wishes.stylistPreference, "Tư vấn kiểu tóc");
 
   // 3. Network connection failure handling
   globalThis.fetch = async () => {

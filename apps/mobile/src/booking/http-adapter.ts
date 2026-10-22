@@ -53,6 +53,11 @@ export interface StylistAppointmentItem {
   customerPhone?: string;
   serviceName?: string;
   branchName?: string;
+  wishes?: {
+    stylistPreference?: string;
+    specialRequest?: string;
+    referenceImages?: string[];
+  };
   stylistId: string;
   startTime: string;
   endTime: string;
