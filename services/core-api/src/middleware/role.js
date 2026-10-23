@@ -1,3 +1,4 @@
+// Role middleware - RBAC guard for customer, stylist, and manager endpoints
 function requireRole(...roles) {
   return (req, res, next) => {
     if (!req.auth || !roles.includes(req.auth.role)) {
