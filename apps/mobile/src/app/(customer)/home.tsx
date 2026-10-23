@@ -328,7 +328,8 @@ export default function CustomerHomeScreen() {
         {servicesError ? <Text style={{ color: theme.textMuted }}>Không tải được dịch vụ. Vui lòng thử lại.</Text> : null}
         {!servicesLoading && !servicesError && homeServices.length === 0 ? <Text style={{ color: theme.textMuted }}>
           Chưa có dịch vụ đang hoạt động.</Text> : null}
-        <View style={styles.servicesGrid}>
+        {homeServices.length > 0 ? <ScrollView horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.servicesList}>
           {homeServices.map(({ branch, service, description }) => <Pressable key={`${branch.id}-${service.id}`}
             style={[styles.serviceCard, { backgroundColor: theme.surface, borderColor: theme.border }]}
             onPress={() => router.push({ pathname: "/(customer)/book",
@@ -346,7 +347,7 @@ export default function CustomerHomeScreen() {
               <Text style={[styles.serviceSelectLink, { color: theme.brand }]}>Chọn dịch vụ ›</Text>
             </View>
           </Pressable>)}
-        </View>
+        </ScrollView> : null}
 
         {/* 6. Menu List Items (Matching Stitch Screen 1) */}
         <View style={[styles.menuContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -737,12 +738,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700"
   },
-  servicesGrid: {
-    flexDirection: "row",
-    gap: 12
-  },
+  servicesList: { gap: 12, paddingRight: 20 },
   serviceCard: {
-    flex: 1,
+    width: 150,
     borderRadius: 16,
     borderWidth: 1,
     padding: 12,
