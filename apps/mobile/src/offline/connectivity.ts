@@ -1,3 +1,4 @@
+// Connectivity monitor - detects online/offline transitions for cache strategy
 export type Connectivity = "unknown" | "online" | "offline";
 
 export type ConnectionSnapshot = {
