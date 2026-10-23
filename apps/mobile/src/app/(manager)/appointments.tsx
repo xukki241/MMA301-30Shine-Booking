@@ -1,3 +1,4 @@
+// Manager appointments - all branch bookings with status filters
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
