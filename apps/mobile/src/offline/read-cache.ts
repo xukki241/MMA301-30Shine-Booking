@@ -1,3 +1,4 @@
+// Read cache - AsyncStorage-based offline data layer for appointment lists
 import type { Connectivity } from "./connectivity";
 
 export type KeyValueStorage = {
