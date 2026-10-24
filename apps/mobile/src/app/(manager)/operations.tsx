@@ -1,3 +1,4 @@
+// Manager operations - stylist assignment and resource management
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
