@@ -1,3 +1,4 @@
+// Batch work shift tests - multi-day shift creation and assignment
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
