@@ -1,3 +1,4 @@
+// Manager payments - revenue tracking and transaction records
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
