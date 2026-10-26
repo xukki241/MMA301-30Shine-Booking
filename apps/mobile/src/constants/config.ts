@@ -1,3 +1,4 @@
+// App configuration constants - API URLs, timeouts, feature flags
 /**
  * Mobile app configuration constants.
  *
