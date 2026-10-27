@@ -1,3 +1,4 @@
+// Manager routes - admin dashboard and branch management endpoints
 const { Router } = require("express");
 const { requireRole } = require("../middleware/role");
 const { BookingError } = require("../booking/rules");
