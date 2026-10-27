@@ -1,3 +1,4 @@
+// Payment poller tests - mock IPN webhook responses and retry logic
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createSepayPoller, normalizeTransaction } = require('../src/payment/poller');
