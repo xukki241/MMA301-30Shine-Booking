@@ -1,3 +1,4 @@
+// Payment tests - SePay VietQR transaction creation and signature check
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPaymentService } = require('../src/payment/service');
