@@ -1,3 +1,4 @@
+// Work shift service - stylist schedule CRUD and availability calculation
 const mongoose = require("mongoose");
 const { WorkShiftError, validateWorkShift, computeTimeSlots } = require("./rules");
 
