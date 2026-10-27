@@ -1,3 +1,4 @@
+// Theme constants - 30Shine brand colors, spacing, typography tokens
 import { useColorScheme } from "react-native";
 
 const shared = {
