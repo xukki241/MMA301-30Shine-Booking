@@ -1,3 +1,4 @@
+// Customer profile API - fetch and update customer personal information
 import { AUTH_SERVICE_URL } from "../constants/config.ts";
 
 export type HomeAddress = { province: string; district: string; ward: string; streetAddress: string };
