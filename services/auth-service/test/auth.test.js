@@ -1,3 +1,4 @@
+// Auth test suite - JWT issuance, expiry, and signature validation
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
