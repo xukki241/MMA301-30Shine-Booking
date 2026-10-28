@@ -1,3 +1,4 @@
+// Customer auth tests - registration input validation and password hashing
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
