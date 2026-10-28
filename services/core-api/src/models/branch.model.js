@@ -1,3 +1,4 @@
+// Branch model - salon branch entity with location and hours
 const mongoose = require("mongoose");
 
 function createBranchModel(connection, collection = "branches") {
