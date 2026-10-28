@@ -1,3 +1,4 @@
+// Appointment detail - manager view with status actions
 import { Redirect, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Text } from "react-native";
