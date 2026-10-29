@@ -1,3 +1,4 @@
+// Staff admin - system administrator user management and role assignment
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { ROLES } = require("./models/user");
