@@ -1,3 +1,4 @@
+// Customer profile - personal info management and preference settings
 const { normalizeName } = require("./customer-guest");
 
 const ADDRESS_FIELDS = ["province", "district", "ward", "streetAddress"];
