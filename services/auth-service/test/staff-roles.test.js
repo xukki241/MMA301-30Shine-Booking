@@ -1,3 +1,4 @@
+// Staff role tests - permission guards and authorization checks
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");
