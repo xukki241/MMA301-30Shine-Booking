@@ -1,3 +1,4 @@
+// Audit log - records authentication events and admin actions for compliance
 const mongoose = require("mongoose");
 
 function createAuditLogModel(connection) {
