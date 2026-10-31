@@ -1,4 +1,3 @@
-// Stylist model - staff profile with skills and branch assignment
 const mongoose = require("mongoose");
 
 function createStylistModel(connection, collection = "stylist_profiles") {

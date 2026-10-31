@@ -1,4 +1,3 @@
-// Customer appointments - list of upcoming and past bookings
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { File, Paths } from "expo-file-system";
 import * as MediaLibrary from "expo-media-library/legacy";

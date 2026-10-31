@@ -1,4 +1,3 @@
-// Service model - salon service catalog with pricing tiers
 const mongoose = require("mongoose");
 
 function createServiceModel(connection, collection = "services") {

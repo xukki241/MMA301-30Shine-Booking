@@ -1,4 +1,3 @@
-// Stylist timetable - monthly shift calendar overview
 import { useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";

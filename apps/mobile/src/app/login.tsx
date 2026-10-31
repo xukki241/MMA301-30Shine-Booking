@@ -1,4 +1,3 @@
-// Login screen - role-based authentication entry
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";

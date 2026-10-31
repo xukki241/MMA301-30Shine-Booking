@@ -1,4 +1,3 @@
-// Work shift model - recurring and one-off shift schedule entries
 const mongoose = require("mongoose");
 
 function createWorkShiftModel(connection, collection = "work_shifts") {

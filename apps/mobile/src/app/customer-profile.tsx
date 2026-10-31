@@ -1,4 +1,3 @@
-// Customer profile edit - personal info and address form
 import { Ionicons } from "@expo/vector-icons";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
