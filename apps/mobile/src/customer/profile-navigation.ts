@@ -1,4 +1,3 @@
-// Profile navigation - deep link routing for customer profile sub-screens
 export const profileDestination = (hasToken: boolean) =>
   hasToken ? "/customer-profile" : "/login?next=profile";
 

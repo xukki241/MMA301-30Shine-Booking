@@ -1,4 +1,3 @@
-// Slot options - generates available time slots based on stylist calendar
 import type { TimeSlot } from "./types.ts";
 
 export type SlotOption = {

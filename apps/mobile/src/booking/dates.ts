@@ -1,4 +1,3 @@
-// Date utilities for booking calendar - slot generation and timezone handling
 export type BookingDate = { key: string; label: string };
 
 export function localDateKey(date: Date): string {

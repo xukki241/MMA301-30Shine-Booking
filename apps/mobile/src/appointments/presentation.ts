@@ -1,4 +1,3 @@
-// Presentation layer - formats raw appointment data for UI display
 import type { CustomerAppointment, AppointmentStatus } from "./types";
 
 const labels: Record<AppointmentStatus, string> = {

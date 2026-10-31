@@ -1,4 +1,3 @@
-// Demo loading hook - simulates network latency for offline-first UX testing
 import { useEffect, useState } from "react";
 
 export function useDemoLoading(delay = 650) {

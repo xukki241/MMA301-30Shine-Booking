@@ -1,4 +1,3 @@
-// Booking domain types - appointment slots, services, and stylist availability
 export type Branch = {
   id: string;
   name: string;

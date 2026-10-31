@@ -1,4 +1,3 @@
-// Active appointment tracker - monitors in-progress booking state
 export type BookingStatusItem = { id: string; status: string; startTime: string };
 
 export function activeBooking<T extends BookingStatusItem>(items: T[], now = new Date()): T | null {

@@ -1,4 +1,3 @@
-// Auth utilities - token storage, refresh logic, and session helpers
 export const TOKEN_STORAGE_KEY = "@shine:auth:token";
 export const USER_STORAGE_KEY = "@shine:auth:user";
 

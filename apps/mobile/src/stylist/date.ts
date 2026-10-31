@@ -1,4 +1,3 @@
-// Stylist date helpers - work schedule date formatting and shift boundaries
 export function vietnamToday(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit",

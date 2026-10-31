@@ -1,4 +1,3 @@
-// Booking write guard - queues mutations when offline, replays on reconnect
 import type { Connectivity } from "./connectivity";
 
 export const OFFLINE_BOOKING_MESSAGE = "Không thể đặt lịch khi đang ngoại tuyến. Vui lòng kết nối mạng và thử lại.";

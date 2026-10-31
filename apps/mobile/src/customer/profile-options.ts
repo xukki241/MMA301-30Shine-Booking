@@ -1,4 +1,3 @@
-// Profile options - settings menu items for customer account screen
 import { divisions } from "./vietnam-divisions.ts";
 
 export const provinces = divisions.map((division) => division.name);
