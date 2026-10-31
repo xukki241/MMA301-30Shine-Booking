@@ -1,4 +1,3 @@
-// Manager service - branch operations, stylist assignment, and analytics
 const { BookingError, isId } = require("../booking/rules");
 const { dayRange, todayVietnam, parseAppointmentsQuery, parsePaymentsQuery, objectId } = require("./query");
 

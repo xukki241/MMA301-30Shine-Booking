@@ -1,4 +1,3 @@
-// Validation middleware - request body/params schema validation with Joi/Zod
 function isValidObjectId(id) {
   return typeof id === "string" && /^[a-f0-9]{24}$/i.test(id);
 }

@@ -1,4 +1,3 @@
-// Auth middleware - JWT verification and user context injection
 const jwt = require("jsonwebtoken");
 const ROLES = Object.freeze(["customer", "stylist", "system_admin", "general_manager"]);
 

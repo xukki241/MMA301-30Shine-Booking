@@ -1,4 +1,3 @@
-// Work shift rules - validates shift boundaries, overlap checks, and rest periods
 // Work Shift business rules and error types for SHINE-06.
 
 class WorkShiftError extends Error {

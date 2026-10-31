@@ -1,4 +1,3 @@
-// Booking rules - business logic guards for double-booking prevention and slot validation
 const STATUSES = Object.freeze(["booked", "checked_in", "completed", "paid", "cancelled", "no_show"]);
 const ACTIVE_STATUSES = Object.freeze(["booked", "checked_in", "completed", "paid"]);
 const ACTIONS = Object.freeze({

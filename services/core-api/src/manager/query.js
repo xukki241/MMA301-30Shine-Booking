@@ -1,4 +1,3 @@
-// Manager query - aggregation pipelines for dashboard stats and reports
 const { BookingError, isId, STATUSES } = require("../booking/rules");
 
 function validDate(value) {

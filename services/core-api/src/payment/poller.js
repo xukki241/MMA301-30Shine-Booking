@@ -1,4 +1,3 @@
-// Payment poller - polls SePay IPN for transaction confirmation
 const API_URL = 'https://my.sepay.vn/userapi/transactions/list';
 const POLL_INTERVAL_MS = 20_000;
 const LOOKBACK_DAYS = 7;

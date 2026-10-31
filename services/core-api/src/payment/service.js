@@ -1,4 +1,3 @@
-// Payment service - SePay integration for appointment fee processing
 const { BookingError, isId } = require('../booking/rules');
 
 const codeFor = (id) => 'SHINE' + id.toUpperCase();
