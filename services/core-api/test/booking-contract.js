@@ -1,4 +1,3 @@
-// Booking contract tests - schema validation and payload specs
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const { randomBytes } = require("node:crypto");

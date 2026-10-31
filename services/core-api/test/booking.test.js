@@ -1,4 +1,3 @@
-// Booking test suite - lifecycle assertions and status transitions
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");

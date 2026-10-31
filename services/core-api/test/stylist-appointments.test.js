@@ -1,4 +1,3 @@
-// Stylist appointment tests - daily appointment queue filtering
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const jwt = require("jsonwebtoken");

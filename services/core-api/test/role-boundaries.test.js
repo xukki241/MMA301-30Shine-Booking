@@ -1,4 +1,3 @@
-// Role boundary tests - RBAC policy enforcement between customer and stylist
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { once } = require("node:events");

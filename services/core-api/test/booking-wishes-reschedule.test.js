@@ -1,4 +1,3 @@
-// Reschedule tests - customer wish updates and conflict checks
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { validateBooking, validateReschedule } = require("../src/booking/rules");

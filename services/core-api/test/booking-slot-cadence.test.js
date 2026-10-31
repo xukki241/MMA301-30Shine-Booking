@@ -1,4 +1,3 @@
-// Slot cadence tests - interval spacing and overlapping slot checks
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { buildSlotOptions, createWorkShiftRepository } = require("../src/work-shifts/repository");

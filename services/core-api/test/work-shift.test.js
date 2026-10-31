@@ -1,4 +1,3 @@
-// Work shift tests - shift collision detection and boundary checks
 /**
  * SHINE-06 — Unit tests for work-shift business rules.
  * Tests computeTimeSlots, shiftsOverlap, and validateWorkShift.

@@ -1,4 +1,3 @@
-// Staff admin tests - system administrator initialization and elevation
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { randomBytes } = require("node:crypto");

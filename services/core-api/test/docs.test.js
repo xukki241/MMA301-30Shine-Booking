@@ -1,4 +1,3 @@
-// API documentation tests - OpenAPI schema spec conformance
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { once } = require("node:events");
