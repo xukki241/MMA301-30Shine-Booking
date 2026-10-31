@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/providers/auth-provider";
 import { useAppTheme } from "@/constants/theme";
-import { profileDestination } from "@/customer/profile-navigation";
+import { profileDestination, addressDestination } from "@/customer/profile-navigation";
 
 export default function CustomerAccountScreen() {
   const theme = useAppTheme();
@@ -12,8 +12,7 @@ export default function CustomerAccountScreen() {
   const openProfile = () => router.push(profileDestination(Boolean(token)));
   const rows: Array<{ title: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void }> = [
     { title: "Thông tin tài khoản", icon: "person-circle-outline", onPress: openProfile },
-    { title: "Địa chỉ nhà", icon: "home-outline", onPress: () => router.push(token
-      ? "/(customer)/profile?section=address" : "/login?next=profile") },
+    { title: "Địa chỉ nhà", icon: "home-outline", onPress: () => router.push(addressDestination(Boolean(token))) },
     { title: "Lịch sử cắt", icon: "time-outline", onPress: () => router.push("/(customer)/appointments") },
   ];
   return <SafeAreaView style={[styles.root, { backgroundColor: theme.background }]}>

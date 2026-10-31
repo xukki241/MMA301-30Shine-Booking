@@ -33,12 +33,12 @@ export default function StylistLayout() {
       <Tabs.Screen
         name="today"
         options={{ title: "Lịch làm việc", tabBarLabel: "Lịch hẹn", tabBarIcon: ({ color, focused }) =>
-          <Ionicons name={focused ? "calendar" : "calendar-outline"} size={22} color={color} /> }}
+          <Ionicons name={focused ? "calendar" : "calendar-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }}
       />
       <Tabs.Screen
         name="profile"
         options={{ title: "Hồ sơ Stylist", tabBarLabel: "Hồ sơ", tabBarIcon: ({ color, focused }) =>
-          <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} /> }}
+          <Ionicons name={focused ? "person" : "person-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }}
       />
     </Tabs>
   );

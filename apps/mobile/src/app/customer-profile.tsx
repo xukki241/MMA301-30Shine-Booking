@@ -3,7 +3,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppTheme } from "@/constants/theme";
 import { getCustomerProfile, ProfileRequestError, saveProfileDraft, updateCustomerProfile,
@@ -20,7 +20,7 @@ const asDraft = (profile: CustomerProfile): ProfileDraft => ({ name: profile.nam
 export default function CustomerProfileScreen() {
   const theme = useAppTheme();
   const { section } = useLocalSearchParams<{ section?: string }>();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const { token, user, logout, setAuth } = useAuth();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [draft, setDraft] = useState<ProfileDraft | null>(null);

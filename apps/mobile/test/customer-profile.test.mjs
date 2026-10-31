@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { profileDestination, customerLanding } from "../src/customer/profile-navigation.ts";
+import { profileDestination, addressDestination, customerLanding } from "../src/customer/profile-navigation.ts";
 import { getCustomerProfile, updateCustomerProfile, validateProfileDraft, saveProfileDraft } from "../src/customer/profile-api.ts";
 import { formatBirthDate, toBirthDate, provinces, wardsForProvince } from "../src/customer/profile-options.ts";
 
-test("guest account entry requests login and returns to profile", () => {
+test("guest account entries return to the requested profile section after login", () => {
   assert.equal(profileDestination(false), "/login?next=profile");
-  assert.equal(profileDestination(true), "/(customer)/profile");
-  assert.equal(customerLanding("profile"), "/(customer)/profile");
+  assert.equal(profileDestination(true), "/customer-profile");
+  assert.equal(customerLanding("profile"), "/customer-profile");
+  assert.equal(addressDestination(false), "/login?next=address");
+  assert.equal(addressDestination(true), "/customer-profile?section=address");
+  assert.equal(customerLanding("address"), "/customer-profile?section=address");
   assert.equal(customerLanding("book"), "/(customer)/book");
   assert.equal(customerLanding(), "/(customer)/home");
 });

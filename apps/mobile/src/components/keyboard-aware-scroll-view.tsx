@@ -1,12 +1,12 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, type ScrollViewProps } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, type ScrollViewProps, type ScrollViewInstance } from "react-native";
 import { createKeyboardScrollCoordinator } from "./keyboard-scroll";
 
-type Props = ScrollViewProps & { avoidKeyboard?: boolean; scrollRef?: RefObject<ScrollView | null> };
+type Props = ScrollViewProps & { avoidKeyboard?: boolean; scrollRef?: RefObject<ScrollViewInstance | null> };
 
 export function KeyboardAwareScrollView({ children, onFocus, avoidKeyboard = true, scrollRef: externalRef,
   ...props }: Props) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const coordinatorRef = useRef<ReturnType<typeof createKeyboardScrollCoordinator> | null>(null);
   if (!coordinatorRef.current) coordinatorRef.current = createKeyboardScrollCoordinator(
     (target) => scrollRef.current?.scrollResponderScrollNativeHandleToKeyboard(target, 24, true),

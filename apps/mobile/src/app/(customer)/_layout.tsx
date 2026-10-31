@@ -52,7 +52,7 @@ export default function CustomerLayout() {
             <Ionicons
               name={focused ? "home" : "home-outline"}
               size={22}
-              color={color}
+              color={typeof color === "number" || color == null ? theme.brand : color}
             />
           )
         }}
@@ -66,7 +66,7 @@ export default function CustomerLayout() {
             <Ionicons
               name={focused ? "calendar" : "calendar-outline"}
               size={22}
-              color={color}
+              color={typeof color === "number" || color == null ? theme.brand : color}
             />
           )
         }}
@@ -80,13 +80,13 @@ export default function CustomerLayout() {
             <Ionicons
               name={focused ? "time" : "time-outline"}
               size={22}
-              color={color}
+              color={typeof color === "number" || color == null ? theme.brand : color}
             />
           )
         }}
       />
       <Tabs.Screen name="account" options={{ title: "Tài khoản", tabBarLabel: "Tài khoản",
-        tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "person" : "person-outline"} size={22} color={color} /> }} />
+        tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "person" : "person-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }} />
       <Tabs.Screen name="profile" options={{ href: null, headerShown: false, tabBarStyle: { display: "none" } }} />
     </Tabs>
   );

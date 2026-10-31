@@ -20,13 +20,13 @@ export default function ManagerLayout() {
       height: Platform.OS === "ios" ? 78 : 68, paddingBottom: Platform.OS === "ios" ? 22 : 10,
       paddingTop: 8, elevation: 8 } }}>
     <Tabs.Screen name="overview" options={{ title: "Tổng quan", tabBarIcon: ({ color, focused }) =>
-      <Ionicons name={focused ? "grid" : "grid-outline"} size={21} color={color} /> }} />
+      <Ionicons name={focused ? "grid" : "grid-outline"} size={21} color={typeof color === "number" || color == null ? theme.brand : color} /> }} />
     <Tabs.Screen name="appointments" options={{ title: "Lịch đặt", tabBarIcon: ({ color, focused }) =>
-      <Ionicons name={focused ? "calendar" : "calendar-outline"} size={21} color={color} /> }} />
+      <Ionicons name={focused ? "calendar" : "calendar-outline"} size={21} color={typeof color === "number" || color == null ? theme.brand : color} /> }} />
     <Tabs.Screen name="operations" options={{ title: "Vận hành", tabBarIcon: ({ color, focused }) =>
-      <Ionicons name={focused ? "construct" : "construct-outline"} size={21} color={color} /> }} />
+      <Ionicons name={focused ? "construct" : "construct-outline"} size={21} color={typeof color === "number" || color == null ? theme.brand : color} /> }} />
     <Tabs.Screen name="payments" options={{ title: "Thanh toán", tabBarIcon: ({ color, focused }) =>
-      <Ionicons name={focused ? "wallet" : "wallet-outline"} size={21} color={color} /> }} />
+      <Ionicons name={focused ? "wallet" : "wallet-outline"} size={21} color={typeof color === "number" || color == null ? theme.brand : color} /> }} />
     <Tabs.Screen name="appointment-detail" options={{ title: "Chi tiết lịch", href: null }} />
   </Tabs>;
 }
