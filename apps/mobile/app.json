@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "30Shine Booking",
+    "slug": "shine-booking-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "shinebooking",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.mma301.shinebooking",
+      "predictiveBackGestureEnabled": false
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

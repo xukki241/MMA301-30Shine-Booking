@@ -1,0 +1,1096 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "30Shine Backend API",
+    "version": "1.0.0",
+    "description": "Tài liệu API cho code hiện tại. Customer Mobile dùng tên và số điện thoại qua `/auth/customer/start`; OTP khôi phục là mô phỏng, đọc từ console Auth Service. `/auth/register` công khai đã đóng (410); nhân sự đăng nhập qua `/auth/login` và tài khoản do System Admin tạo.\n\nDán JWT vào **Authorize** để thử Catalog, Work Shift, Time Slot, Booking và Payment Mock.",
+    "contact": {
+      "name": "30Shine Engineering Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4102",
+      "description": "Core API"
+    }
+  ],
+  "tags": [
+    { "name": "Hệ thống backend", "description": "Kiểm tra Core API đang hoạt động" },
+    { "name": "SHINE-02 · Authentication & Lấy Token", "description": "Customer Guest, đăng nhập nhân sự, cấp JWT và kiểm tra token" },
+    { "name": "SHINE-05 · Catalog API", "description": "CRUD Branch, Service và Stylist dành cho backend" },
+    { "name": "SHINE-06 · Work Shift & Time Slot", "description": "Tạo ca, xem ca, xóa ca và tính khung giờ trống" },
+    { "name": "SHINE-03/07 · Booking API", "description": "Đặt lịch, chống double-book và chuyển trạng thái appointment" },
+    { "name": "SHINE-08 · Payment Mock", "description": "Thanh toán mô phỏng sau khi appointment hoàn thành" },
+    { "name": "General Manager · Read API", "description": "Tổng quan, lịch đặt và Payment Attempt mọi chi nhánh; chỉ General Manager" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Nhập JWT Bearer Token nhận từ `/auth/customer/start`, `/auth/customer/resume`, hoặc `/auth/login` (Auth Service)."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string", "example": "Yêu cầu không hợp lệ" }
+        },
+        "required": ["error"]
+      },
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean", "example": true },
+          "service": { "type": "string", "example": "core-api" },
+          "database": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true } } }
+        }
+      },
+      "CurrentUserResponse": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "object",
+            "properties": {
+              "userId": { "type": "string", "example": "65f1234567890abcdef12345" },
+              "role": { "type": "string", "enum": ["customer", "stylist", "system_admin", "general_manager"], "example": "customer" }
+            }
+          }
+        }
+      },
+      "StaffCreateRequest": {
+        "type": "object",
+        "required": ["email", "password", "role"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "stylist@30shine.com" },
+          "password": { "type": "string", "minLength": 8, "maxLength": 72, "example": "SecretPass123" },
+          "role": { "type": "string", "enum": ["stylist", "system_admin", "general_manager"], "example": "stylist" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "manager@30shine.com" },
+          "password": { "type": "string", "example": "SecretPass123" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." },
+          "tokenType": { "type": "string", "example": "Bearer" },
+          "expiresIn": { "type": "integer", "example": 3600 },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "example": "65f1234567890abcdef12345" },
+              "email": { "type": "string", "example": "manager@30shine.com" },
+              "role": { "type": "string", "enum": ["stylist", "system_admin", "general_manager"], "example": "general_manager" }
+            }
+          }
+        }
+      },
+      "Branch": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "660c11112222333344445555" },
+          "name": { "type": "string", "example": "30Shine Cầu Giấy" },
+          "address": { "type": "string", "example": "346 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội" },
+          "phone": { "type": "string", "example": "02473003030" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BranchCreateRequest": {
+        "type": "object",
+        "required": ["name", "address"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "example": "30Shine Nguyễn Trãi" },
+          "address": { "type": "string", "minLength": 5, "example": "163 Nguyễn Trãi, Thanh Xuân, Hà Nội" },
+          "phone": { "type": "string", "example": "02473003031" },
+          "isActive": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "BranchUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "example": "30Shine Nguyễn Trãi (Mới nâng cấp)" },
+          "address": { "type": "string", "minLength": 5, "example": "163 Nguyễn Trãi, Thanh Xuân, Hà Nội" },
+          "phone": { "type": "string", "example": "02473003032" },
+          "isActive": { "type": "boolean", "example": true }
+        }
+      },
+      "Service": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "660c22223333444455556666" },
+          "branchId": { "type": "string", "example": "660c11112222333344445555" },
+          "name": { "type": "string", "example": "Combo Shine Master (Cắt, gội, vuốt sáp)" },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "description": "Số nguyên VND an toàn", "example": 100000 },
+          "durationMinutes": { "type": "integer", "example": 45 },
+          "description": { "type": "string", "example": "Quy trình cắt gội 10 bước chuẩn phong cách quý ông" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ServiceCreateRequest": {
+        "type": "object",
+        "required": ["name", "price", "durationMinutes"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "example": "Uốn tóc phong cách Hàn Quốc" },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "example": 350000 },
+          "durationMinutes": { "type": "integer", "minimum": 5, "maximum": 480, "example": 90 },
+          "description": { "type": "string", "example": "Định hình form tóc tự nhiên" },
+          "isActive": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "ServiceUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "example": "Uốn tóc phong cách Hàn Quốc" },
+          "price": { "type": "integer", "minimum": 0, "maximum": 9007199254740991, "example": 350000 },
+          "durationMinutes": { "type": "integer", "minimum": 5, "maximum": 480, "example": 90 },
+          "description": { "type": "string", "example": "Định hình form tóc tự nhiên" },
+          "isActive": { "type": "boolean", "example": true }
+        }
+      },
+      "StylistProfile": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "660c33334444555566667777" },
+          "userId": { "type": "string", "example": "65f1234567890abcdef12345" },
+          "branchId": { "type": "string", "example": "660c11112222333344445555" },
+          "displayName": { "type": "string", "example": "Top Stylist Kevin Tuấn" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "StylistAssignRequest": {
+        "type": "object",
+        "required": ["userId"],
+        "properties": {
+          "userId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
+          "isActive": { "type": "boolean", "default": true, "example": true }
+        }
+      },
+      "StylistUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "branchId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "660c11112222333344445555" },
+          "isActive": { "type": "boolean", "example": true }
+        }
+      },
+      "WorkShift": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "660c44445555666677778888" },
+          "stylistId": { "type": "string", "example": "65f1234567890abcdef12345" },
+          "branchId": { "type": "string", "example": "660c11112222333344445555" },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "example": "2026-10-06" },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T08:00:00.000Z" },
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T16:00:00.000Z" }
+        }
+      },
+      "WorkShiftCreateRequest": {
+        "type": "object",
+        "required": ["stylistId", "branchId", "date", "startTime", "endTime"],
+        "properties": {
+          "stylistId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
+          "branchId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "660c11112222333344445555" },
+          "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$", "example": "2026-10-06" },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T08:00:00.000Z" },
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T16:00:00.000Z" }
+        }
+      },
+      "TimeSlot": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "65f1234567890abcdef12345-2026-10-06-2026-10-06T09:00:00.000Z" },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
+          "available": { "type": "boolean", "description": "false nếu giờ đã bị lịch hẹn khác chiếm; vẫn hiển thị để làm mờ và không cho chọn" }
+        }
+      },
+      "Appointment": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "660c55556666777788889999" },
+          "customerId": { "type": "string", "example": "65f111111111111111111111" },
+          "customerName": { "type": "string", "description": "Tên khách của Guest Session, nếu có" },
+          "customerPhone": { "type": "string", "description": "Số khách đã chuẩn hóa, nếu có", "example": "+84912345678" },
+          "stylistId": { "type": "string", "example": "65f1234567890abcdef12345" },
+          "branchId": { "type": "string" },
+          "serviceId": { "type": "string" },
+          "bookedPrice": { "type": "integer", "description": "Giá VND chốt lúc đặt; lịch cũ có thể thiếu" },
+          "wishes": { "$ref": "#/components/schemas/BookingWishes" },
+          "paymentAttempts": { "type": "array", "items": { "$ref": "#/components/schemas/PaymentAttempt" } },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
+          "status": {
+            "type": "string",
+            "enum": ["booked", "checked_in", "completed", "paid", "cancelled", "no_show"],
+            "example": "booked"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaymentAttempt": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "requestId": { "type": "string" },
+          "appointmentId": { "type": "string" },
+          "branchId": { "type": "string" },
+          "amount": { "type": "integer", "description": "VND mô phỏng; không trừ tiền thật" },
+          "provider": { "type": "string", "enum": ["momo", "vnpay"] },
+          "status": { "type": "string", "enum": ["success", "failed"] },
+          "attemptedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "PaymentMockRequest": {
+        "type": "object",
+        "required": ["provider", "outcome", "requestId"],
+        "additionalProperties": false,
+        "properties": {
+          "provider": { "type": "string", "enum": ["momo", "vnpay"] },
+          "outcome": { "type": "string", "enum": ["success", "failed"] },
+          "requestId": { "type": "string", "minLength": 8, "maxLength": 100 }
+        }
+      },
+      "BookingWishes": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stylistPreference": { "type": "string", "maxLength": 100 },
+          "specialRequest": { "type": "string", "maxLength": 500 },
+          "referenceImages": { "type": "array", "maxItems": 3, "items": { "type": "string", "description": "JPEG data URI, tối đa 140000 ký tự" } }
+        }
+      },
+      "BookingCreateRequest": {
+        "type": "object",
+        "required": ["branchId", "serviceId", "stylistId", "startTime", "endTime"],
+        "properties": {
+          "branchId": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+          "serviceId": { "type": "string", "pattern": "^[a-f0-9]{24}$" },
+          "stylistId": { "type": "string", "pattern": "^[a-f0-9]{24}$", "example": "65f1234567890abcdef12345" },
+          "startTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:00:00.000Z" },
+          "endTime": { "type": "string", "format": "date-time", "example": "2026-10-06T09:45:00.000Z" },
+          "wishes": { "$ref": "#/components/schemas/BookingWishes" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Hệ thống backend"],
+        "summary": "Kiểm tra sức khỏe dịch vụ",
+        "description": "Endpoint công khai, trả về trạng thái hoạt động của Core API.",
+        "responses": {
+          "200": {
+            "description": "Dịch vụ đang hoạt động bình thường",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Đăng ký tài khoản công khai đã đóng (Auth Service)",
+        "description": "Luôn trả 410. Customer Mobile dùng `/auth/customer/start`; System Admin tạo tài khoản nhân sự qua `/admin/users`.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "responses": {
+          "410": { "description": "Đăng ký tài khoản công khai đã đóng" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Đăng nhập và nhận Bearer Token (Auth Service)",
+        "description": "Chỉ tài khoản nhân sự: xác thực email và mật khẩu, trả về JWT Access Token. Customer dùng Guest Session.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Đăng nhập thành công",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LoginResponse" }
+              }
+            }
+          },
+          "400": { "description": "Yêu cầu sai cấu trúc", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Sai email hoặc mật khẩu", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/introspect": {
+      "get": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Kiểm tra phiên nhân sự hiện hành (Auth Service)",
+        "description": "Core API gọi để kiểm tra role, trạng thái khóa và authVersion. Không dùng cho Customer Guest.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Phiên nhân sự đang hoạt động" }, "401": { "description": "Phiên không còn hợp lệ" } }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Danh sách tài khoản nhân sự (System Admin)",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "Danh sách User nhân sự" }, "403": { "description": "Không phải System Admin" } }
+      },
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Tạo tài khoản nhân sự (System Admin)",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/StaffCreateRequest" } } } },
+        "responses": { "201": { "description": "Tạo User thành công" }, "400": { "description": "Dữ liệu không hợp lệ" }, "403": { "description": "Không phải System Admin" }, "409": { "description": "Email đã tồn tại" } }
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"], "summary": "Xem tài khoản nhân sự",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Thông tin User không chứa passwordHash" }, "404": { "description": "Không tìm thấy" } }
+      },
+      "patch": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"], "summary": "Sửa email, mật khẩu hoặc role nhân sự",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "email": { "type": "string", "format": "email" }, "password": { "type": "string", "minLength": 8 }, "role": { "type": "string", "enum": ["stylist", "system_admin", "general_manager"] } } } } } },
+        "responses": { "200": { "description": "Đã cập nhật; phiên cũ mất hiệu lực" }, "409": { "description": "Vi phạm ràng buộc Admin cuối hoặc Stylist còn việc" } }
+      }
+    },
+    "/admin/users/{id}/lock": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"], "summary": "Khóa mềm tài khoản nhân sự",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Đã khóa; phiên cũ mất hiệu lực" }, "409": { "description": "Vi phạm ràng buộc Admin cuối hoặc Stylist còn việc" } }
+      }
+    },
+    "/admin/users/{id}/restore": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"], "summary": "Khôi phục tài khoản nhân sự",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Đã khôi phục" } }
+      }
+    },
+    "/admin/health": {
+      "get": {
+        "tags": ["Hệ thống backend"], "summary": "Health tổng hợp cho System Admin",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "responses": { "200": { "description": "checkedAt và trạng thái Auth/Core/hai database" }, "403": { "description": "Không phải System Admin" } }
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "tags": ["Hệ thống backend"], "summary": "Audit metadata cho System Admin",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "action", "in": "query", "schema": { "type": "string" } }, { "name": "result", "in": "query", "schema": { "type": "string", "enum": ["success", "failed"] } }, { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } }, { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } }],
+        "responses": { "200": { "description": "Tối đa 100 sự kiện Auth + Core mới nhất" }, "503": { "description": "Audit của một service không khả dụng" } }
+      }
+    },
+    "/auth/customer/start": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Khách bắt đầu bằng tên và số điện thoại",
+        "description": "Tạo Guest Session mới theo thiết bị. Chỉ phiên này xem được lịch đã đặt, cho đến khi khôi phục bằng OTP demo.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name", "phone"], "properties": { "name": { "type": "string", "example": "Nguyễn An" }, "phone": { "type": "string", "example": "0912345678" } } } } } },
+        "responses": { "201": { "description": "Trả accessToken, deviceSecret và user Guest Session" }, "400": { "description": "Tên hoặc số điện thoại không hợp lệ" } }
+      }
+    },
+    "/auth/customer/resume": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Tiếp tục Guest Session trên cùng thiết bị",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["deviceSecret"], "properties": { "deviceSecret": { "type": "string", "description": "Bí mật 64 ký tự hex trả từ /auth/customer/start" } } } } } },
+        "responses": { "200": { "description": "Trả JWT mới và user" }, "401": { "description": "Không tìm thấy phiên" } }
+      }
+    },
+    "/auth/customer/recovery/request": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Tạo OTP khôi phục mô phỏng",
+        "description": "Mã 6 số được ghi ở console Auth Service; không gửi SMS, không trừ phí. Hết hạn sau 5 phút.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone"], "properties": { "phone": { "type": "string", "example": "0912345678" } } } } } },
+        "responses": { "200": { "description": "Đã ghi mã ở console" }, "429": { "description": "Yêu cầu lại quá sớm" }, "503": { "description": "OTP demo đang tắt" } }
+      }
+    },
+    "/auth/customer/recovery/verify": {
+      "post": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Xác nhận OTP demo để khôi phục lịch cũ",
+        "description": "OTP dùng một lần. JWT trả về cho phép xem các lịch Guest Session cùng số điện thoại.",
+        "servers": [{ "url": "http://localhost:4101", "description": "Auth Service" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["phone", "code", "deviceSecret"], "properties": { "phone": { "type": "string", "example": "0912345678" }, "code": { "type": "string", "example": "123456" }, "deviceSecret": { "type": "string" } } } } } },
+        "responses": { "200": { "description": "Trả JWT với phoneVerified=true" }, "401": { "description": "Mã sai, hết hạn hoặc đã dùng" }, "503": { "description": "OTP demo đang tắt" } }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["SHINE-02 · Authentication & Lấy Token"],
+        "summary": "Xác thực JWT Token & lấy thông tin tài khoản hiện tại",
+        "description": "Kiểm tra token Bearer và trả về claims người dùng được giải mã bởi Core API.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Token hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/CurrentUserResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Token không hợp lệ hoặc đã hết hạn",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/branches": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "description": "Chỉ Customer Guest hoặc general_manager được xem; System Admin không xem dữ liệu vận hành.",
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Lấy danh sách tất cả chi nhánh",
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "description": "Lọc theo trạng thái hoạt động (true/false)",
+            "schema": { "type": "boolean" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách chi nhánh",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "branches": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Branch" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Tạo mới chi nhánh cửa hàng",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BranchCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chi nhánh đã được tạo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "branch": { "$ref": "#/components/schemas/Branch" } }
+                }
+              }
+            }
+          },
+          "400": { "description": "Dữ liệu không hợp lệ", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Chưa đăng nhập" },
+          "403": { "description": "Không có quyền general_manager" }
+        }
+      }
+    },
+    "/branches/{id}": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Xem chi tiết một chi nhánh",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID 24 ký tự hex của chi nhánh" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thông tin chi nhánh",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "branch": { "$ref": "#/components/schemas/Branch" } }
+                }
+              }
+            }
+          },
+          "404": { "description": "Không tìm thấy chi nhánh" }
+        }
+      },
+      "put": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Cập nhật thông tin chi nhánh",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BranchUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cập nhật thành công" },
+          "400": { "description": "Dữ liệu không hợp lệ" },
+          "404": { "description": "Không tìm thấy chi nhánh" }
+        }
+      },
+      "delete": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Xóa chi nhánh (kèm dọn dẹp các dịch vụ/stylist liên quan)",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa chi nhánh thành công" },
+          "404": { "description": "Không tìm thấy chi nhánh" }
+        }
+      }
+    },
+    "/branches/{branchId}/services": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Lấy danh mục dịch vụ thuộc chi nhánh",
+        "parameters": [
+          { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "isActive", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách dịch vụ của chi nhánh",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "services": { "type": "array", "items": { "$ref": "#/components/schemas/Service" } }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Không tìm thấy chi nhánh" }
+        }
+      },
+      "post": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Tạo dịch vụ mới cho chi nhánh",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ServiceCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Tạo dịch vụ thành công" },
+          "400": { "description": "Dữ liệu không hợp lệ" },
+          "404": { "description": "Không tìm thấy chi nhánh" }
+        }
+      }
+    },
+    "/services/{id}": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Xem chi tiết dịch vụ",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Thông tin dịch vụ" },
+          "404": { "description": "Không tìm thấy dịch vụ" }
+        }
+      },
+      "put": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Cập nhật dịch vụ",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ServiceUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cập nhật dịch vụ thành công" },
+          "404": { "description": "Không tìm thấy dịch vụ" }
+        }
+      },
+      "delete": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Xóa dịch vụ",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa dịch vụ thành công" },
+          "404": { "description": "Không tìm thấy dịch vụ" }
+        }
+      }
+    },
+    "/branches/{branchId}/stylists": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Danh sách stylist tại chi nhánh",
+        "parameters": [
+          { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "isActive", "in": "query", "schema": { "type": "boolean" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách stylist" }
+        }
+      },
+      "post": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Gán Stylist vào chi nhánh",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "branchId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StylistAssignRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Gán stylist thành công" },
+          "409": { "description": "Stylist đã được gán vào chi nhánh này" }
+        }
+      }
+    },
+    "/stylists/candidates": {
+      "get": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Tài khoản Stylist có thể gán vào chi nhánh",
+        "description": "Yêu cầu vai trò: **general_manager**. Họ tên và email lấy từ Auth Service; loại tài khoản đã gán ở bất kỳ chi nhánh nào.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "branchId", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Danh sách tài khoản Stylist đang hoạt động, có họ tên và chưa gán ở chi nhánh nào" }
+        }
+      }
+    },
+    "/stylists/{id}": {
+      "get": {
+        "security": [{ "bearerAuth": [] }],
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Xem hồ sơ stylist",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Thông tin stylist" },
+          "404": { "description": "Không tìm thấy stylist" }
+        }
+      },
+      "put": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Cập nhật hồ sơ stylist",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StylistUpdateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Cập nhật thành công" },
+          "404": { "description": "Không tìm thấy stylist" }
+        }
+      },
+      "delete": {
+        "tags": ["SHINE-05 · Catalog API"],
+        "summary": "Hủy gán / xóa stylist",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Hủy gán thành công" }
+        }
+      }
+    },
+    "/work-shifts": {
+      "post": {
+        "tags": ["SHINE-06 · Work Shift & Time Slot"],
+        "summary": "Tạo ca làm việc cho stylist",
+        "description": "Yêu cầu vai trò: **general_manager**.\n\nHệ thống ngăn chặn tạo ca trùng lặp đối với cùng một stylist.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WorkShiftCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Tạo ca làm việc thành công",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "shift": { "$ref": "#/components/schemas/WorkShift" } }
+                }
+              }
+            }
+          },
+          "400": { "description": "Dữ liệu ca làm việc không hợp lệ" },
+          "409": { "description": "Ca làm việc bị trùng lặp với ca đã có" }
+        }
+      },
+      "get": {
+        "tags": ["SHINE-06 · Work Shift & Time Slot"],
+        "summary": "Danh sách ca làm việc theo điều kiện lọc",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "branchId", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" } },
+          { "name": "stylistId", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^[a-f0-9]{24}$" } },
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách ca làm việc",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workShifts": { "type": "array", "items": { "$ref": "#/components/schemas/WorkShift" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/work-shifts/{id}": {
+      "delete": {
+        "tags": ["SHINE-06 · Work Shift & Time Slot"],
+        "summary": "Xóa ca làm việc",
+        "description": "Yêu cầu vai trò: **general_manager**",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Xóa ca làm việc thành công" },
+          "404": { "description": "Không tìm thấy ca làm việc" }
+        }
+      }
+    },
+    "/time-slots": {
+      "get": {
+        "tags": ["SHINE-06 · Work Shift & Time Slot"],
+        "summary": "Tra cứu khung giờ theo thời lượng dịch vụ",
+        "description": "Yêu cầu Customer hoặc general_manager. Giờ bắt đầu tính từ đầu ca và cách nhau theo thời lượng dịch vụ; sau một lịch đã đặt, mốc mới có thể bắt đầu ngay lúc lịch đó kết thúc. Slot trùng lịch được trả về với available=false. Khi đổi lịch, excludeAppointmentId chỉ được dùng cho lịch của chính khách đang đăng nhập.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "stylistId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ID stylist cần đặt" },
+          { "name": "date", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Ngày muốn cắt (YYYY-MM-DD)" },
+          { "name": "serviceId", "in": "query", "required": true, "schema": { "type": "string" }, "description": "ID dịch vụ để tính thời lượng" },
+          { "name": "excludeAppointmentId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Chỉ dùng khi đổi lịch: loại lịch hiện tại của chính Customer khỏi phép tính giờ trống" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách khung giờ tương lai và trạng thái còn chỗ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slots": { "type": "array", "items": { "$ref": "#/components/schemas/TimeSlot" } }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Thiếu tham số bắt buộc hoặc định dạng không hợp lệ" }
+        }
+      }
+    },
+    "/appointments": {
+      "get": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Danh sách lịch hẹn của Stylist hoặc Customer",
+        "description": "Yêu cầu Bearer Token. Customer mặc định xem lịch của phiên; Guest Session đã khôi phục bằng OTP demo xem lịch guest cùng số. Stylist có thể lọc theo `date` (YYYY-MM-DD).",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Lọc theo ID khách hàng" },
+          { "name": "date", "in": "query", "required": false, "schema": { "type": "string" }, "description": "Lọc theo ngày (YYYY-MM-DD)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Danh sách lịch hẹn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "appointments": { "type": "array", "items": { "$ref": "#/components/schemas/Appointment" } }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Chưa xác thực" },
+          "403": { "description": "Không có quyền truy cập" }
+        }
+      },
+      "post": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Đặt lịch hẹn mới",
+        "description": "Yêu cầu vai trò: **customer**.\n\nCustomerId được tự động lấy từ JWT Bearer Token để đảm bảo tính an toàn.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BookingCreateRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Đặt lịch thành công (trạng thái: booked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "appointment": { "$ref": "#/components/schemas/Appointment" } }
+                }
+              }
+            }
+          },
+          "400": { "description": "Khoảng thời gian không hợp lệ" },
+          "403": { "description": "Chỉ khách hàng (customer) mới được đặt lịch" },
+          "409": { "description": "Trùng lịch hẹn của stylist" }
+        }
+      }
+    },
+    "/appointments/customer": {
+      "get": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Lấy lịch hẹn của Customer",
+        "description": "Guest chưa khôi phục xem lịch của phiên hiện tại; Guest đã khôi phục xem lịch guest cùng số. `customerId` của người khác bị từ chối.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "customerId", "in": "query", "required": false, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Danh sách appointments" }, "401": { "description": "Chưa xác thực" }, "403": { "description": "Không có quyền" } }
+      }
+    },
+    "/appointments/{id}/reschedule": {
+      "post": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Khách hàng đổi ngày giờ lịch hẹn đã đặt",
+        "description": "Giữ nguyên salon, stylist, dịch vụ, giá và mong muốn. Kiểm tra ca làm, thời lượng dịch vụ và trùng lịch trước khi cập nhật.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": {
+          "type": "object", "required": ["startTime", "endTime"], "additionalProperties": false,
+          "properties": { "startTime": { "type": "string", "format": "date-time" },
+            "endTime": { "type": "string", "format": "date-time" } }
+        } } } },
+        "responses": { "200": { "description": "Lịch hẹn đã cập nhật" },
+          "400": { "description": "Thời gian hoặc trạng thái không hợp lệ" },
+          "403": { "description": "Không phải chủ lịch hẹn" },
+          "409": { "description": "Giờ mới không khả dụng" } }
+      }
+    },
+    "/appointments/{id}/check_in": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist ghi nhận khách đã đến",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment checked_in" }, "403": { "description": "Không phải stylist được giao" } } }
+    },
+    "/appointments/{id}/undo_check_in": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist hoàn tác check-in trong 5 phút",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment booked" }, "400": { "description": "Hết hạn hoàn tác" } } }
+    },
+    "/appointments/{id}/no_show": {
+      "post": { "tags": ["SHINE-03/07 · Booking API"], "summary": "Stylist xác nhận khách không đến sau 15 phút",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment no_show" }, "400": { "description": "Chưa đủ 15 phút" } } }
+    },
+    "/appointments/{id}/complete": {
+      "post": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Stylist hoàn thành phục vụ lịch hẹn",
+        "description": "Chuyển trạng thái từ `checked_in` sang `completed`. Yêu cầu stylist được giao lịch.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Đã chuyển sang trạng thái completed" },
+          "403": { "description": "Không có quyền thực hiện lịch hẹn này" },
+          "404": { "description": "Không tìm thấy lịch hẹn" }
+        }
+      }
+    },
+    "/appointments/{id}/cancel": {
+      "post": {
+        "tags": ["SHINE-03/07 · Booking API"],
+        "summary": "Khách hàng hủy lịch hẹn",
+        "description": "Chuyển từ `booked` sang `cancelled` trước giờ hẹn. Yêu cầu khách là chủ lịch.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Hủy lịch hẹn thành công" },
+          "403": { "description": "Không phải chủ sở hữu lịch hẹn" }
+        }
+      }
+    },
+    "/manager/overview": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Đếm lịch theo trạng thái theo ngày hoặc toàn thời gian", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD theo giờ Việt Nam; dùng all để xem mọi ngày. Mặc định hôm nay." },
+        { "name": "branchId", "in": "query", "schema": { "type": "string" } }
+      ], "responses": { "200": { "description": "{date, counts: {booked, checked_in, completed, paid, cancelled, no_show}}" }, "403": { "description": "General Manager required" } } }
+    },
+    "/manager/appointments": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Lọc lịch mọi chi nhánh, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "date", "in": "query", "schema": { "type": "string" }, "description": "YYYY-MM-DD theo giờ Việt Nam; dùng all để xem mọi ngày. Mặc định hôm nay." },
+        { "name": "branchId", "in": "query", "schema": { "type": "string" } },
+        { "name": "stylistId", "in": "query", "schema": { "type": "string" } },
+        { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["booked", "checked_in", "completed", "paid", "cancelled", "no_show"] } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
+      ], "responses": { "200": { "description": "{items, nextCursor}; số khách chỉ có trong chi tiết" }, "403": { "description": "General Manager required" } } }
+    },
+    "/manager/appointments/{id}": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Chi tiết lịch, chỉ đọc", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+      ], "responses": { "200": { "description": "Appointment gồm giá chốt và liên hệ khách" }, "403": { "description": "General Manager required" }, "404": { "description": "Không thấy lịch" } } }
+    },
+    "/manager/appointments/{id}/restore-no-show": {
+      "post": { "tags": ["General Manager · Read API"], "summary": "Manager khôi phục no_show thành checked_in nếu slot chưa được đặt lại",
+        "security": [{ "bearerAuth": [] }], "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Appointment checked_in" }, "409": { "description": "Lịch trùng hoặc đã thay đổi" } } }
+    },
+    "/manager/payments": {
+      "get": { "tags": ["General Manager · Read API"], "summary": "Payment Attempt theo chi nhánh", "description": "Thanh toán mô phỏng, không trừ tiền thật. Tổng thu chỉ cộng attempt thành công trên toàn bộ bộ lọc.", "security": [{ "bearerAuth": [] }], "parameters": [
+        { "name": "branchId", "in": "query", "required": true, "schema": { "type": "string" } },
+        { "name": "from", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "to", "in": "query", "schema": { "type": "string", "format": "date" } },
+        { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+        { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100 } }
+      ], "responses": { "200": { "description": "{items, nextCursor, simulatedTotal}; gồm success và failed" }, "403": { "description": "General Manager required" } } }
+    },
+    "/appointments/{id}/pay": {
+      "post": {
+        "tags": ["SHINE-08 · Payment Mock"],
+        "summary": "Khách hàng thử thanh toán mô phỏng",
+        "description": "Ghi Payment Attempt success/failed; chỉ success chuyển completed sang paid. Không trừ tiền thật. Retry cùng requestId trả cùng attempt.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaymentMockRequest" } } } },
+        "responses": {
+          "200": { "description": "{appointment, attempt}; cả success và failed" },
+          "400": { "description": "Trạng thái không hợp lệ để thanh toán" },
+          "403": { "description": "Không phải chủ sở hữu lịch hẹn" },
+          "409": { "description": "Lịch cũ không có giá chốt hoặc đã thanh toán" }
+        }
+      }
+    }
+  }
+}

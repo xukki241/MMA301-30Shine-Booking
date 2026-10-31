@@ -1,81 +1,101 @@
-# Chương 3. Thiết kế hệ thống
+# Chương 3. Thiết kế hệ thống — trạng thái mục tiêu
 
-## 3.1. Kiến trúc
+> **Mô hình Customer mới:** `CustomerAccount(id, phone unique, name, passwordHash, authVersion, loginAttempts, lastFailedAt)` và `CustomerChallenge(phone, purpose, digest, expiresAt, attempts, sentAt, verifiedAt)` thuộc Auth Service. Home dùng danh mục công khai; booking và lịch cá nhân dùng JWT Customer sau khi Auth xác minh trạng thái tài khoản. Dữ liệu Guest cũ được giữ trong database nhưng Guest JWT không còn truy cập Core. Xem [ADR 0008](./adr/0008-customer-phone-account-and-public-home.md).
 
-| Thành phần | Vai trò |
-|------------|---------|
-| `apps/mobile` | Customer + Stylist (Expo RN) |
-| `apps/admin-web` | Shop Admin — CRUD danh mục và Work Shift |
-| `services/auth-service` | Đăng ký / đăng nhập / JWT |
-| `services/core-api` | Branch, Service, Stylist, Work Shift, Appointment, Payment mô phỏng |
-| Database | MongoDB hoặc MySQL (chốt một loại) |
+> Sơ đồ liên vai trò mô tả luồng mục tiêu. Core API đã lưu giá chốt, Payment Attempt mô phỏng và cung cấp API chỉ đọc cho Manager. Manager dùng app Expo chung với Customer/Stylist; Admin Web chỉ dành cho System Admin. Xem [kế hoạch](./superpowers/plans/2026-10-20-manager-mobile.md) và `/openapi.json` của Core để đối chiếu code.
 
-```text
-[Mobile] -----> Auth Service
-[Mobile] -----> Core API -----> DB
-[Admin Web] --> Auth Service
-[Admin Web] --> Core API -----> DB
-```
+## 3.1. Thành phần và ranh giới
+
+| Thành phần | Trách nhiệm mục tiêu |
+|---|---|
+| `apps/mobile` | UI Customer, Stylist và General Manager |
+| `apps/admin-web` | UI System Admin quản trị tài khoản nhân sự, health và audit |
+| `services/auth-service` | Phiên Customer tên + số điện thoại; OTP demo khôi phục; tài khoản nhân sự và quyền |
+| `services/core-api` | Branch, Service, Stylist Profile, Work Shift, Appointment, Payment Attempt và tra cứu vận hành |
+| MongoDB | Lưu User và dữ liệu nghiệp vụ; audit log lưu bền vững |
+
+System Admin không nhận quyền đọc catalog/Appointment/Payment của Core API. Manager có quyền trên tất cả Branch và không nhận quyền CRUD User. Kiểm tra quyền phải nằm ở API, không chỉ ẩn menu trên web. Health tổng hợp trạng thái Auth Service, Core API, database và thời điểm kiểm tra gần nhất; audit log chỉ lộ metadata sự kiện cần thiết.
 
 ## 3.2. Mô hình miền
 
-Thuật ngữ chuẩn: `CONTEXT.md`.
-
 ```text
+User nhân sự (một role; active/locked)
+  └─ Stylist Profile (nếu role stylist)
+Guest Session Customer (tên, số điện thoại, bí mật phiên thiết bị)
 Branch
-  ├─ Service (giá, duration)
-  ├─ Stylist (làm việc tại branch)
-  └─ Work Shift (Shop Admin xếp)
-        └─ Time Slot (suy ra)
-              └─ Appointment (Customer)
-                    └─ Payment (sau completed)
+  ├─ Service (giá hiện hành, thời lượng)
+  ├─ Stylist Profile (gán vào Branch)
+  └─ Work Shift (Manager xếp)
+       └─ Time Slot (suy ra)
+            └─ Appointment (Customer, giá chốt lúc đặt)
+                 └─ Payment Attempt (0..n; tối đa 1 thành công)
+Audit Log (metadata thao tác quan trọng)
 ```
 
-## 3.3. Thực thể chính
+| Thực thể | Thuộc tính tối thiểu trong thiết kế |
+|---|---|
+| User nhân sự | id, email, passwordHash, role, trạng thái active/locked, thời điểm khóa (mục tiêu ADR 0006) |
+| Guest Session | id, name, phone, deviceHash, verifiedAt |
+| Recovery OTP | phone, digest, expiresAt, attempts, sentAt (demo; không gửi SMS) |
+| Branch | id, name, address |
+| Service | id, branchId, name, price, durationMinutes |
+| Stylist Profile | userId, branchId, displayName, isActive |
+| Work Shift | id, stylistId, branchId, date, startAt, endAt |
+| Appointment | id, customerId, customerName, customerPhone, branchId, serviceId, stylistId, startTime, endTime, **bookedPrice**, status |
+| Payment Attempt | id, appointmentId, branchId, amount, provider, status (success/failed), attemptedAt, requestId |
+| Audit Log | id, actorId (có thể rỗng khi đăng nhập thất bại), action, targetType, targetId, result, occurredAt |
 
-| Thực thể | Thuộc tính tối thiểu |
-|----------|----------------------|
-| User | id, identifier, passwordHash, role |
-| Branch | id, name, address, … |
-| Service | id, branchId?, name, price, durationMinutes |
-| StylistProfile | userId, branchId, displayName |
-| WorkShift | id, stylistId, branchId, startAt, endAt |
-| Appointment | id, customerId, branchId, serviceId, stylistId, startAt, endAt, status |
-| Payment | id, appointmentId, provider (`momo`\|`vnpay_mock`), amount, status, paidAt |
+`bookedPrice` và `Payment Attempt.amount` là số tiền **mô phỏng**. Payment Attempt thất bại không làm đổi trạng thái Appointment. Các Payment Attempt của một lịch phải tham chiếu Branch của lịch đó; chỉ một lần thành công được ghi nhận và tính vào tổng tiền mô phỏng.
 
-## 3.4. Quy tắc tính slot và chống trùng
+## 3.3. Flow liên vai trò
 
-1. Lấy các Work Shift của Stylist trong ngày tại Branch.  
-2. Cắt thành các ô theo bước (ví dụ 30 phút) hoặc theo `durationMinutes` của Service.  
-3. Loại bỏ khoảng đã bị Appointment `booked|completed|paid` chiếm.  
-4. Khi tạo Appointment: transaction/kiểm tra không giao nhau với lịch hiện có cùng stylistId.
+```mermaid
+flowchart TD
+  M1[Manager cấu hình Branch, Service, Stylist] --> M2[Manager phân Work Shift]
+  M2 --> S[Hệ thống tính Time Slot trống]
+  S --> C0[Customer nhập tên và số điện thoại; Auth cấp phiên thiết bị]
+  C0 --> C1[Customer chọn Branch → Service → Stylist → Slot]
+  C1 --> C2{Slot còn trống lúc xác nhận?}
+  C2 -- Không --> C1
+  C2 -- Có --> B[Appointment booked; lưu bookedPrice]
+  B --> X{Customer hủy khi booked?}
+  X -- Có --> Z[cancelled; giải phóng slot]
+  X -- Không --> T[Stylist phục vụ và xác nhận completed]
+  T --> P[Customer chọn MoMo/VNPay mô phỏng]
+  P --> R{Kết quả giả lập}
+  R -- Thất bại --> F[Ghi Payment Attempt failed; giữ completed]
+  F --> P
+  R -- Thành công --> U[Ghi Payment Attempt success; chuyển paid]
+  B --> V[Manager theo dõi lịch mọi Branch]
+  U --> W[Manager xem lịch sử thanh toán theo Branch]
+  F --> W
+  A[System Admin quản lý User/quyền, health, audit log] --> Q[Không truy cập dữ liệu vận hành]
+```
 
-## 3.5. Luồng nghiệp vụ theo vai trò
+Slot được sinh từ ca theo thời lượng Service và bỏ khoảng giao với Appointment `booked`, `completed`, `paid`. Khi xác nhận, Core API kiểm tra chồng lịch lại bằng thao tác ghi có bảo vệ tranh chấp. Sửa/xóa ca không được làm lịch đang hoạt động mất ca hợp lệ.
 
-### Customer
+## 3.4. Flow chi tiết theo vai trò
 
-1. Đăng nhập → chọn Branch → Service → Stylist → Slot → xác nhận (`booked`).  
-2. Đến giờ, được phục vụ.  
-3. Sau `completed`, mở lịch → chọn MoMo/VNPay mô phỏng → `paid`.  
-4. Có thể hủy khi còn `booked`.  
+**Customer:** Nhập tên + số điện thoại → nhận phiên trên thiết bị → chọn Branch → Service (giá/thời lượng) → Stylist → ngày/slot → xác nhận giá chốt và `booked` → xem/hủy lịch của phiên → đến salon → sau `completed` chọn thanh toán mô phỏng → xem thành công hoặc thử lại nếu thất bại. Trên thiết bị khác, Customer vẫn vào app ngay nhưng cần OTP demo để xem/hủy/thanh toán lịch cũ cùng số. Tất cả màn thanh toán phải ghi “Mô phỏng, không trừ tiền thật”.
 
-### Stylist
+**Stylist:** Đăng nhập → xem lịch hôm nay theo ca → mở chi tiết lịch của mình → phục vụ → đánh dấu `completed`. Stylist không tạo Work Shift và không thanh toán thay Customer.
 
-1. Đăng nhập → xem lịch hôm nay.  
-2. Bấm hoàn thành từng Appointment.  
+**General Manager:** Đăng nhập app Expo → tổng quan lịch hôm nay → lọc theo ngày/Branch/Stylist/trạng thái → quản lý Branch/Service/Stylist Profile → phân Work Shift → xem lịch sử Payment Attempt theo Branch (thành công và thất bại) cùng tổng thành công. Manager chỉ xem/tra cứu lịch, không đổi trạng thái; không tạo User mà chỉ gán hồ sơ cho User `stylist` đã được Admin cấp.
 
-### Shop Admin
+**System Admin:** Đăng nhập web → quản lý tài khoản nhân sự/role → tạo, sửa, khóa mềm, khôi phục → xem health Auth/Core/database → lọc audit log. Customer Guest không nằm trong danh sách. Chặn khóa/đổi role Stylist nếu còn ca tương lai hoặc lịch chưa xử lý. Admin không vào màn lịch, catalog hay thanh toán.
 
-1. Quản lý Branch, Service, Stylist.  
-2. Xếp Work Shift (nguồn sự thật của giờ trống).  
-3. Theo dõi lịch / (tuỳ chọn) thống kê nhẹ.  
+## 3.5. Danh sách màn hình mục tiêu
 
-## 3.6. Định hướng màn hình
+| Role | Màn hình | Tác vụ chính |
+|---|---|---|
+| Customer | Nhập tên + số điện thoại; Trang chủ; Chọn Branch; Chọn Service; Chọn Stylist; Chọn ngày/slot; Xác nhận | Tạo Appointment `booked` với giá chốt, không dùng email/mật khẩu |
+| Customer | Lịch của tôi; Khôi phục lịch bằng OTP demo; Chi tiết lịch; Thanh toán mô phỏng; Kết quả; Lịch sử | Hủy `booked`, thanh toán `completed`, xem `paid` |
+| Stylist | Đăng nhập; Lịch hôm nay; Chi tiết lịch | Xem lịch được giao và đánh dấu hoàn thành |
+| General Manager | Tổng quan; Chi nhánh; Dịch vụ; Hồ sơ thợ; Phân ca | Quản lý catalog và lịch làm |
+| General Manager | Lịch đặt; Chi tiết lịch; Lịch sử thanh toán | Lọc lịch/ngày/Branch/Stylist/trạng thái, tra cứu giao dịch theo Branch |
+| System Admin | Tài khoản nhân sự; Tạo/sửa User; Chi tiết/đổi quyền; Khóa/khôi phục | Quản trị tài khoản nhân sự |
+| System Admin | Health; Audit log | Xem trạng thái dịch vụ/database và tra cứu sự kiện |
 
-| Vai trò | Màn gợi ý | Phụ trách |
-|---------|-----------|-----------|
-| Customer | Login, chọn Branch/Service/Stylist/Slot, Lịch của tôi, Thanh toán | Lộc (wizard + lịch), Hưng (pay) |
-| Stylist | Login, Lịch hôm nay | Huy |
-| Shop Admin | CRUD Branch/Service/Stylist/Shift | Huy (admin-web) |
-| Hạ tầng | Auth, chống trùng, status machine | Kiên |
-| API book/slot/complete | — | Tú |
+## 3.6. Chuyển đổi từ code hiện tại
+
+Flow Customer tên + số điện thoại và OTP demo đã có trong Auth/mobile/Core (ADR 0007); Customer email/mật khẩu cũ không được chuyển dữ liệu, vẫn nằm trong database nhưng không đăng nhập được bằng flow nhân sự. SHINE-26 chuyển `shop_admin` cũ sang `system_admin`, chuyển quyền catalog/Work Shift sang `general_manager`, đóng đăng ký User công khai và bổ sung quản lý tài khoản, health, audit log. Core API ghi Payment Attempt và chỉ đưa lịch sang `paid` sau attempt thành công; lịch cũ không có `bookedPrice` được giữ nguyên và không thể thanh toán mô phỏng. Manager hiện dùng app Expo; cần kiểm thử toàn bộ hành trình trên thiết bị/emulator với các service đang chạy.

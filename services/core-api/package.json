@@ -1,14 +1,28 @@
-﻿{
+{
   "name": "@shine/core-api",
   "version": "0.1.0",
   "private": true,
   "main": "src/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "node --env-file-if-exists=.env --watch src/index.js",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "docs": "node src/docs/serve.js",
+    "test": "node --test test/attendance.test.js test/auth.test.js test/booking.test.js test/booking-slot-cadence.test.js test/booking-wishes-reschedule.test.js test/catalog.test.js test/customer-account.test.js test/work-shift.test.js test/work-shifts.test.js test/stylist-appointments.test.js test/customer-appointments.test.js test/docs.test.js test/role-boundaries.test.js test/manager.test.js",
+    "test:catalog": "node --test test/catalog.test.js",
+    "test:booking": "node --test test/booking.test.js",
+    "test:work-shift": "node --test test/work-shift.test.js",
+    "test:work-shifts": "node --test test/work-shifts.test.js",
+    "test:docs": "node --test test/docs.test.js",
+    "test:booking:integration": "node --env-file-if-exists=.env --test test/booking.integration.js",
+    "test:manager:integration": "node --env-file-if-exists=.env --test test/manager.integration.js",
+    "test:work-shifts:integration": "node --env-file-if-exists=.env --test test/work-shifts.integration.js"
+
   },
   "dependencies": {
+    "@scalar/express-api-reference": "^0.10.26",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^9.10.3"
   }
 }

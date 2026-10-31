@@ -10,21 +10,23 @@
 | Auth | JWT, Auth Service riêng |
 | Nghiệp vụ | Core API |
 | Thanh toán | MoMo/VNPay **mô phỏng** (không kết nối cổng thật ở MVP) |
-| DB | MongoDB hoặc MySQL |
+| DB | MongoDB (code hiện tại và thiết kế mục tiêu) |
 
 ## 4.2. ADR
 
 | Mã | Quyết định |
 |----|------------|
-| 0001 | Dự án độc lập với LMS; làm song song task; MVP mỏng hơn LMS về độ rộng module nhưng đủ thanh toán & 3 role |
+| 0001 | Dự án độc lập với LMS; quyết định MVP ban đầu có 3 role (lịch sử) |
 | 0002 | Thứ tự book: Branch → Service → Stylist; có chọn thợ; payment trong scope; chỉ Auth tách service |
 | 0003 | Thanh toán **sau** hoàn thành dịch vụ |
 | 0004 | Customer là người bấm thanh toán mô phỏng trên app |
-| 0005 | Shop Admin sở hữu Work Shift; Stylist không tự khai báo ca |
+| 0005 | Role `shop_admin` sở hữu Work Shift trong MVP ban đầu; Stylist không tự khai báo ca |
+| 0006 | Đã triển khai ranh giới 4 role và System Admin trong SHINE-26; Manager theo dõi lịch/thanh toán theo Branch còn trong backlog |
+| 0007 | Customer vào app bằng tên + số điện thoại, phiên thiết bị; OTP demo chỉ để khôi phục lịch trên thiết bị khác |
 
 Chi tiết trong `docs/adr/`.
 
-## 4.3. Tham chiếu thực tế đã khảo sát
+## 4.3. Định hướng sản phẩm
 
-- App 30Shine phía khách: chọn salon → stylist → giờ → dịch vụ (nhóm điều chỉnh thứ tự Service trước Stylist cho đồ án, đã ghi trong ADR).  
-- Fresha/Booksy: quản lý xếp ca tập trung; staff chủ yếu xem lịch — phù hợp chọn Admin sở hữu Work Shift.  
+- Đề tài tham chiếu trải nghiệm đặt lịch của chuỗi salon; flow của nhóm được chốt riêng là Branch → Service → Stylist → Slot theo ADR 0002.
+- Mô hình xếp ca tập trung: General Manager hiện sở hữu Work Shift; Stylist chỉ xem lịch được giao.

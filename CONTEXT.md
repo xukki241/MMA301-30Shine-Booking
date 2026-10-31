@@ -1,61 +1,43 @@
-# Phụ lục A — Thuật ngữ miền (30Shine Booking)
+# Phụ lục A — Thuật ngữ miền (thiết kế mục tiêu)
 
-> Dùng trong báo cáo và khi code. Chỉ ghi khái niệm nghiệp vụ. Bản mô tả đề tài đầy đủ: `docs/00-muc-luc-bao-cao.md`.
+> Tài liệu này thống nhất thuật ngữ cho bốn role. SHINE-26 đã chuyển role nhân sự từ `shop_admin`; các chức năng Manager theo dõi lịch/thanh toán còn trong thiết kế mục tiêu.
 
-Ứng dụng đặt lịch cắt tóc theo chi nhánh cho Customer, có chọn Stylist. Đặt lịch giữ chỗ trước; thanh toán mô phỏng (MoMo/VNPay) sau khi hoàn thành dịch vụ. Dự án độc lập với LMS Classroom; cùng pattern kỹ thuật (Expo + Core API + một Auth Service) nhưng docs/repo tách riêng.
+## Vai trò
 
-## Language
+| Thuật ngữ | Ý nghĩa và ranh giới |
+|---|---|
+| **Customer** (`customer`) | Khách có thể khám phá Home công khai; tạo/đăng nhập tài khoản bằng số điện thoại và mật khẩu 6 số theo ADR 0008. Hồ sơ có thông tin cá nhân và địa chỉ nhà tùy chọn theo ADR 0009; đặt, hủy lịch `booked` và thanh toán mô phỏng sau `completed`. |
+| **Stylist** (`stylist`) | Thợ xem lịch theo ca do Manager xếp, ghi nhận khách đã đến, xác nhận khách không đến sau 15 phút và đánh dấu phục vụ hoàn thành. Không tự khai báo ca. |
+| **System Admin** (`system_admin`) | Quản trị tài khoản, một role cho mỗi tài khoản, health và audit log. Không xem lịch vận hành, danh mục kinh doanh hay thanh toán. |
+| **General Manager** (`general_manager`) | Quản lý vận hành mọi Branch, gồm Service, hồ sơ Stylist, Work Shift, lịch đặt và lịch sử thanh toán. Không tạo tài khoản hoặc phân quyền. |
+| **User** | Tài khoản nhân sự đăng nhập có đúng một role (`stylist`, `system_admin`, `general_manager`) và trạng thái hoạt động/khóa mềm; Customer dùng Guest Session riêng. |
 
-### Actors
+`shop_admin` là tên role legacy. Auth Service tự chuyển tài khoản cũ sang `system_admin` lúc khởi động; System Admin tạo General Manager đầu tiên. Database mới dùng lệnh bootstrap Admin một lần.
 
-**Customer**:
-Khách đặt lịch giữ chỗ; sau khi dịch vụ `completed`, tự thanh toán mô phỏng trên app.
-_Avoid_: User, client (khi nói role nghiệp vụ)
+## Nghiệp vụ đặt lịch
 
-**Stylist**:
-Thợ cắt tóc được Customer chọn; làm theo Work Shift do Shop Admin xếp; xem lịch ngày và đánh dấu hoàn thành.
-_Avoid_: Barber, staff (trừ copy UI)
+**Branch**: Chi nhánh nơi khách đến; Customer chọn trước Service.
 
-**Shop Admin**:
-Người vận hành chi nhánh: quản lý Branch, Service, Stylist gắn chi nhánh, tạo/sửa Work Shift, xem lịch và thống kê nhẹ.
-_Avoid_: Admin hệ thống toàn cục, manager (trừ UI)
+**Service**: Dịch vụ tại Branch, gồm tên, giá và thời lượng. Đổi giá chỉ áp dụng cho lịch đặt mới.
 
-**User**:
-Tài khoản đăng nhập; gắn một role Customer, Stylist, hoặc Shop Admin.
-_Avoid_: Account
+**Stylist Profile**: Hồ sơ thợ tại Branch, liên kết một User có role `stylist`. Manager quản lý hồ sơ/gán chi nhánh; System Admin quản lý tài khoản.
 
-### Booking flow (thứ tự nghiệp vụ)
+**Work Shift**: Ca làm của Stylist tại Branch do General Manager xếp. Đây là nguồn để sinh giờ trống.
 
-Customer chọn **Branch → Service → Stylist → Time Slot → Appointment (giữ chỗ)**.
-Stylist đánh dấu **completed** → Customer **Payment** mô phỏng trên app → **paid**.
+**Time Slot**: Khoảng giờ trống suy ra từ Work Shift, thời lượng Service và các Appointment đã chiếm giờ.
 
-**Branch**:
-Chi nhánh cửa hàng nơi khách đến cắt; chọn trước Service.
-_Avoid_: Store, salon (trừ branding)
+**Appointment**: Lịch đặt gồm Customer, Branch, Service, Stylist, thời gian và **giá chốt lúc đặt**. Trạng thái: `booked` → `checked_in` → `completed` → `paid`, hoặc `booked` → `cancelled`/`no_show`. Quá 15 phút chưa check-in chỉ hiện nhắc kiểm tra; Stylist xác nhận `no_show` sau khi kiểm tra.
 
-**Service**:
-Dịch vụ tại Branch (tên, thời lượng, giá).
-_Avoid_: Product, package
+**Guest Session**: Phiên Customer được cấp khi nhập tên + số điện thoại, gắn với bí mật lưu trên thiết bị. Số điện thoại chỉ là thông tin liên hệ; phiên chưa xác minh chỉ có quyền với lịch do phiên đó tạo.
 
-**Stylist**:
-(xem Actors) — bắt buộc chọn thợ trong luồng đặt lịch đã chốt.
+**Recovery OTP**: Mã dùng một lần để chứng minh quyền khôi phục lịch cùng số điện thoại trên thiết bị khác. Trong đồ án mã được ghi vào console Auth Service, **không gửi SMS**, không mất phí và không xác minh quyền sở hữu số thật.
 
-**Work Shift**:
-Ca làm việc của Stylist tại một Branch; **chỉ Shop Admin** tạo/sửa trong MVP. Stylist không tự khai báo ca.
-_Avoid_: Schedule, availability (khi nói thực thể ca)
+**Payment Attempt**: Một lần thanh toán MoMo/VNPay mô phỏng của Appointment `completed`, gắn Branch, số tiền theo giá đã chốt, phương thức, kết quả và thời gian. Có thể có nhiều lần thất bại; tối đa một lần thành công cho một Appointment. Không trừ tiền thật.
 
-**Time Slot**:
-Ô giờ trống suy ra từ Work Shift trừ các Appointment đã giữ.
-_Avoid_: Calendar cell
+**Audit Log**: Bản ghi bất biến về người thực hiện, hành động, đối tượng, kết quả và thời gian của thao tác quan trọng. System Admin chỉ xem metadata cần thiết, không xem nội dung nghiệp vụ hoặc dữ liệu nhạy cảm.
 
-**Appointment**:
-Lịch đặt của Customer: Branch + Service + Stylist + Time Slot.
-_Avoid_: Order, reservation
+**Health Status**: Trạng thái kiểm tra Auth Service, Core API và database, kèm thời điểm kiểm tra gần nhất. Không phải bộ metrics nâng cao.
 
-**Appointment Status**:
-Vòng đời gợi ý: `booked` → `completed` → `paid` (hoặc `cancelled` từ `booked`).
-_Avoid_: State ngoài enum đã chốt; thu tiền trước khi hoàn thành dịch vụ
+## Flow chuẩn
 
-**Payment**:
-Thanh toán mô phỏng (MoMo/VNPay fake) do **Customer** thực hiện trên app sau khi Appointment `completed`; bắt buộc trong scope vì yêu cầu đồ án.
-_Avoid_: Billing thật; thu tiền lúc vừa đặt lịch; POS thu ngân là bước bắt buộc MVP
+General Manager cấu hình Branch/Service/Stylist/Work Shift → Customer chọn **Branch → Service → Stylist → Time Slot**, xác nhận Appointment `booked` → Stylist ghi nhận khách đến `checked_in`, phục vụ rồi chuyển `completed` → Customer thanh toán mô phỏng → thành công thì `paid`; Manager theo dõi lịch và Payment Attempt theo Branch, khôi phục `no_show` bị ghi nhầm khi slot chưa được đặt lại.

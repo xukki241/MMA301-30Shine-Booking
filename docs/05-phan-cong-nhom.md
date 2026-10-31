@@ -1,5 +1,7 @@
 # Chương 5. Tổ chức nhóm và phân công
 
+> Bảng phân công dưới đây là kế hoạch **MVP ban đầu** với `shop_admin`, được giữ làm lịch sử phân công. Ranh giới role và System Admin của SHINE-26 đã triển khai; các màn Manager còn trong [backlog](./07-backlog-tracking.md).
+
 ## 5.1. Thành viên và năng lực
 
 | Họ tên | Track | Ghi chú |
