@@ -52,6 +52,10 @@ function shiftInterval(data) {
   return parsed;
 }
 
+function assertFutureShift(parsed, now = new Date()) {
+  if (parsed.startAt <= now) throw new BookingError(400, "Giờ bắt đầu ca phải ở tương lai");
+}
+
 function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift, Calendar }) {
   async function assertReferences({ branchId, stylistId }) {
     if (!isId(branchId) || !isId(stylistId)) throw new BookingError(400, "Invalid branchId or stylistId");
@@ -80,15 +84,20 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       if (!parsed) {
         throw new BookingError(400, "Invalid date or shift interval; use ISO 8601 times with timezone");
       }
+      assertFutureShift(parsed);
       await assertReferences(data);
       if (await overlapsExisting(data.stylistId, parsed.startAt, parsed.endAt)) throw new BookingError(409, "Stylist already has an overlapping work shift");
       const shift = await WorkShift.create({ ...data, ...parsed });
       return { shift: plain(shift) };
     },
-    async list({ branchId, stylistId, date }) {
+    async list({ branchId, stylistId, date, month }) {
       const query = {};
       if (branchId) query.branchId = branchId;
       if (stylistId) query.stylistId = stylistId;
+      if (month) {
+        if (typeof month !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new BookingError(400, "Invalid month; expected YYYY-MM");
+        query.date = { $gte: month + "-01", $lte: month + "-31" };
+      }
       if (date) {
         if (!validDateKey(date)) throw new BookingError(400, "Invalid date; expected YYYY-MM-DD");
         query.date = date;
@@ -102,6 +111,7 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       const next = { ...changes };
       const parsed = shiftInterval(next);
       if (!parsed) throw new BookingError(400, "Invalid date or shift interval; start and end must belong to the selected local date");
+      assertFutureShift(parsed);
       await assertReferences(next);
       if (await overlapsExisting(next.stylistId, parsed.startAt, parsed.endAt, id)) throw new BookingError(409, "Stylist already has an overlapping work shift");
       const existingAppointments = await appointmentsFor(String(shift.stylistId), shift.startAt, shift.endAt);
@@ -181,4 +191,4 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
 }
 
 module.exports = { createWorkShiftRepository, validDateKey, interval, shiftInterval,
-  buildSlotOptions };
+  buildSlotOptions, assertFutureShift };

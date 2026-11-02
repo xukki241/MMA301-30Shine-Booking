@@ -18,7 +18,8 @@ import { useAuth } from "@/providers/auth-provider";
 import {
   completeStylistAppointment,
   actOnStylistAppointment,
-  getStylistTodayAppointments,
+  getStylistDaySchedule,
+  type StylistWorkShift,
   getStylistProfiles,
   loginStylist,
   type StylistAppointmentItem,
@@ -36,6 +37,7 @@ export default function StylistTodayScreen() {
   const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
+  const [workShifts, setWorkShifts] = useState<StylistWorkShift[]>([]);
   const [appointments, setAppointments] = useState<StylistAppointmentItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -60,8 +62,9 @@ export default function StylistTodayScreen() {
       setLoadError(null);
       setActionError(null);
       try {
-        const data = await getStylistTodayAppointments(authToken, selectedDate);
-        setAppointments(data);
+        const schedule = await getStylistDaySchedule(authToken, selectedDate);
+        setAppointments(schedule.appointments);
+        setWorkShifts(schedule.workShifts);
       } catch (cause) {
         setLoadError(cause instanceof Error ? cause.message : "Không thể tải lịch làm việc.");
       } finally {
@@ -252,6 +255,12 @@ export default function StylistTodayScreen() {
           </Pressable>
         ))}
       </View>
+      <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Ca làm việc · {workShifts.length}</Text></View>
+      {workShifts.length === 0 ? <Card><CardText>Ngày này chưa được phân ca.</CardText></Card> : workShifts.map((shift) => (
+        <Card key={shift.id}><CardTitle>{formatTime(shift.startAt)} - {formatTime(shift.endAt)}</CardTitle>
+          {branchName ? <CardText>{branchName}</CardText> : null}
+        </Card>
+      ))}
       <View style={styles.sectionRow}><Text style={styles.sectionTitle}>Lịch hẹn · {appointments.length}</Text>
         {selectedDate !== todayStr && <Pressable onPress={() => chooseDate(todayStr)}><Text style={{ color: theme.brand, fontWeight: "700" }}>Về hôm nay</Text></Pressable>}</View>
 

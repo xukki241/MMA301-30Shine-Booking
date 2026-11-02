@@ -36,6 +36,11 @@ export default function StylistLayout() {
           <Ionicons name={focused ? "calendar" : "calendar-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }}
       />
       <Tabs.Screen
+        name="timetable"
+        options={{ title: "Thời khóa biểu", tabBarLabel: "Thời khóa biểu", tabBarIcon: ({ color, focused }) =>
+          <Ionicons name={focused ? "grid" : "grid-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{ title: "Hồ sơ Stylist", tabBarLabel: "Hồ sơ", tabBarIcon: ({ color, focused }) =>
           <Ionicons name={focused ? "person" : "person-outline"} size={22} color={typeof color === "number" || color == null ? theme.brand : color} /> }}

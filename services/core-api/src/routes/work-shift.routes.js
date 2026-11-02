@@ -24,6 +24,12 @@ function createWorkShiftRouter({ repository, secret, verifyStaff, verifyCustomer
     } catch { return res.status(503).json({ error: "Stylist verification unavailable" }); }
   };
 
+  router.get("/me", authenticate(secret, verifyStaff, verifyCustomer), requireRole("stylist"), handle(async (req, res) => {
+    const { date, month } = req.query;
+    if (typeof date !== "string" && typeof month !== "string") throw new BookingError(400, "Date or month is required");
+    if (month && (typeof month !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))) throw new BookingError(400, "Invalid month; expected YYYY-MM");
+    res.json({ workShifts: await repository.list({ stylistId: req.auth.userId, date, month }) });
+  }));
   router.get("/", ...admin, handle(async (req, res) => res.json({ workShifts: await repository.list({ branchId: req.query.branchId, stylistId: req.query.stylistId, date: req.query.date }) })));
   router.post("/", ...admin, activeStylist, handle(async (req, res) => {
     const result = await repository.create(req.body || {});

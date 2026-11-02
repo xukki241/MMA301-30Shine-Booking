@@ -6,6 +6,9 @@ import {
   actOnStylistAppointment,
   getStylistTodayAppointments,
   getStylistProfiles,
+  getStylistWorkShifts,
+  getStylistDaySchedule,
+  getStylistMonthShifts,
   loginStylist,
 } from "../src/booking/http-adapter.ts";
 
@@ -186,4 +189,36 @@ test("completeStylistAppointment sends the completion action", async (t) => {
     completeStylistAppointment("mock_token", "appt_001"),
     /Invalid appointment state/
   );
+});
+
+test("getStylistWorkShifts returns assigned shifts for selected day", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let requestedUrl, authorization;
+  const shift = { id: "shift-1", date: "2026-11-03", startAt: "2026-11-03T02:00:00.000Z", endAt: "2026-11-03T13:00:00.000Z" };
+  globalThis.fetch = async (url, options) => {
+    requestedUrl = String(url); authorization = options.headers.Authorization;
+    return { ok: true, status: 200, json: async () => ({ workShifts: [shift] }) };
+  };
+  assert.deepEqual(await getStylistWorkShifts("stylist-token", "2026-11-03"), [shift]);
+  assert.match(requestedUrl, /\/work-shifts\/me\?date=2026-11-03$/);
+  assert.equal(authorization, "Bearer stylist-token");
+});
+
+test("day schedule loads shifts even when there are no appointments", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async (url) => ({ ok: true, status: 200, json: async () =>
+    String(url).includes("work-shifts") ? { workShifts: [{ id: "shift-1" }] } : { appointments: [] } });
+  assert.deepEqual(await getStylistDaySchedule("token", "2026-11-03"),
+    { appointments: [], workShifts: [{ id: "shift-1" }] });
+});
+
+test("getStylistMonthShifts loads the month without exposing another stylist", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let url;
+  globalThis.fetch = async (input) => { url = String(input); return { ok: true, status: 200, json: async () => ({ workShifts: [{ id: "s1", date: "2026-11-03" }, { id: "old", date: "2026-10-31" }] }) }; };
+  assert.equal((await getStylistMonthShifts("token", "2026-11")).length, 1);
+  assert.match(url, /\/work-shifts\/me\?month=2026-11$/);
 });
