@@ -28,6 +28,7 @@ export function validateShiftDraft(draft: { stylistId: string; branchId: string;
       !draft.startAt.startsWith(draft.date) || !draft.endAt.startsWith(draft.date)) return "Ngày ca không hợp lệ.";
   if (!Number.isFinite(Date.parse(draft.startAt)) || !Number.isFinite(Date.parse(draft.endAt)) ||
       new Date(draft.endAt) <= new Date(draft.startAt)) return "Giờ kết thúc phải sau giờ bắt đầu.";
+  if (new Date(draft.startAt).getTime() <= Date.now()) return "Giờ bắt đầu ca phải ở tương lai.";
   return null;
 }
 

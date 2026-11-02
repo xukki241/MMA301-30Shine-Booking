@@ -5,7 +5,7 @@ const { randomBytes } = require("node:crypto");
 const jwt = require("jsonwebtoken");
 const { createApp } = require("../src/app");
 const { BookingError } = require("../src/booking/rules");
-const { shiftInterval, buildSlotOptions } = require("../src/work-shifts/repository");
+const { shiftInterval, buildSlotOptions, createWorkShiftRepository } = require("../src/work-shifts/repository");
 
 const ids = {
   branch: "507f1f77bcf86cd799439001",
@@ -33,7 +33,7 @@ function createShiftStore() {
     async list(query) {
       return shifts.filter((shift) => (!query.branchId || shift.branchId === query.branchId) &&
         (!query.stylistId || shift.stylistId === query.stylistId) &&
-        (!query.date || shift.date === query.date));
+        (!query.date || shift.date === query.date) && (!query.month || shift.date.startsWith(query.month)));
     },
     async update(id, data) {
       const shift = shifts.find((item) => item.id === id);
@@ -120,6 +120,14 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   const created = await fetch(`${base}/work-shifts`, { method: "POST", headers: admin, body: JSON.stringify(payload) });
   assert.equal(created.status, 201);
   const shift = (await created.json()).workShift;
+  const ownSchedule = await fetch(`${base}/work-shifts/me?date=2030-10-20`, { headers: { Authorization: `Bearer ${token("stylist", ids.stylist)}` } });
+  assert.equal(ownSchedule.status, 200);
+  assert.equal((await ownSchedule.json()).workShifts.length, 1);
+  const monthSchedule = await fetch(`${base}/work-shifts/me?month=2030-10`, { headers: { Authorization: `Bearer ${token("stylist", ids.stylist)}` } });
+  assert.equal(monthSchedule.status, 200);
+  assert.equal((await monthSchedule.json()).workShifts.length, 1);
+  assert.equal((await fetch(`${base}/work-shifts/me?date=2030-10-20`, { headers: customer })).status, 403);
+  assert.equal((await fetch(`${base}/work-shifts/me?month=2030-13`, { headers: { Authorization: `Bearer ${token("stylist", ids.stylist)}` } })).status, 400);
   const overlap = await fetch(`${base}/work-shifts`, { method: "POST", headers: admin, body: JSON.stringify({ ...payload, startAt: "2030-10-20T11:00:00+07:00", endAt: "2030-10-20T13:00:00+07:00" }) });
   assert.equal(overlap.status, 409);
 
@@ -155,4 +163,22 @@ test("work shifts require General Manager, block appointment conflicts, and prov
   assert.equal(blockedDelete.status, 409);
   const outsideBooking = await fetch(`${base}/appointments`, { method: "POST", headers: customer, body: JSON.stringify({ branchId: ids.branch, serviceId: ids.service, stylistId: ids.stylist, startTime: "2030-10-20T05:00:00.000Z", endTime: "2030-10-20T05:45:00.000Z" }) });
   assert.equal(outsideBooking.status, 409);
+});
+
+const { assertFutureShift } = require("../src/work-shifts/repository");
+test("shift start must be in the future", () => {
+  const now = new Date("2026-11-02T15:00:00.000Z");
+  assert.throws(() => assertFutureShift({ startAt: new Date("2026-11-01T02:00:00.000Z") }, now), { status: 400 });
+  assert.throws(() => assertFutureShift({ startAt: new Date("2026-11-02T02:00:00.000Z") }, now), { status: 400 });
+  assert.doesNotThrow(() => assertFutureShift({ startAt: new Date("2026-11-03T02:00:00.000Z") }, now));
+});
+
+test("repository lists only the selected stylist month", async () => {
+  let query;
+  const WorkShift = { find(value) { query = value; return { sort() { return { lean() { return { exec: async () => [] }; } }; } }; } };
+  const repository = createWorkShiftRepository({ WorkShift });
+  await repository.list({ stylistId: ids.stylist, month: "2026-11" });
+  assert.equal(query.stylistId, ids.stylist);
+  assert.deepEqual(query.date, { $gte: "2026-11-01", $lte: "2026-11-31" });
+  await assert.rejects(repository.list({ stylistId: ids.stylist, month: "2026-13" }), { status: 400 });
 });

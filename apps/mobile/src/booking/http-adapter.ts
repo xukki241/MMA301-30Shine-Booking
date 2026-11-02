@@ -117,10 +117,30 @@ export async function getStylistProfiles(token: string): Promise<StylistProfileI
   return data.profiles || [];
 }
 
+export interface StylistWorkShift { id: string; date: string; startAt: string; endAt: string; branchId: string; }
+
+export async function getStylistWorkShifts(token: string, date: string): Promise<StylistWorkShift[]> {
+  const data = await request<{ workShifts: StylistWorkShift[] }>(coreApi, `/work-shifts/me?date=${encodeURIComponent(date)}`, token);
+  return data.workShifts;
+}
+
+export async function getStylistMonthShifts(token: string, month: string): Promise<StylistWorkShift[]> {
+  const data = await request<{ workShifts: StylistWorkShift[] }>(coreApi, `/work-shifts/me?month=${encodeURIComponent(month)}`, token);
+  return data.workShifts.filter((shift) => shift.date.startsWith(month + "-"));
+}
+
 export async function getStylistTodayAppointments(token: string, date?: string): Promise<StylistAppointmentItem[]> {
   const path = date ? `/appointments?date=${encodeURIComponent(date)}` : "/appointments";
   const data = await request<{ appointments: StylistAppointmentItem[] }>(coreApi, path, token);
   return data.appointments || [];
+}
+
+export async function getStylistDaySchedule(token: string, date: string): Promise<{ appointments: StylistAppointmentItem[]; workShifts: StylistWorkShift[] }> {
+  const [appointments, workShifts] = await Promise.all([
+    getStylistTodayAppointments(token, date),
+    getStylistWorkShifts(token, date),
+  ]);
+  return { appointments, workShifts };
 }
 
 export async function completeStylistAppointment(token: string, appointmentId: string): Promise<StylistAppointmentItem> {
