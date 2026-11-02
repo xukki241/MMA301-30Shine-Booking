@@ -16,14 +16,11 @@ export type CustomerAppointment = {
   bookedPrice?: number;
 };
 
-export type PaymentInput = { provider: "momo" | "vnpay"; outcome: "success" | "failed"; requestId: string };
-export type PaymentAttempt = { id: string; requestId: string; amount: number; provider: PaymentInput["provider"];
-  status: PaymentInput["outcome"]; attemptedAt: string };
-export type PaymentResult = { appointment: CustomerAppointment; attempt: PaymentAttempt };
+export type PaymentInstructions = { bank: string; accountNumber: string; accountHolder: string; amount: number; content: string; qrUrl: string };
 
 export interface CustomerAppointmentDataSource {
   list(): Promise<CustomerAppointment[]>;
   cancel(id: string): Promise<CustomerAppointment>;
-  pay?(id: string, input: PaymentInput): Promise<PaymentResult>;
+  paymentInstructions?(id: string): Promise<PaymentInstructions>;
 }
 

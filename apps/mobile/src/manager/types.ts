@@ -9,9 +9,9 @@ export type Shift = { id: string; stylistId: string; branchId: string; date: str
 export type ManagerAppointment = { id: string; customerName?: string; customerPhone?: string; branchId: string;
   serviceId: string; stylistId: string; bookedPrice?: number; startTime: string; endTime: string; status: AppointmentStatus; checkedInAt?: string };
 export type ManagerPayment = { id: string; appointmentId: string; branchId: string; amount: number;
-  provider: "momo" | "vnpay"; status: PaymentStatus; attemptedAt: string; customerName?: string };
+  provider: "cash" | "sepay"; status: PaymentStatus; attemptedAt: string; customerName?: string };
 export type Overview = { date: string; counts: Record<AppointmentStatus, number> };
-export type PaymentPage = Page<ManagerPayment> & { simulatedTotal: number };
+export type PaymentPage = Page<ManagerPayment> & { total: number };
 export type AppointmentFilters = { date?: string; branchId?: string; stylistId?: string; status?: AppointmentStatus;
   cursor?: string; limit?: number };
 export type PaymentFilters = { branchId: string; from?: string; to?: string; cursor?: string; limit?: number };

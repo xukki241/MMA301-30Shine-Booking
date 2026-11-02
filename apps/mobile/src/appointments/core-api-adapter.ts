@@ -1,4 +1,4 @@
-import type { CustomerAppointment, CustomerAppointmentDataSource, PaymentInput, PaymentResult } from "./types";
+import type { CustomerAppointment, CustomerAppointmentDataSource, PaymentInstructions } from "./types";
 
 const isWeb = typeof window !== "undefined" || typeof document !== "undefined";
 const defaultHost = isWeb ? "localhost" : "10.0.2.2";
@@ -97,14 +97,8 @@ export function createCoreApiAppointmentDataSource(
       return data.appointment;
     },
 
-    async pay(id: string, input: PaymentInput): Promise<PaymentResult> {
-      const token = getToken();
-      if (!token) throw new Error("Vui lòng đăng nhập để thanh toán lịch hẹn.");
-      const data = await request<PaymentResult>(
-        `/appointments/${encodeURIComponent(id)}/pay`,
-        { method: "POST", body: JSON.stringify(input) }
-      );
-      return data;
+    async paymentInstructions(id: string): Promise<PaymentInstructions> {
+      return request<PaymentInstructions>(`/appointments/${encodeURIComponent(id)}/payment-instructions`);
     },
   };
 }

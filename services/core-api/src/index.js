@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 const { readConfig } = require("./config");
 const { createApp } = require("./app");
 const { createModels } = require("./models");
+const { createBookingRepository } = require("./booking/mongo-repository");
+const { createNoShowPoller } = require("./booking/no-show-poller");
+const { createPaymentService } = require("./payment/service");
+const { createSepayPoller } = require("./payment/poller");
 
 async function start() {
   let config;
@@ -29,9 +33,14 @@ async function start() {
       models.AuditLog.init(),
     ]);
 
-    const app = createApp({ secret: config.secret, authServiceUrl: config.authServiceUrl, models });
+    const bookingRepository = createBookingRepository(models.Calendar);
+    const app = createApp({ secret: config.secret, authServiceUrl: config.authServiceUrl, models, bookingRepository, payment: config.payment });
+    const noShowPoller = createNoShowPoller(bookingRepository);
+    const poller = createSepayPoller(createPaymentService(bookingRepository, config.payment), config.payment);
     const server = app.listen(config.port, "0.0.0.0", () => {
       console.log(`core-api on ${config.port}`);
+      poller.start();
+      void noShowPoller.start();
     });
 
     server.on("error", async () => {
@@ -40,7 +49,7 @@ async function start() {
       process.exitCode = 1;
     });
 
-    const shutdown = () => server.close(() => connection.close());
+    const shutdown = () => { noShowPoller.stop(); poller.stop(); server.close(() => connection.close()); };
     process.once("SIGINT", shutdown);
     process.once("SIGTERM", shutdown);
   } catch {

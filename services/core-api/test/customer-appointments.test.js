@@ -101,3 +101,60 @@ test("Customer appointment listing endpoints", async (t) => {
     assert.equal(body.appointments.length, 2);
   });
 });
+
+const { createBookingService } = require("../src/booking/service");
+
+test("customer listing finalizes an unattended appointment after its end time", async () => {
+  const calls = [];
+  const repository = {
+    async markOverdueNoShows(customerId, now) { calls.push([customerId, now]); },
+    async listByCustomer() { return [{ id: ids.appt1, status: "no_show" }]; },
+  };
+  const result = await createBookingService(repository).listCustomerAppointments(
+    { role: "customer", userId: ids.customer1 },
+  );
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0][0], ids.customer1);
+  assert.ok(calls[0][1] instanceof Date);
+  assert.equal(result[0].status, "no_show");
+});
+
+const { createBookingRepository } = require("../src/booking/mongo-repository");
+
+test("repository marks only ended booked appointments for the customer", async () => {
+  let operation;
+  const Calendar = { updateMany(filter, update, options) { operation = { filter, update, options }; return { exec: async () => ({ modifiedCount: 1 }) }; } };
+  const now = new Date("2026-11-02T12:00:00.000Z");
+  await createBookingRepository(Calendar).markOverdueNoShows(ids.customer1, now);
+  assert.equal(operation.filter.appointments.$elemMatch.status, "booked");
+  assert.equal(String(operation.filter.appointments.$elemMatch.customerId), ids.customer1);
+  assert.deepEqual(operation.options.arrayFilters[0]["overdue.endTime"], { $lte: now });
+  assert.equal(operation.update.$set["appointments.$[overdue].status"], "no_show");
+  assert.equal(operation.update.$push["appointments.$[overdue].statusHistory"].actorRole, "system");
+});
+
+test("repository can finalize unattended appointments across customers", async () => {
+  let operation;
+  const Calendar = { updateMany(filter, update, options) { operation = { filter, update, options }; return { exec: async () => ({ modifiedCount: 1 }) }; } };
+  await createBookingRepository(Calendar).markOverdueNoShows();
+  assert.equal(operation.filter.appointments.$elemMatch.status, "booked");
+  assert.equal("customerId" in operation.filter.appointments.$elemMatch, false);
+  assert.equal("overdue.customerId" in operation.options.arrayFilters[0], false);
+});
+
+test("no-show poller runs on startup and stops cleanly", async () => {
+  const { createNoShowPoller } = require("../src/booking/no-show-poller");
+  let runs = 0;
+  let tick;
+  let stopped = false;
+  const poller = createNoShowPoller({ markOverdueNoShows: async () => { runs++; } }, {
+    setInterval: (callback) => { tick = callback; return 1; },
+    clearInterval: () => { stopped = true; },
+  });
+  await poller.start();
+  assert.equal(runs, 1);
+  await tick();
+  assert.equal(runs, 2);
+  poller.stop();
+  assert.equal(stopped, true);
+});

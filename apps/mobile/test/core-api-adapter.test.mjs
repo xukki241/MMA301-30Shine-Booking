@@ -52,20 +52,10 @@ test("appointment list loads stylist phone when the appointment already includes
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("demoAppointmentDataSource supports pay for completed appointments", async () => {
-  const sample = [
-    { id: "a1", branchName: "B", serviceName: "S", stylistName: "St", startTime: "2030-01-01T10:00:00Z", status: "completed", bookedPrice: 120000 },
-    { id: "a2", branchName: "B", serviceName: "S", stylistName: "St", startTime: "2030-01-01T11:00:00Z", status: "booked" },
-  ];
-  const source = createDemoAppointmentDataSource(sample);
-  const failed = await source.pay("a1", { provider: "momo", outcome: "failed", requestId: "attempt-one" });
-  assert.equal(failed.appointment.status, "completed");
-  const paid = await source.pay("a1", { provider: "vnpay", outcome: "success", requestId: "attempt-two" });
-  assert.equal(paid.appointment.status, "paid");
-  assert.equal((await source.list())[0].status, "paid");
-
-  // Cannot pay a booked appointment
-  await assert.rejects(source.pay("a2", { provider: "momo", outcome: "success", requestId: "attempt-abc" }), /Chỉ có thể thanh toán/);
+test("demo appointments remain awaiting payment without a simulated pay action", async () => {
+  const source = createDemoAppointmentDataSource([{ id: "a1", startTime: "2030-01-01T10:00:00Z", status: "completed", bookedPrice: 120000 }]);
+  assert.equal(source.pay, undefined);
+  assert.equal((await source.list())[0].status, "completed");
 });
 
 test("createCoreApiAppointmentDataSource returns empty list when no token", async () => {
@@ -73,7 +63,7 @@ test("createCoreApiAppointmentDataSource returns empty list when no token", asyn
   const items = await source.list();
   assert.deepEqual(items, []);
   await assert.rejects(source.cancel("any-id"), /Vui lòng đăng nhập/);
-  await assert.rejects(source.pay("any-id", { provider: "momo", outcome: "success", requestId: "attempt-abc" }), /Vui lòng đăng nhập/);
+  assert.equal(source.pay, undefined);
 });
 
 test("createCoreApiAppointmentDataSource sends Bearer token and parses response", async () => {
@@ -107,14 +97,8 @@ test("createCoreApiAppointmentDataSource sends Bearer token and parses response"
         }),
       };
     }
-    if (lastUrl.includes("/pay")) {
-      return {
-        ok: true,
-        json: async () => ({
-          appointment: { id: "a1", customerId: "c1", stylistId: "s1", startTime: "2026-10-10T10:00:00Z", status: "paid" },
-          attempt: { id: "p1", provider: "momo", status: "success", amount: 120000 }
-        }),
-      };
+    if (lastUrl.includes("/payment-instructions")) {
+      return { ok: true, json: async () => ({ bank: "VCB", accountNumber: "123", accountHolder: "A", amount: 120000, content: "SHINEA1", qrUrl: "https://vietqr.app/img" }) };
     }
     return { ok: false, status: 404, json: async () => ({ error: "Not found" }) };
   };
@@ -132,11 +116,10 @@ test("createCoreApiAppointmentDataSource sends Bearer token and parses response"
     assert.equal(lastMethod, "POST");
     assert.ok(lastUrl.endsWith("/appointments/a1/cancel"));
 
-    const paid = await source.pay("a1", { provider: "momo", outcome: "success", requestId: "attempt-abc" });
-    assert.equal(paid.appointment.status, "paid");
-    assert.deepEqual(JSON.parse(lastBody), { provider: "momo", outcome: "success", requestId: "attempt-abc" });
-    assert.equal(lastMethod, "POST");
-    assert.ok(lastUrl.endsWith("/appointments/a1/pay"));
+    const instructions = await source.paymentInstructions("a1");
+    assert.equal(instructions.amount, 120000);
+    assert.equal(lastMethod, "GET");
+    assert.ok(lastUrl.endsWith("/appointments/a1/payment-instructions"));
   } finally {
     globalThis.fetch = originalFetch;
   }

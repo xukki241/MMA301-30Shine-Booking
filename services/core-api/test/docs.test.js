@@ -31,7 +31,9 @@ test("Scalar API Documentation endpoints", async (t) => {
     for (const path of ["/manager/overview", "/manager/appointments", "/manager/appointments/{id}", "/manager/payments"]) {
       assert.ok(data.paths[path]?.get, `Missing GET ${path}`);
     }
-    assert.ok(data.paths["/appointments/{id}/pay"].post.requestBody);
+    assert.ok(data.paths["/appointments/{id}/payment-instructions"].get);
+    assert.ok(data.paths["/manager/appointments/{id}/confirm-cash"].post);
+    assert.equal(data.paths["/webhooks/sepay"], undefined);
     assert.ok(data.components.schemas.Appointment.properties.bookedPrice);
     assert.ok(data.components.schemas.PaymentAttempt.properties.amount);
     assert.ok(data.components.securitySchemes.bearerAuth);
@@ -55,8 +57,8 @@ test("Scalar API Documentation endpoints", async (t) => {
       "SHINE-05 · Catalog API",
       "SHINE-06 · Work Shift & Time Slot",
       "SHINE-03/07 · Booking API",
-      "SHINE-08 · Payment Mock",
       "General Manager · Read API",
+      "Payment",
     ]);
     assert.equal(tagNames.some((name) => /Mobile|Admin Web|Frontend/i.test(name)), false);
 

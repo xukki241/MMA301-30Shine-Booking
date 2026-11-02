@@ -14,7 +14,10 @@ function readConfig(env = process.env) {
   if (!/^https?:\/\/[^\s]+$/.test(authServiceUrl)) {
     throw new Error("AUTH_SERVICE_URL must be an HTTP URL");
   }
-  return { secret: env.JWT_SECRET, mongoUri, port, authServiceUrl };
+  return { secret: env.JWT_SECRET, mongoUri, port, authServiceUrl, payment: {
+    bank: env.SEPAY_BANK || "", accountNumber: env.SEPAY_ACCOUNT_NUMBER || "",
+    accountHolder: env.SEPAY_ACCOUNT_HOLDER || "", apiToken: env.SEPAY_API_TOKEN || "",
+  } };
 }
 
 module.exports = { readConfig };

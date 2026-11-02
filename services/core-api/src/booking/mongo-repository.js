@@ -33,7 +33,7 @@ function plain(appointment) {
     ...(appointment.wishes ? { wishes: appointment.wishes } : {}),
     paymentAttempts: (appointment.paymentAttempts || []).map((attempt) => ({
       id: String(attempt._id), requestId: attempt.requestId,
-      branchId: String(attempt.branchId), amount: attempt.amount,
+      branchId: attempt.branchId ? String(attempt.branchId) : undefined, amount: attempt.amount,
       provider: attempt.provider, status: attempt.status, attemptedAt: attempt.attemptedAt,
     })),
     startTime: appointment.startTime,
@@ -122,6 +122,23 @@ function createBookingRepository(Calendar) {
       }
       list.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
       return list;
+    },
+
+    async markOverdueNoShows(customerId, now = new Date()) {
+      if (customerId && !mongoose.Types.ObjectId.isValid(customerId)) return;
+      const owner = customerId ? new mongoose.Types.ObjectId(customerId) : null;
+      const overdue = { ...(owner ? { customerId: owner } : {}),
+        status: "booked", endTime: { $lte: now } };
+      await Calendar.updateMany({ appointments: { $elemMatch: overdue } }, {
+        $set: { "appointments.$[overdue].status": "no_show",
+          "appointments.$[overdue].noShowAt": now,
+          "appointments.$[overdue].updatedAt": now },
+        $push: { "appointments.$[overdue].statusHistory": {
+          from: "booked", to: "no_show", actorRole: "system", at: now,
+        } },
+      }, { arrayFilters: [{ ...(owner ? { "overdue.customerId": owner } : {}),
+        "overdue.status": "booked",
+        "overdue.endTime": { $lte: now } }] }).exec();
     },
 
     /**
@@ -242,27 +259,20 @@ function createBookingRepository(Calendar) {
       return calendar ? plain(calendar.appointments[0]) : null;
     },
 
-    async recordPayment(id, actor, input, appointment) {
-      const attempt = {
-        _id: new mongoose.Types.ObjectId(), requestId: input.requestId,
-        branchId: appointment.branchId, amount: appointment.bookedPrice,
-        provider: input.provider, status: input.outcome, attemptedAt: new Date(),
-      };
-      const owner = { customerId: actor.userId };
+    async recordConfirmedPayment(id, input) {
+      const now = new Date();
+      const attempt = { _id: new mongoose.Types.ObjectId(), requestId: input.requestId,
+        amount: input.amount, branchId: input.branchId, provider: input.provider, status: 'success', attemptedAt: now };
       const calendar = await Calendar.findOneAndUpdate({ appointments: { $elemMatch: {
-        _id: id, status: "completed", bookedPrice: { $exists: true },
-        "paymentAttempts.requestId": { $ne: input.requestId }, ...owner,
-      } } }, {
-        $push: { "appointments.$.paymentAttempts": attempt },
-        $set: { "appointments.$.updatedAt": new Date(),
-          ...(input.outcome === "success" ? { "appointments.$.status": "paid" } : {}) },
-      }, {
-        returnDocument: "after", runValidators: true,
-        projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } },
-      }).lean().exec();
-      if (!calendar) return null;
-      const result = plain(calendar.appointments[0]);
-      return { appointment: result, attempt: result.paymentAttempts.find((item) => item.requestId === input.requestId) };
+        _id: new mongoose.Types.ObjectId(id), status: 'completed', bookedPrice: input.amount,
+        'paymentAttempts.requestId': { $ne: input.requestId },
+      } } }, { $push: { 'appointments.$.paymentAttempts': attempt,
+        'appointments.$.statusHistory': { from: 'completed', to: 'paid',
+          actorId: input.actorId || undefined, actorRole: input.provider === 'cash' ? 'general_manager' : 'sepay', at: now } },
+        $set: { 'appointments.$.status': 'paid', 'appointments.$.updatedAt': now } },
+      { returnDocument: 'after', runValidators: true,
+        projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } } }).lean().exec();
+      return calendar ? plain(calendar.appointments[0]) : null;
     },
 
     async managerOverview({ date, branchId }) {
@@ -313,7 +323,7 @@ function createBookingRepository(Calendar) {
           requestId: "$appointments.paymentAttempts.requestId",
           amount: "$appointments.paymentAttempts.amount", provider: "$appointments.paymentAttempts.provider",
           status: "$appointments.paymentAttempts.status", attemptedAt: "$appointments.paymentAttempts.attemptedAt" } },
-        { $match: match },
+        { $match: { ...match, provider: { $in: ["cash", "sepay"] } } },
       ];
       const [rows, totals] = await Promise.all([
         Calendar.aggregate([...base, { $match: cursorMatch("attemptedAt", cursor) },
@@ -321,7 +331,7 @@ function createBookingRepository(Calendar) {
         Calendar.aggregate([...base, { $match: { status: "success" } },
           { $group: { _id: null, total: { $sum: "$amount" } } }]).exec(),
       ]);
-      return { ...paged(rows, limit, "attemptedAt"), simulatedTotal: totals[0]?.total || 0 };
+      return { ...paged(rows, limit, "attemptedAt"), total: totals[0]?.total || 0 };
     },
   };
 }

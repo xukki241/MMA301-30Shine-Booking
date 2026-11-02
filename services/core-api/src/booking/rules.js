@@ -6,7 +6,6 @@ const ACTIONS = Object.freeze({
   no_show: { from: "booked", to: "no_show", role: "stylist", owner: "stylistId" },
   complete: { from: "checked_in", to: "completed", role: "stylist", owner: "stylistId" },
   cancel: { from: "booked", to: "cancelled", role: "customer", owner: "customerId" },
-  pay: { from: "completed", to: "paid", role: "customer", owner: "customerId" },
 });
 
 class BookingError extends Error {
@@ -84,16 +83,6 @@ function validateReschedule(body) {
     ...(body.serviceId ? { serviceId: body.serviceId.toLowerCase() } : {}) };
 }
 
-function validatePayment(body) {
-  if (!body || typeof body !== "object" || Array.isArray(body) ||
-      Object.keys(body).some((key) => !["provider", "outcome", "requestId"].includes(key)) ||
-      !["momo", "vnpay"].includes(body.provider) || !["success", "failed"].includes(body.outcome) ||
-      typeof body.requestId !== "string" || !/^[a-zA-Z0-9_-]{8,100}$/.test(body.requestId)) {
-    throw new BookingError(400, "Invalid mock payment request");
-  }
-  return { provider: body.provider, outcome: body.outcome, requestId: body.requestId };
-}
-
 function validateDayRange(query) {
   if (!query || typeof query !== "object") {
     throw new BookingError(400, "from/to must be ISO 8601 with timezone, from < to, max 48h");
@@ -106,4 +95,4 @@ function validateDayRange(query) {
   return { from, to };
 }
 
-module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validateReschedule, validatePayment, validateDayRange };
+module.exports = { STATUSES, ACTIVE_STATUSES, ACTIONS, BookingError, isId, overlaps, parseTime, validateBooking, validateReschedule, validateDayRange };

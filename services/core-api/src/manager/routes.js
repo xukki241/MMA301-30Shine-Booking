@@ -3,7 +3,7 @@ const { requireRole } = require("../middleware/role");
 const { BookingError } = require("../booking/rules");
 const { createManagerService } = require("./service");
 
-function managerRoutes(repository) {
+function managerRoutes(repository, paymentService) {
   const router = Router();
   const service = repository ? createManagerService(repository) : null;
   router.use(requireRole("general_manager"));
@@ -19,6 +19,10 @@ function managerRoutes(repository) {
   router.get("/appointments", handle((req) => service.appointments(req.auth, req.query)));
   router.get("/appointments/:id", handle((req) => service.appointment(req.auth, req.params.id)));
   router.post("/appointments/:id/restore-no-show", handle((req) => service.restoreNoShow(req.auth, req.params.id)));
+  router.post("/appointments/:id/confirm-cash", handle((req) => {
+    if (!paymentService) throw new BookingError(503, "Thanh toán chưa khả dụng");
+    return paymentService.confirmCash(req.auth, req.params.id);
+  }));
   router.get("/payments", handle((req) => service.payments(req.auth, req.query)));
   return router;
 }

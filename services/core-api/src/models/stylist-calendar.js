@@ -4,9 +4,10 @@ const { STATUSES } = require("../booking/rules");
 function createCalendarModel(connection, collection = "stylist_calendars") {
   const paymentAttempt = new mongoose.Schema({
     requestId: { type: String, required: true },
-    branchId: { type: mongoose.Schema.Types.ObjectId, required: true },
+    branchId: { type: mongoose.Schema.Types.ObjectId },
     amount: { type: Number, required: true, min: 0 },
-    provider: { type: String, enum: ["momo", "vnpay"], required: true },
+    // Historical provider values remain readable; new payments are created only by payment/service.js.
+    provider: { type: String, enum: ["cash", "sepay", "momo", "vnpay"], required: true },
     status: { type: String, enum: ["success", "failed"], required: true },
     attemptedAt: { type: Date, required: true },
   }, { versionKey: false });

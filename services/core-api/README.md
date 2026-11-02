@@ -243,3 +243,11 @@ npm run docs
 
 Hai endpoint đăng ký/đăng nhập được cấu hình gọi đúng Auth Service `:4101`.
 Các endpoint còn lại gọi Core API `:4102`.
+
+## Thanh toán sau dịch vụ
+
+Sau khi Stylist hoàn thành lịch, Customer chọn tiền mặt tại quầy hoặc quét QR chuyển khoản. Lịch giữ trạng thái `completed` cho đến khi nhận đủ tiền. General Manager xác nhận tiền mặt; chuyển khoản được Core API tự đối chiếu bằng cách gọi SePay API mỗi 20 giây. Customer không có API tự đánh dấu `paid`.
+
+Đặt `SEPAY_BANK=TPB`, `SEPAY_ACCOUNT_NUMBER=00004148712`, `SEPAY_ACCOUNT_HOLDER=NGUYEN ANH TU` và `SEPAY_API_TOKEN` trong `.env` của Core API. Tạo token tại SePay > Cấu hình Công ty > API Access và giữ token trên máy chạy Core API. Không đưa token vào app hoặc Git. QR chứa nội dung `SHINE<appointmentId>`, số tiền và tài khoản ngân hàng.
+
+Core API đọc các giao dịch tiền vào trong 7 ngày gần nhất, đối chiếu tài khoản, số tiền và toàn bộ mã lịch, rồi ghi nhận giao dịch một lần. Máy cần bật và có Internet; khi mở lại, Core API sẽ kiểm tra lại các giao dịch trong cửa sổ này. Nếu có hơn 5.000 giao dịch trong cửa sổ, log sẽ cảnh báo để điều chỉnh giới hạn. Giao dịch thiếu/thừa tiền hoặc sai nội dung cần đối soát thủ công.

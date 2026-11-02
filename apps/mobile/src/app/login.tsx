@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/providers/auth-provider";
 import { useRole } from "@/providers/role-provider";
@@ -31,6 +32,8 @@ export default function EntryScreen() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
+  const [showCustomerPassword, setShowCustomerPassword] = useState(false);
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,26 +94,48 @@ export default function EntryScreen() {
         </Pressable>
       </> : staffMode ? <>
         <TextInput style={inputStyle} accessibilityLabel="Email nhân sự" placeholder="Email nhân sự" keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
-        <TextInput style={inputStyle} accessibilityLabel="Mật khẩu nhân sự" placeholder="Mật khẩu" secureTextEntry value={staffPassword} onChangeText={setStaffPassword} />
+        <PasswordField label="Mật khẩu nhân sự" placeholder="Mật khẩu" value={staffPassword} onChangeText={setStaffPassword} visible={showStaffPassword} onToggle={() => setShowStaffPassword((value) => !value)} />
       </> : <>
         <TextInput style={inputStyle} accessibilityLabel="Số điện thoại khách hàng" placeholder="Số điện thoại Việt Nam" keyboardType="phone-pad" value={phone} onChangeText={setPhone} editable={step === "phone"} />
         {step === "registerOtp" || step === "resetOtp" ? <TextInput style={inputStyle} accessibilityLabel="Mã OTP" placeholder="Mã OTP 6 số trong log Auth Service" keyboardType="number-pad" maxLength={6} value={code} onChangeText={setCode} /> : null}
         {step === "registerDetails" ? <TextInput style={inputStyle} accessibilityLabel="Tên khách hàng" placeholder="Họ và tên" value={name} onChangeText={setName} /> : null}
-        {step === "login" || step === "registerDetails" || step === "resetPassword" ? <TextInput style={inputStyle} accessibilityLabel="Mật khẩu khách hàng" placeholder="Mật khẩu gồm 6 chữ số" keyboardType="number-pad" maxLength={6} secureTextEntry value={password} onChangeText={setPassword} /> : null}
+        {step === "login" || step === "registerDetails" || step === "resetPassword" ? <PasswordField label="Mật khẩu khách hàng" placeholder="Mật khẩu gồm 6 chữ số" value={password} onChangeText={setPassword} visible={showCustomerPassword} onToggle={() => setShowCustomerPassword((value) => !value)} numeric /> : null}
       </>}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!staffHelp ? <Pressable disabled={busy} style={[styles.primary, { backgroundColor: theme.brand }]} onPress={() => void run(staffMode ? submitStaff : submitCustomer)}>
         {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>{staffMode ? "Đăng nhập nhân sự" : labels[step][1]}</Text>}
       </Pressable> : null}
-      {staffMode && !staffHelp ? <Pressable accessibilityRole="button" style={styles.link}
-        onPress={() => { setStaffHelp(true); setError(null); }}><Text style={{ color: theme.brand, fontWeight: "700" }}>Quên mật khẩu?</Text></Pressable> : null}
+      {staffMode && !staffHelp ? <View style={styles.staffLinks}>
+        <Pressable accessibilityRole="button" style={styles.staffLink} onPress={() => { setStaffMode(false); setStaffHelp(false); setError(null); }}>
+          <Text style={{ color: theme.textMuted }}>Quay lại phần khách hàng</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" style={[styles.staffLink, styles.staffLinkRight]}
+          onPress={() => { setStaffHelp(true); setError(null); }}><Text style={{ color: theme.brand, fontWeight: "700" }}>Quên mật khẩu?</Text></Pressable>
+      </View> : null}
       {!staffMode && step === "login" ? <Pressable style={styles.link} onPress={() => void run(async () => { await requestCustomerCode("reset", phone); setCode(""); setPassword(""); setStep("resetOtp"); })}><Text style={{ color: theme.brand }}>Quên mật khẩu?</Text></Pressable> : null}
       {!staffMode && (step === "registerOtp" || step === "resetOtp") ? <Pressable style={styles.link} onPress={() => void run(async () => requestCustomerCode(step === "registerOtp" ? "register" : "reset", phone))}><Text style={{ color: theme.brand }}>Gửi lại OTP</Text></Pressable> : null}
       {!staffMode && step !== "phone" ? <Pressable style={styles.link} onPress={() => { setStep("phone"); setError(null); setCode(""); setPassword(""); }}><Text style={{ color: theme.brand }}>Đổi số điện thoại</Text></Pressable> : null}
       {!staffMode ? <Pressable style={styles.link} onPress={() => { selectRole("customer"); router.replace("/(customer)/home"); }}><Text style={{ color: theme.brand }}>Tôi muốn khám phá thêm</Text></Pressable> : null}
-      <Pressable style={styles.link} onPress={() => { setStaffMode(!staffMode); setStaffHelp(false); setError(null); }}><Text style={{ color: theme.textMuted }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự 30Shine"}</Text></Pressable>
+      {(!staffMode || staffHelp) && <Pressable style={styles.link} onPress={() => { setStaffMode(!staffMode); setStaffHelp(false); setError(null); }}><Text style={{ color: theme.textMuted }}>{staffMode ? "Quay lại phần khách hàng" : "Tôi là nhân sự 30Shine"}</Text></Pressable>}
     </KeyboardAwareScrollView>
   </SafeAreaView>;
+}
+
+function PasswordField({ label, placeholder, value, onChangeText, visible, onToggle, numeric = false }: {
+  label: string; placeholder: string; value: string; onChangeText: (value: string) => void;
+  visible: boolean; onToggle: () => void; numeric?: boolean;
+}) {
+  const theme = useAppTheme();
+  return <View style={[styles.passwordField, { borderColor: theme.border }]}>
+    <TextInput style={[styles.passwordInput, { color: theme.text }]} accessibilityLabel={label}
+      placeholder={placeholder} keyboardType={numeric ? "number-pad" : "default"}
+      maxLength={numeric ? 6 : undefined} secureTextEntry={!visible} value={value}
+      onChangeText={onChangeText} autoCapitalize="none" />
+    <Pressable accessibilityRole="button" accessibilityLabel={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
+      accessibilityState={{ selected: visible }} hitSlop={8} style={styles.eyeButton} onPress={onToggle}>
+      <Ionicons name={visible ? "eye-off-outline" : "eye-outline"} size={22} color={theme.textMuted} />
+    </Pressable>
+  </View>;
 }
 
 const styles = StyleSheet.create({
@@ -118,7 +143,15 @@ const styles = StyleSheet.create({
   brand: { fontSize: 18, fontWeight: "900", letterSpacing: 2 }, title: { fontSize: 28, fontWeight: "800" },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, height: 52, fontSize: 16 },
   primary: { borderRadius: 12, minHeight: 52, alignItems: "center", justifyContent: "center" },
-  primaryText: { color: "#fff", fontSize: 16, fontWeight: "800" }, link: { alignItems: "center", padding: 8 },
+  primaryText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  passwordField: { borderWidth: 1, borderRadius: 12, height: 52, flexDirection: "row", alignItems: "center" },
+  passwordInput: { flex: 1, height: "100%", paddingLeft: 16, fontSize: 16 },
+  eyeButton: { width: 50, height: 50, alignItems: "center", justifyContent: "center" },
+  staffLinks: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
+  staffLink: { minHeight: 44, justifyContent: "center" },
+  staffLinkRight: { alignItems: "flex-end" },
+  link: { alignItems: "center", justifyContent: "center", minHeight: 40, paddingVertical: 8 },
+  modeLink: { borderTopWidth: 1, marginTop: 10, paddingTop: 18, minHeight: 54 },
   error: { color: "#c62828" },
   helpIntro: { fontSize: 14, lineHeight: 21 },
   helpBody: { fontSize: 16, lineHeight: 24, fontWeight: "600" },

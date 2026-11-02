@@ -32,17 +32,13 @@ function memoryDouble() {
       if (action === "undo_check_in") delete current.checkedInAt;
       return structuredClone(current);
     },
-    async recordPayment(key, actor, input) {
+    async recordConfirmedPayment(key, input) {
       const current = records.get(key);
-      if (!current || current.status !== "completed" ||
-          (current.customerId !== actor.userId && current.customerPhone !== actor.authorizedPhone) ||
-          current.paymentAttempts.some((attempt) => attempt.requestId === input.requestId)) return null;
-      const attempt = { id: id(), requestId: input.requestId, branchId: current.branchId,
-        amount: current.bookedPrice, provider: input.provider, status: input.outcome,
-        attemptedAt: new Date() };
-      current.paymentAttempts.push(attempt);
-      if (input.outcome === "success") current.status = "paid";
-      return { appointment: structuredClone(current), attempt: structuredClone(attempt) };
+      if (!current || current.status !== "completed" || current.bookedPrice !== input.amount) return null;
+      current.status = "paid";
+      current.paymentAttempts.push({ id: id(), requestId: input.requestId, branchId: current.branchId,
+        amount: input.amount, provider: input.provider, status: "success", attemptedAt: new Date() });
+      return structuredClone(current);
     },
   };
 }

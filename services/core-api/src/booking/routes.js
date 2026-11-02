@@ -2,7 +2,7 @@ const { Router } = require("express");
 const { BookingError, validateBooking } = require("./rules");
 const { createBookingService } = require("./service");
 
-function bookingRoutes(repository, workShiftRepository) {
+function bookingRoutes(repository, workShiftRepository, paymentService) {
   const router = Router();
   const service = repository ? createBookingService(repository) : null;
   router.use((_req, res, next) => {
@@ -51,8 +51,9 @@ function bookingRoutes(repository, workShiftRepository) {
     const appointment = await service.book(req.auth, req.body, snapshot);
     res.status(201).json({ appointment });
   }));
-  router.post("/:id/pay", handle(async (req, res) => {
-    res.json(await service.pay(req.auth, req.params.id, req.body));
+  router.get("/:id/payment-instructions", handle(async (req, res) => {
+    if (!paymentService) throw new BookingError(503, "Thanh toán chưa khả dụng");
+    res.json(await paymentService.instructions(req.auth, req.params.id));
   }));
   router.post("/:id/reschedule", handle(async (req, res) => {
     const appointment = await service.reschedule(req.auth, req.params.id, req.body, workShiftRepository);

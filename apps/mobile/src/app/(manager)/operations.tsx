@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
 import { useAppTheme } from "@/constants/theme";
 import { useConnectivity } from "@/offline/network-provider";
@@ -13,6 +14,14 @@ import { useManagerApi } from "@/manager/use-manager-api";
 type Kind = "branch" | "service" | "stylist" | "shift";
 type Item = Branch | Service | Stylist | Shift;
 const labels: Record<Kind, string> = { branch: "Chi nhánh", service: "Dịch vụ", stylist: "Hồ sơ thợ", shift: "Phân ca" };
+
+function operationError(cause: unknown, fallback: string): string {
+  if (!(cause instanceof Error)) return fallback;
+  if (cause.message === "Stylist already has an overlapping work shift") {
+    return "Thợ này đã có ca làm trùng thời gian. Vui lòng chọn giờ khác hoặc chỉnh sửa ca đã có.";
+  }
+  return cause.message;
+}
 
 export default function ManagerOperations() {
   const api = useManagerApi();
@@ -52,7 +61,7 @@ export default function ManagerOperations() {
         if (!requestGate.current.isCurrent(request)) return;
         setServices(nextServices); setStylists(nextStylists); setShifts(nextShifts); setCandidates(nextCandidates);
       } else { setServices([]); setStylists([]); setShifts([]); }
-    } catch (cause) { if (requestGate.current.isCurrent(request)) setError(cause instanceof Error ? cause.message : "Không tải được dữ liệu."); }
+    } catch (cause) { if (requestGate.current.isCurrent(request)) setError(operationError(cause, "Không tải được dữ liệu.")); }
     finally { if (requestGate.current.isCurrent(request)) setLoading(false); }
   }, [api, branchId, date, shiftStylistId, kind]);
   useEffect(() => {
@@ -112,7 +121,7 @@ export default function ManagerOperations() {
       if (kind === "stylist") editing.id ? await api.updateStylist(editing.id, payload) : await api.createStylist(branchId, payload);
       if (kind === "shift") editing.id ? await api.updateShift(editing.id, payload) : await api.createShift(payload);
       setEditing(null); setNotice("Đã lưu thay đổi."); setRevision((value) => value + 1);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không lưu được."); }
+    } catch (cause) { setError(operationError(cause, "Không lưu được.")); }
     finally { setBusy(false); }
   }
 
@@ -128,7 +137,7 @@ export default function ManagerOperations() {
           if (kind === "stylist") await api.deleteStylist(item.id);
           if (kind === "shift") await api.deleteShift(item.id);
           setNotice("Đã xóa."); setRevision((value) => value + 1);
-        } catch (cause) { setError(cause instanceof Error ? cause.message : "Không xóa được."); }
+        } catch (cause) { setError(operationError(cause, "Không xóa được.")); }
         finally { setBusy(false); }
       })(); } },
     ]);
@@ -152,7 +161,15 @@ export default function ManagerOperations() {
       variant="primary" onPress={() => open()} disabled={busy || (kind !== "branch" && !branchId)} />
       <Action label="Làm mới" icon="refresh-outline" variant="quiet" onPress={() => { void load(); }} disabled={loading} /></View>
     {loading && <Text style={{ color: theme.textMuted }}>Đang tải...</Text>}
-    {!!error && <Text style={{ color: theme.danger }}>{error}</Text>}
+    {!!error && <View accessibilityRole="alert" style={[styles.errorCard, { backgroundColor: theme.isDark ? "rgba(220, 38, 38, 0.12)" : "#FFF1F2", borderColor: theme.isDark ? "rgba(220, 38, 38, 0.35)" : "#FECDD3" }]}>
+      <View style={[styles.errorIcon, { backgroundColor: theme.isDark ? "rgba(220, 38, 38, 0.22)" : "#FFE4E6" }]}>
+        <Ionicons name="alert-circle" size={20} color={theme.danger} />
+      </View>
+      <View style={styles.errorContent}>
+        <Text style={[styles.errorTitle, { color: theme.danger }]}>Không thể thực hiện</Text>
+        <Text style={[styles.errorMessage, { color: theme.text }]}>{error}</Text>
+      </View>
+    </View>}
     {!!notice && <Text style={{ color: theme.text }}>{notice}</Text>}
     {editing && <Card highlighted><CardTitle>{editing.id ? "Sửa" : "Thêm"} {labels[kind].toLowerCase()}</CardTitle>
       {kind === "stylist" && !editing.id && <>
@@ -215,7 +232,13 @@ function Action({ label, onPress, disabled = false, selected = false, variant, i
   return <ManagerAction label={label} onPress={onPress} disabled={disabled} selected={selected}
     variant={variant} icon={icon} danger={danger} />;
 }
-const styles = StyleSheet.create({ row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
+const styles = StyleSheet.create({
+  errorCard: { flexDirection: "row", gap: 12, alignItems: "flex-start", marginHorizontal: 16, padding: 14, borderWidth: 1, borderRadius: 14 },
+  errorIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  errorContent: { flex: 1, gap: 4 },
+  errorTitle: { fontSize: 14, fontWeight: "700" },
+  errorMessage: { fontSize: 13, lineHeight: 19 },
+  row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginHorizontal: 16 },
   toolbar: { flexDirection: "row", justifyContent: "space-between", gap: 8, marginHorizontal: 16 },
   field: { gap: 5, marginTop: 8 }, input: { borderWidth: 1, borderRadius: 10, minHeight: 44, paddingHorizontal: 12 } });

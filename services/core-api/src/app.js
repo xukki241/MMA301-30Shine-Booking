@@ -9,6 +9,7 @@ const { createBranchRouter } = require("./routes/branch.routes");
 const { createServiceRouter } = require("./routes/service.routes");
 const { createStylistRouter } = require("./routes/stylist.routes");
 const { bookingRoutes } = require("./booking/routes");
+const { createPaymentService } = require("./payment/service");
 const { createBookingRepository } = require("./booking/mongo-repository");
 const { managerRoutes } = require("./manager/routes");
 const { createWorkShiftRepository } = require("./work-shifts/repository");
@@ -120,9 +121,10 @@ function createApp(optionsOrSecret, extraBookingRepository) {
     app.use("/stylists", createStylistRouter({ stylistController, secret, verifyStaff, verifyCustomer }));
   }
 
+  const paymentService = bookingRepository ? createPaymentService(bookingRepository, opts.payment || {}) : null;
   // Booking routes (SHINE-03 / develop)
-  app.use("/appointments", authenticate(secret, verifyStaff, verifyCustomer), bookingRoutes(bookingRepository, workShiftRepository));
-  app.use("/manager", authenticate(secret, verifyStaff, verifyCustomer), managerRoutes(bookingRepository));
+  app.use("/appointments", authenticate(secret, verifyStaff, verifyCustomer), bookingRoutes(bookingRepository, workShiftRepository, paymentService));
+  app.use("/manager", authenticate(secret, verifyStaff, verifyCustomer), managerRoutes(bookingRepository, paymentService));
   if (workShiftRepository) {
     app.use("/work-shifts", createWorkShiftRouter({ repository: workShiftRepository, secret, verifyStaff, verifyCustomer, verifyActiveStylist }));
     app.use("/time-slots", createTimeSlotRouter({ repository: workShiftRepository, secret, verifyStaff, verifyCustomer }));

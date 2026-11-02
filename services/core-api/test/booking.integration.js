@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const { createCalendarModel } = require("../src/models/stylist-calendar");
 const { createBookingRepository } = require("../src/booking/mongo-repository");
 const { createBookingService } = require("../src/booking/service");
+const { createPaymentService } = require("../src/payment/service");
 const { bookingContract } = require("./booking-contract");
 
 test("SHINE-03 real Mongo atomic booking across two independent connections/app instances", async (t) => {
@@ -27,6 +28,25 @@ test("SHINE-03 real Mongo atomic booking across two independent connections/app 
   await Promise.all(calendars.map((c) => c.init()));
   const repositories = calendars.map(createBookingRepository);
   await bookingContract(t, ...repositories);
+  const expiredStylist = new mongoose.Types.ObjectId();
+  const expiredCustomer = new mongoose.Types.ObjectId();
+  const expiredId = new mongoose.Types.ObjectId();
+  const upcomingId = new mongoose.Types.ObjectId();
+  const sweepNow = new Date();
+  await calendars[0].collection.insertOne({ _id: expiredStylist, appointments: [
+    { _id: expiredId, customerId: expiredCustomer, stylistId: expiredStylist,
+      startTime: new Date(sweepNow.getTime() - 3_600_000),
+      endTime: new Date(sweepNow.getTime() - 1_800_000), status: "booked" },
+    { _id: upcomingId, customerId: expiredCustomer, stylistId: expiredStylist,
+      startTime: new Date(sweepNow.getTime() + 3_600_000),
+      endTime: new Date(sweepNow.getTime() + 5_400_000), status: "booked" },
+  ] });
+  await repositories[0].markOverdueNoShows(String(expiredCustomer), sweepNow);
+  const swept = await calendars[0].findById(expiredStylist).lean();
+  assert.equal(swept.appointments.find((a) => String(a._id) === String(expiredId)).status, "no_show");
+  assert.equal(swept.appointments.find((a) => String(a._id) === String(upcomingId)).status, "booked");
+  assert.equal(swept.appointments.find((a) => String(a._id) === String(expiredId)).statusHistory[0].actorRole, "system");
+
   const attendanceStylist = new mongoose.Types.ObjectId();
   const attendanceCustomer = new mongoose.Types.ObjectId();
   const attendanceId = new mongoose.Types.ObjectId();
@@ -63,9 +83,8 @@ test("SHINE-03 real Mongo atomic booking across two independent connections/app 
     status: "completed", createdAt: new Date(), updatedAt: new Date(),
   }] });
   await assert.rejects(
-    createBookingService(repositories[0]).pay({ role: "customer", userId: String(legacyCustomer) },
-      String(legacyId), { provider: "momo", outcome: "success", requestId: "legacy-payment" }),
-    (error) => error.status === 409 && /no booked price/i.test(error.message),
+    createPaymentService(repositories[0], {}).confirmCash({ role: "general_manager", userId: String(managerId) }, String(legacyId)),
+    (error) => error.status === 409 && /số tiền/i.test(error.message),
   );
   // Read Mongo directly to verify persistence and that no active intervals overlap.
   const docs = await calendars[0].collection.find({}).toArray();

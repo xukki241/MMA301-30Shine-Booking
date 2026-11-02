@@ -49,12 +49,19 @@ export default function ManagerAppointmentDetail() {
       <CardText>Bắt đầu: {displayTime(item.startTime)}</CardText>
       <CardText>Kết thúc: {displayTime(item.endTime)}</CardText>
       <CardText>Trạng thái: {({ booked: "Đã đặt", checked_in: "Đã đến · Đang chờ thợ",
-        completed: "Đã hoàn thành", paid: "Đã thanh toán", cancelled: "Đã hủy",
+        completed: "Chờ thanh toán", paid: "Đã thanh toán", cancelled: "Đã hủy",
         no_show: "Khách không đến" } as const)[item.status]}</CardText>
       <CardText>Chi nhánh: {names.branch || (item.branchId ? `Đã xóa (${item.branchId})` : "Không có")}</CardText>
       <CardText>Dịch vụ: {names.service || (item.serviceId ? `Đã xóa (${item.serviceId})` : "Không có")}</CardText>
       <CardText>Thợ: {names.stylist || `Đã xóa (${item.stylistId})`}</CardText>
       <CardText>Giá chốt: {item.bookedPrice === undefined ? "Lịch cũ chưa có giá chốt" : money(item.bookedPrice)}</CardText>
+      {item.status === "completed" && <ManagerAction label="Xác nhận đã thu tiền mặt" icon="cash-outline" variant="primary"
+        onPress={() => Alert.alert("Xác nhận đã nhận đủ tiền mặt?", "Thao tác này sẽ đánh dấu lịch hẹn đã thanh toán.", [
+          { text: "Quay lại", style: "cancel" },
+          { text: "Xác nhận", onPress: () => { void api.confirmCash(item.id)
+            .then(() => setRevision((value) => value + 1))
+            .catch((cause) => setError(cause instanceof Error ? cause.message : "Không xác nhận được thanh toán.")); } },
+        ])} />}
       {item.status === "no_show" && <ManagerAction label="Khôi phục lịch khách đã đến" icon="arrow-undo-outline" variant="primary"
         onPress={() => Alert.alert("Khôi phục lịch?", "Chỉ dùng khi khách thực sự đã đến và bị đánh dấu nhầm.", [
           { text: "Quay lại", style: "cancel" },

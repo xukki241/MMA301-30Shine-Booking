@@ -34,6 +34,7 @@ export function createManagerApi(getToken: () => string | null, onUnauthorized: 
     appointment: (id: string) => request<ManagerAppointment>(`/manager/appointments/${encodeURIComponent(id)}`),
     restoreNoShow: (id: string) => request<ManagerAppointment>(
       `/manager/appointments/${encodeURIComponent(id)}/restore-no-show`, { method: "POST" }),
+    confirmCash: (id: string) => request<ManagerAppointment>(`/manager/appointments/${encodeURIComponent(id)}/confirm-cash`, { method: "POST" }),
     payments: (filters: PaymentFilters) => {
       return request<PaymentPage>(`/manager/payments?${buildPaymentQuery(filters)}`);
     },

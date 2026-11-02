@@ -3,7 +3,7 @@ import type { CustomerAppointment, AppointmentStatus } from "./types";
 const labels: Record<AppointmentStatus, string> = {
   booked: "Đã đặt",
   checked_in: "Đã đến · Đang chờ thợ",
-  completed: "Hoàn thành",
+  completed: "Chờ thanh toán",
   paid: "Đã thanh toán",
   cancelled: "Đã hủy",
   no_show: "Bạn đã không đến",

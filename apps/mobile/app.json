@@ -12,7 +12,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Cho phép lưu mã QR thanh toán vào thư viện ảnh.",
+          "savePhotosPermission": "Cho phép lưu mã QR thanh toán vào thư viện ảnh.",
+          "granularPermissions": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,9 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { File, Paths } from "expo-file-system";
+import * as MediaLibrary from "expo-media-library";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Alert,
   Linking,
   Platform,
@@ -20,7 +23,7 @@ import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
 import { orderCustomerAppointments } from "@/appointments/order";
 import { customerAppointmentStatusLabel, isOverdueUnconfirmedAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
-import type { PaymentInput } from "@/appointments/types";
+import type { PaymentInstructions } from "@/appointments/types";
 import { InlineError, WizardAction } from "@/components/booking-wizard";
 import { PrimaryButton } from "@/components/screen";
 import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
@@ -62,10 +65,10 @@ export default function CustomerAppointmentsScreen() {
 
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [provider, setProvider] = useState<PaymentInput["provider"]>("momo");
-  const [outcome, setOutcome] = useState<PaymentInput["outcome"]>("success");
+  const [transferId, setTransferId] = useState<string | null>(null);
+  const [instructions, setInstructions] = useState<Record<string, PaymentInstructions>>({});
   const [paymentMessage, setPaymentMessage] = useState("");
-  const pendingPayment = useRef<(PaymentInput & { appointmentId: string }) | null>(null);
+
   const [revision, setRevision] = useState(0);
 
   const [searchPhone, setSearchPhone] = useState("");
@@ -77,7 +80,7 @@ export default function CustomerAppointmentsScreen() {
   const isDemo = process.env.EXPO_PUBLIC_USE_DEMO_API === "true";
   useEffect(() => {
     if (!token || isDemo || connectivity === "offline") return;
-    const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    const interval = setInterval(() => setRevision((value) => value + 1), 15000);
     return () => clearInterval(interval);
   }, [token, isDemo, connectivity]);
   const cacheKey = `${cacheKeyPrefix}:${user?.id || "demo"}:${
@@ -203,48 +206,30 @@ export default function CustomerAppointmentsScreen() {
     }
   }
 
-  async function handlePay(id: string) {
-    if (!dataSource.pay) return;
-    if (connectivity === "offline") {
-      setActionError("Bạn đang ngoại tuyến. Kết nối mạng rồi thử lại.");
-      return;
-    }
-    setProcessingId(id);
-    setActionError(null);
+  async function showTransfer(id: string) {
+    setTransferId(id);
     setPaymentMessage("");
-    const prior = pendingPayment.current;
-    const input: PaymentInput =
-      prior &&
-      prior.appointmentId === id &&
-      prior.provider === provider &&
-      prior.outcome === outcome
-        ? prior
-        : {
-            provider,
-            outcome,
-            requestId: `pay-${Date.now().toString(36)}-${Math.random()
-              .toString(36)
-              .slice(2, 12)}`
-          };
-    pendingPayment.current = { appointmentId: id, ...input };
+    if (!dataSource.paymentInstructions || instructions[id]) return;
+    if (connectivity === "offline") { setActionError("Cần kết nối mạng để lấy QR thanh toán."); return; }
+    setProcessingId(id); setActionError(null);
+    try { const value = await dataSource.paymentInstructions(id);
+      setInstructions((current) => ({ ...current, [id]: value })); }
+    catch (cause) { setActionError(cause instanceof Error ? cause.message : "Không tải được QR thanh toán."); }
+    finally { setProcessingId(null); }
+  }
+
+  async function saveQr(value: PaymentInstructions) {
     try {
-      const result = await dataSource.pay(id, input);
-      setAppointments((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, status: result.appointment.status } : item
-        )
-      );
-      setPaymentMessage(
-        result.attempt.status === "failed"
-          ? "Lần thử thanh toán mô phỏng thất bại. Bạn có thể thử lại."
-          : "Thanh toán mô phỏng thành công."
-      );
-      pendingPayment.current = null;
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : "Không thể thanh toán.");
-    } finally {
-      setProcessingId(null);
-    }
+      if (Platform.OS === "web") {
+        await Linking.openURL(value.qrUrl + "&download=true");
+      } else {
+        const permission = await MediaLibrary.requestPermissionsAsync(true);
+        if (!permission.granted) throw new Error("Cần cho phép lưu ảnh vào thư viện.");
+        const file = await File.downloadFileAsync(value.qrUrl, new File(Paths.cache, value.content + ".png"), { idempotent: true });
+        await MediaLibrary.saveToLibraryAsync(file.uri);
+      }
+      setPaymentMessage("Đã lưu mã QR.");
+    } catch (cause) { setActionError(cause instanceof Error ? cause.message : "Không lưu được mã QR."); }
   }
 
   const displayName = user?.name
@@ -594,100 +579,28 @@ export default function CustomerAppointmentsScreen() {
                   </View>
                 ) : null}
 
-                {/* Flow 2: Simulation Payment for completed appointments */}
                 {isCompleted ? (
                   <View style={[styles.paymentBox, { backgroundColor: theme.surfaceHighlight }]}>
-                    <Text style={[styles.paymentTitle, { color: theme.text }]}>
-                      Thanh toán mô phỏng (không trừ tiền thật)
-                    </Text>
-
+                    <Text style={[styles.paymentTitle, { color: theme.text }]}>Chờ thanh toán · {item.bookedPrice?.toLocaleString("vi-VN") || "—"} VNĐ</Text>
+                    <Text style={{ color: theme.textMuted }}>Bạn có thể thanh toán bây giờ hoặc mở lại lịch hẹn để thanh toán sau.</Text>
                     <View style={styles.paymentOptionsRow}>
-                      <Pressable
-                        onPress={() => {
-                          setProvider("momo");
-                          pendingPayment.current = null;
-                        }}
-                        style={[
-                          styles.payOptionPill,
-                          {
-                            backgroundColor: provider === "momo" ? theme.brand : theme.surface,
-                            borderColor: provider === "momo" ? theme.brand : theme.border
-                          }
-                        ]}
-                      >
-                        <Text style={{ color: provider === "momo" ? "#FFFFFF" : theme.text, fontWeight: "700", fontSize: 12 }}>
-                          MoMo {provider === "momo" ? "✓" : ""}
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => {
-                          setProvider("vnpay");
-                          pendingPayment.current = null;
-                        }}
-                        style={[
-                          styles.payOptionPill,
-                          {
-                            backgroundColor: provider === "vnpay" ? theme.brand : theme.surface,
-                            borderColor: provider === "vnpay" ? theme.brand : theme.border
-                          }
-                        ]}
-                      >
-                        <Text style={{ color: provider === "vnpay" ? "#FFFFFF" : theme.text, fontWeight: "700", fontSize: 12 }}>
-                          VNPay {provider === "vnpay" ? "✓" : ""}
-                        </Text>
-                      </Pressable>
+                      <Pressable style={[styles.payOptionPill, { backgroundColor: transferId !== item.id ? theme.brand : theme.surface, borderColor: theme.border }]}
+                        onPress={() => setTransferId(null)}><Text style={{ color: transferId !== item.id ? "#fff" : theme.text }}>Tiền mặt</Text></Pressable>
+                      <Pressable style={[styles.payOptionPill, { backgroundColor: transferId === item.id ? theme.brand : theme.surface, borderColor: theme.border }]}
+                        onPress={() => void showTransfer(item.id)}><Text style={{ color: transferId === item.id ? "#fff" : theme.text }}>Chuyển khoản</Text></Pressable>
                     </View>
-
-                    <View style={styles.paymentOptionsRow}>
-                      <Pressable
-                        onPress={() => {
-                          setOutcome("success");
-                          pendingPayment.current = null;
-                        }}
-                        style={[
-                          styles.payOptionPill,
-                          {
-                            backgroundColor: outcome === "success" ? "#16A34A" : theme.surface,
-                            borderColor: outcome === "success" ? "#16A34A" : theme.border
-                          }
-                        ]}
-                      >
-                        <Text style={{ color: outcome === "success" ? "#FFFFFF" : theme.text, fontSize: 12, fontWeight: "700" }}>
-                          Giả lập thành công {outcome === "success" ? "✓" : ""}
-                        </Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => {
-                          setOutcome("failed");
-                          pendingPayment.current = null;
-                        }}
-                        style={[
-                          styles.payOptionPill,
-                          {
-                            backgroundColor: outcome === "failed" ? "#DC2626" : theme.surface,
-                            borderColor: outcome === "failed" ? "#DC2626" : theme.border
-                          }
-                        ]}
-                      >
-                        <Text style={{ color: outcome === "failed" ? "#FFFFFF" : theme.text, fontSize: 12, fontWeight: "700" }}>
-                          Giả lập thất bại {outcome === "failed" ? "✓" : ""}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    <WizardAction
-                      label="Thử thanh toán mô phỏng"
-                      onPress={() => {
-                        void handlePay(item.id);
-                      }}
-                      loading={processingId === item.id}
-                    />
-
-                    {paymentMessage ? (
-                      <Text style={[styles.payMessage, { color: theme.brand }]}>{paymentMessage}</Text>
-                    ) : null}
+                    {transferId !== item.id ? <Text style={{ color: theme.text }}>Vui lòng trả tại quầy. Nhân viên sẽ xác nhận sau khi nhận đủ tiền.</Text> :
+                      instructions[item.id] ? <View style={{ alignItems: "center", gap: 8 }}>
+                        <Image source={{ uri: instructions[item.id].qrUrl }} style={{ width: 240, height: 300 }} resizeMode="contain" />
+                        <Text style={{ color: theme.text }}>Ngân hàng: {instructions[item.id].bank}</Text>
+                        <Text style={{ color: theme.text }}>Số tài khoản: {instructions[item.id].accountNumber}</Text>
+                        <Text style={{ color: theme.text }}>Chủ tài khoản: {instructions[item.id].accountHolder}</Text>
+                        <Text style={{ color: theme.text }}>Số tiền: {instructions[item.id].amount.toLocaleString("vi-VN")} VNĐ</Text>
+                        <Text style={{ color: theme.text }}>Nội dung: {instructions[item.id].content}</Text>
+                        <WizardAction label="Lưu mã QR" onPress={() => void saveQr(instructions[item.id])} />
+                        <Text style={{ color: theme.textMuted }}>Hệ thống tự xác nhận sau khi ngân hàng báo giao dịch. Không cần bấm đã thanh toán.</Text>
+                      </View> : <Text style={{ color: theme.textMuted }}>{processingId === item.id ? "Đang tải thông tin chuyển khoản..." : isDemo ? "Chế độ demo không hỗ trợ chuyển khoản thật." : actionError || "Chưa tải được thông tin chuyển khoản."}</Text>}
+                    {paymentMessage && transferId === item.id ? <Text style={[styles.payMessage, { color: theme.brand }]}>{paymentMessage}</Text> : null}
                   </View>
                 ) : null}
 
@@ -696,7 +609,7 @@ export default function CustomerAppointmentsScreen() {
                   <View style={styles.paidBadgeBox}>
                     <Ionicons name="checkmark-circle" size={16} color="#16A34A" />
                     <Text style={styles.paidBadgeText}>
-                      Đã thanh toán dịch vụ thành công qua mô phỏng.
+                      Đã thanh toán dịch vụ.
                     </Text>
                   </View>
                 ) : null}

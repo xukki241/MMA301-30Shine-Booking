@@ -1,4 +1,4 @@
-import type { CustomerAppointment, CustomerAppointmentDataSource, PaymentAttempt } from "./types";
+import type { CustomerAppointment, CustomerAppointmentDataSource } from "./types";
 
 function dayAt(offset: number, hour: number): string {
   const date = new Date();
@@ -21,7 +21,6 @@ export function createDemoAppointmentDataSource(
   initialAppointments: CustomerAppointment[] = sampleAppointments()
 ): CustomerAppointmentDataSource {
   const appointments = initialAppointments.map((appointment) => ({ ...appointment }));
-  const attempts = new Map<string, PaymentAttempt[]>();
 
   return {
     async list() {
@@ -37,25 +36,7 @@ export function createDemoAppointmentDataSource(
       appointment.status = "cancelled";
       return { ...appointment };
     },
-    async pay(id, input) {
-      const appointment = appointments.find((item) => item.id === id);
-      if (!appointment) throw new Error("Không tìm thấy lịch hẹn. Vui lòng tải lại danh sách.");
-      const history = attempts.get(id) || [];
-      const previous = history.find((attempt) => attempt.requestId === input.requestId);
-      if (previous) {
-        if (previous.provider !== input.provider || previous.status !== input.outcome) throw new Error("Mã thử thanh toán đã dùng cho nội dung khác.");
-        return { appointment: { ...appointment }, attempt: { ...previous } };
-      }
-      if (appointment.status !== "completed") {
-        throw new Error("Chỉ có thể thanh toán lịch hẹn đã hoàn thành dịch vụ.");
-      }
-      if (appointment.bookedPrice === undefined) throw new Error("Lịch cũ chưa có giá chốt, không thể thanh toán mô phỏng.");
-      const attempt: PaymentAttempt = { id: `${id}-${input.requestId}`, requestId: input.requestId,
-        amount: appointment.bookedPrice, provider: input.provider, status: input.outcome, attemptedAt: new Date().toISOString() };
-      history.push(attempt); attempts.set(id, history);
-      if (input.outcome === "success") appointment.status = "paid";
-      return { appointment: { ...appointment }, attempt: { ...attempt } };
-    }
+
   };
 }
 

@@ -163,7 +163,7 @@ function createWorkShiftRepository({ Branch, Service, StylistProfile, WorkShift,
       if (!service) throw new BookingError(404, "Active service not found for branch");
       if (!stylist) throw new BookingError(404, "Active stylist assignment not found for branch");
       if (!Number.isSafeInteger(service.price) || service.price < 0) {
-        throw new BookingError(409, "Service price is invalid for mock payment");
+        throw new BookingError(409, "Service price is invalid for payment");
       }
       const durationMs = service.durationMinutes * 60_000;
       const calendar = await Calendar.findById(stylistId).lean().exec();
