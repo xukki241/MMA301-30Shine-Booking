@@ -268,7 +268,7 @@ function createBookingRepository(Calendar) {
         'paymentAttempts.requestId': { $ne: input.requestId },
       } } }, { $push: { 'appointments.$.paymentAttempts': attempt,
         'appointments.$.statusHistory': { from: 'completed', to: 'paid',
-          actorId: input.actorId || undefined, actorRole: input.provider === 'cash' ? 'general_manager' : 'sepay', at: now } },
+          actorId: input.actorId || undefined, actorRole: input.actorRole || (input.provider === 'cash' ? 'general_manager' : 'sepay'), at: now } },
         $set: { 'appointments.$.status': 'paid', 'appointments.$.updatedAt': now } },
       { returnDocument: 'after', runValidators: true,
         projection: { appointments: { $elemMatch: { _id: new mongoose.Types.ObjectId(id) } } } }).lean().exec();
@@ -293,7 +293,7 @@ function createBookingRepository(Calendar) {
       const match = { ...(date === "all" ? {} : { startTime: { $gte: start, $lt: end } }),
         ...(branchId ? { branchId: new mongoose.Types.ObjectId(branchId) } : {}),
         ...(stylistId ? { stylistId: new mongoose.Types.ObjectId(stylistId) } : {}),
-        ...(status ? { status } : {}), ...cursorMatch("startTime", cursor) };
+        ...(status ? { status: status === "completed" ? { $in: ["completed", "paid"] } : status } : {}), ...cursorMatch("startTime", cursor) };
       const rows = await Calendar.aggregate([
         { $unwind: "$appointments" }, { $replaceRoot: { newRoot: "$appointments" } },
         { $match: match }, { $sort: { startTime: -1, _id: -1 } }, { $limit: limit + 1 },

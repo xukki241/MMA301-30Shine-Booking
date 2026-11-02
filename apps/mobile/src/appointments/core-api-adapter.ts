@@ -97,6 +97,10 @@ export function createCoreApiAppointmentDataSource(
       return data.appointment;
     },
 
+    async payCash(id: string): Promise<CustomerAppointment> {
+      const data = await request<{ appointment: CustomerAppointment }>(`/appointments/${encodeURIComponent(id)}/pay-cash`, { method: "POST" });
+      return data.appointment;
+    },
     async paymentInstructions(id: string): Promise<PaymentInstructions> {
       return request<PaymentInstructions>(`/appointments/${encodeURIComponent(id)}/payment-instructions`);
     },

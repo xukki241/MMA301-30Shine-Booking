@@ -1,4 +1,4 @@
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
@@ -10,8 +10,8 @@ import type { AppointmentStatus, Branch, ManagerAppointment, Stylist } from "@/m
 import { useManagerApi } from "@/manager/use-manager-api";
 
 const statuses: Array<[AppointmentStatus | "", string]> = [["", "Tất cả"], ["booked", "Đã đặt"],
-  ["checked_in", "Đã đến"], ["completed", "Hoàn thành"], ["paid", "Đã trả"],
-  ["cancelled", "Đã hủy"], ["no_show", "Không đến"]];
+  ["checked_in", "Đã đến"], ["completed", "Đã hoàn thành"],
+  ["cancelled", "Khách hủy"], ["no_show", "Khách không đến"]];
 export default function ManagerAppointments() {
   const api = useManagerApi();
   const theme = useAppTheme();
@@ -84,13 +84,19 @@ export default function ManagerAppointments() {
     {!loading && !error && items.length === 0 && <Card><CardText>Không có lịch trong bộ lọc này.</CardText></Card>}
     {items.map((item) => <Card key={item.id}>
       <View style={styles.itemHeader}><CardTitle>{item.customerName || "Khách hàng"}</CardTitle>
-        <Text style={[styles.statusBadge, { color: theme.brand, backgroundColor: theme.brandMuted }]}>
-          {statuses.find(([value]) => value === item.status)?.[1]}</Text></View>
+        <Text style={[styles.statusBadge, item.status === "booked"
+          ? { color: "#1D4ED8", backgroundColor: "#DBEAFE" }
+          : item.status === "completed" || item.status === "paid"
+          ? { color: "#166534", backgroundColor: "#DCFCE7" }
+          : item.status === "cancelled"
+          ? { color: "#B91C1C", backgroundColor: "#FEE2E2" }
+          : { color: theme.brand, backgroundColor: theme.brandMuted }]}>
+          {item.status === "paid" ? "Đã hoàn thành" : statuses.find(([value]) => value === item.status)?.[1]}</Text></View>
       <CardText>{displayTime(item.startTime)}</CardText>
       <CardText>{branches.find((branch) => branch.id === item.branchId)?.name || "Chi nhánh chưa cập nhật"}</CardText>
       <CardText>{stylists.find((stylist) => stylist.userId === item.stylistId)?.displayName || "Thợ chưa cập nhật"} · {item.bookedPrice === undefined ? "Chưa có giá chốt" : money(item.bookedPrice)}</CardText>
       <ManagerAction label="Xem chi tiết" icon="arrow-forward" variant="primary"
-        onPress={() => router.push({ pathname: "/(manager)/appointment-detail", params: { id: item.id } } as unknown as Href)} /></Card>)}
+        onPress={() => router.push({ pathname: "/manager-appointment-detail", params: { id: item.id } })} /></Card>)}
     {!!cursor && <View style={styles.more}><ManagerAction label={loadingMore ? "Đang tải..." : "Xem thêm lịch"}
       onPress={() => { void loadMore(); }} disabled={loadingMore} /></View>}
   </Screen>;

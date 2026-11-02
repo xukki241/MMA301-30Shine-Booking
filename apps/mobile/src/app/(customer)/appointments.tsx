@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { File, Paths } from "expo-file-system";
-import * as MediaLibrary from "expo-media-library";
+import * as MediaLibrary from "expo-media-library/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
-import { orderCustomerAppointments } from "@/appointments/order";
+import { filterCustomerAppointments, orderCustomerAppointments } from "@/appointments/order";
 import { customerAppointmentStatusLabel, isOverdueUnconfirmedAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment, CustomerAppointmentDataSource } from "@/appointments/types";
 import type { PaymentInstructions } from "@/appointments/types";
@@ -29,6 +29,7 @@ import { PrimaryButton } from "@/components/screen";
 import { KeyboardAwareScrollView } from "@/components/keyboard-aware-scroll-view";
 import { EmptyState, LoadingState } from "@/components/states";
 import { useAppTheme } from "@/constants/theme";
+import { ManagerDatePicker } from "@/manager/filters-ui";
 import { type AppointmentSummary, isAppointmentSummary } from "@/offline/appointments";
 import { useConnectivity } from "@/offline/network-provider";
 import { type ReadResult, readCachedList } from "@/offline/read-cache";
@@ -58,7 +59,11 @@ export default function CustomerAppointmentsScreen() {
   const { token, user, requestCustomerRecovery, verifyCustomerRecovery } = useAuth();
 
   const [appointments, setAppointments] = useState<CustomerAppointment[]>([]);
-  const orderedAppointments = useMemo(() => orderCustomerAppointments(appointments), [appointments]);
+  const [lookupText, setLookupText] = useState("");
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupDateText, setLookupDateText] = useState("");
+  const [lookupDate, setLookupDate] = useState("");
+  const orderedAppointments = useMemo(() => orderCustomerAppointments(filterCustomerAppointments(appointments, lookupQuery, lookupDate)), [appointments, lookupQuery, lookupDate]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -71,7 +76,6 @@ export default function CustomerAppointmentsScreen() {
 
   const [revision, setRevision] = useState(0);
 
-  const [searchPhone, setSearchPhone] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
   const [recoveryRequested, setRecoveryRequested] = useState(false);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
@@ -158,6 +162,12 @@ export default function CustomerAppointmentsScreen() {
     }, [connectivity, revision, token, isDemo, fetchItems, cacheKey])
   );
 
+  function applyLookup() {
+    const date = lookupDateText ? lookupDateText.split("-").reverse().join("/") : "";
+    setLookupQuery(lookupText.trim());
+    setLookupDate(date);
+  }
+
   async function requestRecovery() {
     setRecoveryBusy(true);
     setRecoveryError(null);
@@ -206,6 +216,21 @@ export default function CustomerAppointmentsScreen() {
     }
   }
 
+  async function payCash(id: string) {
+    if (!dataSource.payCash) return;
+    setProcessingId(id);
+    setActionError(null);
+    try {
+      const updated = await dataSource.payCash(id);
+      setAppointments((current) => current.map((item) => item.id === id ? { ...item, status: updated.status } : item));
+      setTransferId(null);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : "Không thể hoàn tất thanh toán tiền mặt.");
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   async function showTransfer(id: string) {
     setTransferId(id);
     setPaymentMessage("");
@@ -219,6 +244,8 @@ export default function CustomerAppointmentsScreen() {
   }
 
   async function saveQr(value: PaymentInstructions) {
+    setActionError(null);
+    setPaymentMessage("");
     try {
       if (Platform.OS === "web") {
         await Linking.openURL(value.qrUrl + "&download=true");
@@ -344,31 +371,31 @@ export default function CustomerAppointmentsScreen() {
         {/* 3. Search Bar for Appointments (Matching Stitch Screenshot 3) */}
         <View style={[styles.lookupCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.lookupTitle, { color: theme.text }]}>
-            TRA CỨU LỊCH HẸN & LỊCH SỬ
+            TÌM TRONG LỊCH HẸN & LỊCH SỬ
           </Text>
           <Text style={[styles.lookupSub, { color: theme.textMuted }]}>
-            Kiểm tra thông tin ca cắt hoặc gói dịch vụ gần nhất của Anh:
+            Tìm lịch của bạn theo ngày thực hiện, tên dịch vụ, salon hoặc stylist:
           </Text>
 
           <View style={styles.lookupInputRow}>
             <View style={[styles.phoneInputWrap, { borderColor: theme.border, backgroundColor: theme.surfaceHighlight }]}>
-              <Ionicons name="call-outline" size={16} color={theme.textMuted} />
+              <Ionicons name="search-outline" size={16} color={theme.textMuted} />
               <TextInput
                 style={[styles.phoneInput, { color: theme.text }]}
-                placeholder={user?.phone || "Nhập số điện thoại đặt lịch..."}
+                placeholder="Tên dịch vụ, salon hoặc stylist"
                 placeholderTextColor={theme.textDim}
-                keyboardType="phone-pad"
-                value={searchPhone}
-                onChangeText={setSearchPhone}
+                returnKeyType="search"
+                value={lookupText}
+                onChangeText={setLookupText}
+                onSubmitEditing={applyLookup}
               />
             </View>
-            <Pressable
-              style={[styles.lookupBtn, { backgroundColor: theme.brand }]}
-              onPress={() => setRevision((v) => v + 1)}
-            >
-              <Text style={styles.lookupBtnText}>Tra cứu</Text>
-            </Pressable>
           </View>
+          <ManagerDatePicker label="Ngày thực hiện" value={lookupDateText} onChange={setLookupDateText} allowClear embedded />
+          <Pressable style={[styles.lookupBtn, { backgroundColor: theme.brand, alignSelf: "flex-end" }]}
+            onPress={applyLookup}>
+            <Text style={styles.lookupBtnText}>Tìm lịch</Text>
+          </Pressable>
         </View>
 
         {/* 4. Appointments List Section */}
@@ -377,7 +404,7 @@ export default function CustomerAppointmentsScreen() {
             LỊCH GẦN NHẤT
           </Text>
           <Text style={[styles.appointmentCountText, { color: theme.textMuted }]}>
-            {appointments.length} lịch hẹn
+            {orderedAppointments.length} lịch hẹn
           </Text>
         </View>
 
@@ -408,6 +435,9 @@ export default function CustomerAppointmentsScreen() {
               />
             }
           />
+        ) : orderedAppointments.length === 0 ? (
+          <EmptyState icon="search-outline" title="Không tìm thấy lịch phù hợp"
+            description="Thử tên dịch vụ, salon hoặc stylist khác." />
         ) : (
           orderedAppointments.map((item) => {
             const isCompleted = item.status === "completed";
@@ -585,11 +615,11 @@ export default function CustomerAppointmentsScreen() {
                     <Text style={{ color: theme.textMuted }}>Bạn có thể thanh toán bây giờ hoặc mở lại lịch hẹn để thanh toán sau.</Text>
                     <View style={styles.paymentOptionsRow}>
                       <Pressable style={[styles.payOptionPill, { backgroundColor: transferId !== item.id ? theme.brand : theme.surface, borderColor: theme.border }]}
-                        onPress={() => setTransferId(null)}><Text style={{ color: transferId !== item.id ? "#fff" : theme.text }}>Tiền mặt</Text></Pressable>
+                        disabled={processingId !== null} onPress={() => void payCash(item.id)}><Text style={{ color: transferId !== item.id ? "#fff" : theme.text }}>{processingId === item.id ? "Đang xử lý..." : "Tiền mặt"}</Text></Pressable>
                       <Pressable style={[styles.payOptionPill, { backgroundColor: transferId === item.id ? theme.brand : theme.surface, borderColor: theme.border }]}
                         onPress={() => void showTransfer(item.id)}><Text style={{ color: transferId === item.id ? "#fff" : theme.text }}>Chuyển khoản</Text></Pressable>
                     </View>
-                    {transferId !== item.id ? <Text style={{ color: theme.text }}>Vui lòng trả tại quầy. Nhân viên sẽ xác nhận sau khi nhận đủ tiền.</Text> :
+                    {transferId !== item.id ? <Text style={{ color: theme.text }}>Chạm Tiền mặt để hoàn tất lịch hẹn và thanh toán tại quầy.</Text> :
                       instructions[item.id] ? <View style={{ alignItems: "center", gap: 8 }}>
                         <Image source={{ uri: instructions[item.id].qrUrl }} style={{ width: 240, height: 300 }} resizeMode="contain" />
                         <Text style={{ color: theme.text }}>Ngân hàng: {instructions[item.id].bank}</Text>
@@ -598,6 +628,7 @@ export default function CustomerAppointmentsScreen() {
                         <Text style={{ color: theme.text }}>Số tiền: {instructions[item.id].amount.toLocaleString("vi-VN")} VNĐ</Text>
                         <Text style={{ color: theme.text }}>Nội dung: {instructions[item.id].content}</Text>
                         <WizardAction label="Lưu mã QR" onPress={() => void saveQr(instructions[item.id])} />
+                        {actionError ? <Text style={{ color: theme.danger }}>{actionError}</Text> : null}
                         <Text style={{ color: theme.textMuted }}>Hệ thống tự xác nhận sau khi ngân hàng báo giao dịch. Không cần bấm đã thanh toán.</Text>
                       </View> : <Text style={{ color: theme.textMuted }}>{processingId === item.id ? "Đang tải thông tin chuyển khoản..." : isDemo ? "Chế độ demo không hỗ trợ chuyển khoản thật." : actionError || "Chưa tải được thông tin chuyển khoản."}</Text>}
                     {paymentMessage && transferId === item.id ? <Text style={[styles.payMessage, { color: theme.brand }]}>{paymentMessage}</Text> : null}

@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { createCoreApiAppointmentDataSource } from "@/appointments/core-api-adapter";
 import { demoAppointmentDataSource } from "@/appointments/demo-adapter";
-import { selectUpcomingAppointment } from "@/appointments/presentation";
+import { selectPendingPaymentAppointment, selectUpcomingAppointment } from "@/appointments/presentation";
 import type { CustomerAppointment } from "@/appointments/types";
 import { listHomeStylists, listPublicHomeServices, type HomeService, type HomeStylist } from "@/booking/http-adapter";
 import { RoleResetButton } from "@/components/role-reset-button";
@@ -43,6 +43,7 @@ export default function CustomerHomeScreen() {
   const theme = useAppTheme();
   const { token, user } = useAuth();
   const [upcoming, setUpcoming] = useState<CustomerAppointment | null>(null);
+  const [pendingPayment, setPendingPayment] = useState<CustomerAppointment | null>(null);
   const [homeServices, setHomeServices] = useState<HomeService[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState(false);
@@ -76,9 +77,10 @@ export default function CustomerHomeScreen() {
         .then((items) => {
           if (!active) return;
           setUpcoming(selectUpcomingAppointment(items));
+          setPendingPayment(selectPendingPaymentAppointment(items));
         })
         .catch(() => {
-          if (active) setUpcoming(null);
+          if (active) { setUpcoming(null); setPendingPayment(null); }
         }); };
       refresh();
       const interval = setInterval(refresh, 30000);
@@ -208,32 +210,32 @@ export default function CustomerHomeScreen() {
         contentContainerStyle={styles.scrollContent}
       >
         {/* 2. Upcoming Appointment Banner (if any) */}
-        {upcoming ? (
+        {(pendingPayment || upcoming) ? (
           <View style={[styles.upcomingCard, { backgroundColor: theme.surface, borderColor: theme.brand }]}>
             <View style={styles.upcomingHeaderRow}>
               <View style={styles.liveBadgeRow}>
                 <View style={[styles.pulseDot, { backgroundColor: theme.success }]} />
                 <Text style={[styles.upcomingTag, { color: theme.brand }]}>
-                  LỊCH HẸN SẮP TỚI
+                  {pendingPayment ? "CHỜ THANH TOÁN" : "LỊCH HẸN SẮP TỚI"}
                 </Text>
               </View>
               <View style={[styles.statusPill, { backgroundColor: theme.successMuted }]}>
-                <Text style={[styles.statusPillText, { color: theme.success }]}>ĐÃ XÁC NHẬN</Text>
+                <Text style={[styles.statusPillText, { color: theme.success }]}>{pendingPayment ? "CHƯA THANH TOÁN" : "ĐÃ XÁC NHẬN"}</Text>
               </View>
             </View>
 
             <Text style={[styles.upcomingTime, { color: theme.text }]}>
-              {formatDateTime(upcoming.startTime)}
+              {formatDateTime((pendingPayment || upcoming)!.startTime)}
             </Text>
             <Text style={[styles.upcomingDesc, { color: theme.textMuted }]}>
-              Stylist và chi nhánh đã sẵn sàng đón tiếp bạn. Vui lòng đến trước 5 phút để được phục vụ chu đáo nhất.
+              {pendingPayment ? "Dịch vụ đã hoàn thành. Mở lịch sử cắt để chọn cách thanh toán." : "Stylist và chi nhánh đã sẵn sàng đón tiếp bạn. Vui lòng đến trước 5 phút để được phục vụ chu đáo nhất."}
             </Text>
 
             <Pressable
               style={[styles.upcomingButton, { backgroundColor: theme.brand }]}
               onPress={() => router.push("/(customer)/appointments")}
             >
-              <Text style={styles.upcomingButtonText}>Xem chi tiết & đổi lịch</Text>
+              <Text style={styles.upcomingButtonText}>{pendingPayment ? "Đến lịch sử cắt để thanh toán" : "Xem chi tiết & đổi lịch"}</Text>
               <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
             </Pressable>
           </View>

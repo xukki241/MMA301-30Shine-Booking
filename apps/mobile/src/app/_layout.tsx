@@ -24,6 +24,7 @@ export default function RootLayout() {
                 <Stack.Screen name="customer-profile" />
                 <Stack.Screen name="(stylist)" />
                 <Stack.Screen name="(manager)" />
+                <Stack.Screen name="manager-appointment-detail" options={{ headerShown: true, title: "Chi tiết lịch" }} />
               </Stack>
             </View>
           </RoleProvider>

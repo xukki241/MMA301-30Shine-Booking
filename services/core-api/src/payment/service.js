@@ -25,6 +25,16 @@ function createPaymentService(repository, config) {
       return { bank: config.bank, accountNumber: config.accountNumber, accountHolder: config.accountHolder,
         amount: appointment.bookedPrice, content, qrUrl: 'https://vietqr.app/img?' + params.toString() };
     },
+    async payCash(actor, id) {
+      const appointment = await find(id);
+      if (actor.role !== "customer" || actor.userId.toLowerCase() !== appointment.customerId) throw new BookingError(403, "Không có quyền thanh toán lịch hẹn");
+      if (appointment.status !== "completed") throw new BookingError(409, "Lịch hẹn không chờ thanh toán");
+      price(appointment);
+      const result = await repository.recordConfirmedPayment(appointment.id, { provider: "cash", requestId: "cash-" + appointment.id,
+        amount: appointment.bookedPrice, branchId: appointment.branchId, actorId: actor.userId.toLowerCase(), actorRole: "customer" });
+      if (!result) throw new BookingError(409, "Thanh toán đã thay đổi; tải lại lịch hẹn");
+      return result;
+    },
     async confirmCash(actor, id) {
       if (actor.role !== 'general_manager') throw new BookingError(403, 'Chỉ Manager được xác nhận tiền mặt');
       const appointment = await find(id);

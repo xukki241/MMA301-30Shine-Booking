@@ -22,5 +22,6 @@ export interface CustomerAppointmentDataSource {
   list(): Promise<CustomerAppointment[]>;
   cancel(id: string): Promise<CustomerAppointment>;
   paymentInstructions?(id: string): Promise<PaymentInstructions>;
+  payCash?(id: string): Promise<CustomerAppointment>;
 }
 

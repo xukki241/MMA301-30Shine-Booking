@@ -52,10 +52,10 @@ test("appointment list loads stylist phone when the appointment already includes
   } finally { globalThis.fetch = originalFetch; }
 });
 
-test("demo appointments remain awaiting payment without a simulated pay action", async () => {
+test("demo cash selection completes the appointment", async () => {
   const source = createDemoAppointmentDataSource([{ id: "a1", startTime: "2030-01-01T10:00:00Z", status: "completed", bookedPrice: 120000 }]);
-  assert.equal(source.pay, undefined);
-  assert.equal((await source.list())[0].status, "completed");
+  assert.equal((await source.payCash("a1")).status, "paid");
+  assert.equal((await source.list())[0].status, "paid");
 });
 
 test("createCoreApiAppointmentDataSource returns empty list when no token", async () => {
@@ -97,6 +97,9 @@ test("createCoreApiAppointmentDataSource sends Bearer token and parses response"
         }),
       };
     }
+    if (lastUrl.includes("/pay-cash")) {
+      return { ok: true, json: async () => ({ appointment: { id: "a1", status: "paid", startTime: "2026-10-10T10:00:00Z" } }) };
+    }
     if (lastUrl.includes("/payment-instructions")) {
       return { ok: true, json: async () => ({ bank: "VCB", accountNumber: "123", accountHolder: "A", amount: 120000, content: "SHINEA1", qrUrl: "https://vietqr.app/img" }) };
     }
@@ -115,6 +118,11 @@ test("createCoreApiAppointmentDataSource sends Bearer token and parses response"
     assert.equal(cancelled.status, "cancelled");
     assert.equal(lastMethod, "POST");
     assert.ok(lastUrl.endsWith("/appointments/a1/cancel"));
+
+    const paid = await source.payCash("a1");
+    assert.equal(paid.status, "paid");
+    assert.equal(lastMethod, "POST");
+    assert.ok(lastUrl.endsWith("/appointments/a1/pay-cash"));
 
     const instructions = await source.paymentInstructions("a1");
     assert.equal(instructions.amount, 120000);

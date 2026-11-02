@@ -32,3 +32,8 @@ export function selectUpcomingAppointment<T extends Pick<CustomerAppointment, "s
     Number.isFinite(Date.parse(item.startTime)) && Date.parse(item.startTime) > now.getTime())
     .sort((a, b) => Date.parse(a.startTime) - Date.parse(b.startTime))[0] || null;
 }
+
+export function selectPendingPaymentAppointment<T extends Pick<CustomerAppointment, "status" | "startTime">>(items: T[]): T | null {
+  return items.filter((item) => item.status === "completed")
+    .sort((a, b) => Date.parse(b.startTime) - Date.parse(a.startTime))[0] || null;
+}

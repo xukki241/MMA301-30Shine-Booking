@@ -26,6 +26,12 @@ export function createDemoAppointmentDataSource(
     async list() {
       return appointments.map((appointment) => ({ ...appointment }));
     },
+    async payCash(id) {
+      const appointment = appointments.find((item) => item.id === id);
+      if (!appointment || appointment.status !== "completed") throw new Error("Lịch hẹn không chờ thanh toán.");
+      appointment.status = "paid";
+      return { ...appointment };
+    },
     async cancel(id) {
       const appointment = appointments.find((item) => item.id === id);
       if (!appointment) throw new Error("Không tìm thấy lịch hẹn. Vui lòng tải lại danh sách.");

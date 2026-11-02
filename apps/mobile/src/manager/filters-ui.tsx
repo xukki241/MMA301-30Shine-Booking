@@ -47,10 +47,10 @@ export function ManagerSelect({ label, value, options, onChange, placeholder = "
   </View>;
 }
 
-export function ManagerDatePicker({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+export function ManagerDatePicker({ label, value, onChange, allowClear = false, embedded = false }: { label: string; value: string; onChange: (value: string) => void; allowClear?: boolean; embedded?: boolean }) {
   const theme = useAppTheme();
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(value.slice(0, 7));
+  const [month, setMonth] = useState((value || vietnamToday()).slice(0, 7));
   const [yearNumber, monthNumber] = month.split("-").map(Number);
   const offset = (new Date(Date.UTC(yearNumber, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
   const days = new Date(Date.UTC(yearNumber, monthNumber, 0)).getUTCDate();
@@ -62,20 +62,20 @@ export function ManagerDatePicker({ label, value, onChange }: { label: string; v
       return new Date(Date.UTC(year, monthIndex - 1 + months, 1)).toISOString().slice(0, 7);
     });
   }
-  return <View style={styles.filterWrap}>
+  return <View style={[styles.filterWrap, embedded && { marginHorizontal: 0 }]}>
     <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
     <View style={styles.dateRow}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Ngày trước" onPress={() => onChange(shiftDate(value, -1))}
-        style={[styles.dateArrow, { borderColor: theme.border, backgroundColor: theme.surface }]}><Ionicons name="chevron-back" size={20} color={theme.brand} /></Pressable>
+      {!allowClear && <Pressable accessibilityRole="button" accessibilityLabel="Ngày trước" onPress={() => onChange(shiftDate(value, -1))}
+        style={[styles.dateArrow, { borderColor: theme.border, backgroundColor: theme.surface }]}><Ionicons name="chevron-back" size={20} color={theme.brand} /></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel={`Chọn ${label.toLowerCase()}`}
-        onPress={() => { setMonth(value.slice(0, 7)); setOpen(true); }} style={[styles.trigger, styles.dateTrigger,
+        onPress={() => { setMonth((value || vietnamToday()).slice(0, 7)); setOpen(true); }} style={[styles.trigger, styles.dateTrigger,
           { borderColor: theme.border, backgroundColor: theme.surface }]}>
         <Ionicons name="calendar-outline" size={18} color={theme.brand} />
-        <Text style={[styles.triggerText, { color: theme.text }]}>{dateLabel(value, { day: "numeric", month: "numeric", year: "numeric" })}</Text>
+        <Text style={[styles.triggerText, { color: theme.text }]}>{value ? dateLabel(value, { day: "numeric", month: "numeric", year: "numeric" }) : "Chọn ngày"}</Text>
         <Ionicons name="chevron-down" size={16} color={theme.brand} />
       </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Ngày sau" onPress={() => onChange(shiftDate(value, 1))}
-        style={[styles.dateArrow, { borderColor: theme.border, backgroundColor: theme.surface }]}><Ionicons name="chevron-forward" size={20} color={theme.brand} /></Pressable>
+      {!allowClear && <Pressable accessibilityRole="button" accessibilityLabel="Ngày sau" onPress={() => onChange(shiftDate(value, 1))}
+        style={[styles.dateArrow, { borderColor: theme.border, backgroundColor: theme.surface }]}><Ionicons name="chevron-forward" size={20} color={theme.brand} /></Pressable>}
     </View>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <View style={styles.overlay}><View style={[styles.modal, { backgroundColor: theme.surface }]}>
@@ -97,6 +97,8 @@ export function ManagerDatePicker({ label, value, onChange }: { label: string; v
             </Pressable>;
           })}
         </View>
+        {allowClear && <Pressable accessibilityRole="button" onPress={() => choose("")} style={styles.todayButton}>
+          <Text style={{ color: theme.brand, fontWeight: "800" }}>Bỏ lọc ngày</Text></Pressable>}
         <Pressable accessibilityRole="button" onPress={() => choose(today)} style={styles.todayButton}>
           <Text style={{ color: theme.brand, fontWeight: "800" }}>Về hôm nay</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={() => setOpen(false)} style={styles.closeButton}>

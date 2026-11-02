@@ -45,3 +45,11 @@ test("Manager endpoints reject other roles and revoked staff", async (t) => {
   assert.equal(appointmentFilter.date, "all");
   assert.equal((await fetch(base + "/manager/overview", { headers: { Authorization: `Bearer ${token("general_manager", "000000000000000000000001")}` } })).status, 401);
 });
+
+test("completed booking filter includes paid appointments", async () => {
+  const { createBookingRepository } = require("../src/booking/mongo-repository");
+  let pipeline;
+  const repository = createBookingRepository({ aggregate(stages) { pipeline = stages; return { exec: async () => [] }; } });
+  await repository.managerAppointments({ date: "all", status: "completed", limit: 20 });
+  assert.deepEqual(pipeline.find((stage) => stage.$match).$match.status, { $in: ["completed", "paid"] });
+});

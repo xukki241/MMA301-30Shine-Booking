@@ -55,6 +55,10 @@ function bookingRoutes(repository, workShiftRepository, paymentService) {
     if (!paymentService) throw new BookingError(503, "Thanh toán chưa khả dụng");
     res.json(await paymentService.instructions(req.auth, req.params.id));
   }));
+  router.post("/:id/pay-cash", handle(async (req, res) => {
+    if (!paymentService) throw new BookingError(503, "Thanh toán chưa khả dụng");
+    res.json({ appointment: await paymentService.payCash(req.auth, req.params.id) });
+  }));
   router.post("/:id/reschedule", handle(async (req, res) => {
     const appointment = await service.reschedule(req.auth, req.params.id, req.body, workShiftRepository);
     res.json({ appointment });

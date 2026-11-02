@@ -1,4 +1,4 @@
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Redirect, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Text } from "react-native";
 import { Card, CardText, CardTitle, Screen } from "@/components/screen";
@@ -6,10 +6,14 @@ import { useAppTheme } from "@/constants/theme";
 import { displayTime, ManagerAction, money } from "@/manager/ui";
 import type { Branch, ManagerAppointment, Service, Stylist } from "@/manager/types";
 import { useManagerApi } from "@/manager/use-manager-api";
+import { useAuth } from "@/providers/auth-provider";
+import { useRole } from "@/providers/role-provider";
 
 export default function ManagerAppointmentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const api = useManagerApi();
+  const auth = useAuth();
+  const { role } = useRole();
   const theme = useAppTheme();
   const [item, setItem] = useState<ManagerAppointment | null>(null);
   const [names, setNames] = useState({ branch: "", service: "", stylist: "" });
@@ -39,6 +43,8 @@ export default function ManagerAppointmentDetail() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [api, id, revision]));
+  if (!auth.hydrated) return null;
+  if (auth.role !== "general_manager" || role !== "general_manager") return <Redirect href="/login" />;
   return <Screen eyebrow="General Manager" title="Chi tiết lịch" description="Thông tin liên hệ chỉ hiển thị trong màn chi tiết đã đăng nhập.">
     <ManagerAction label="Làm mới" icon="refresh-outline" variant="quiet"
       onPress={() => setRevision((value) => value + 1)} disabled={loading} />
@@ -49,19 +55,12 @@ export default function ManagerAppointmentDetail() {
       <CardText>Bắt đầu: {displayTime(item.startTime)}</CardText>
       <CardText>Kết thúc: {displayTime(item.endTime)}</CardText>
       <CardText>Trạng thái: {({ booked: "Đã đặt", checked_in: "Đã đến · Đang chờ thợ",
-        completed: "Chờ thanh toán", paid: "Đã thanh toán", cancelled: "Đã hủy",
+        completed: "Đã hoàn thành", paid: "Đã hoàn thành", cancelled: "Khách hủy",
         no_show: "Khách không đến" } as const)[item.status]}</CardText>
       <CardText>Chi nhánh: {names.branch || (item.branchId ? `Đã xóa (${item.branchId})` : "Không có")}</CardText>
       <CardText>Dịch vụ: {names.service || (item.serviceId ? `Đã xóa (${item.serviceId})` : "Không có")}</CardText>
       <CardText>Thợ: {names.stylist || `Đã xóa (${item.stylistId})`}</CardText>
       <CardText>Giá chốt: {item.bookedPrice === undefined ? "Lịch cũ chưa có giá chốt" : money(item.bookedPrice)}</CardText>
-      {item.status === "completed" && <ManagerAction label="Xác nhận đã thu tiền mặt" icon="cash-outline" variant="primary"
-        onPress={() => Alert.alert("Xác nhận đã nhận đủ tiền mặt?", "Thao tác này sẽ đánh dấu lịch hẹn đã thanh toán.", [
-          { text: "Quay lại", style: "cancel" },
-          { text: "Xác nhận", onPress: () => { void api.confirmCash(item.id)
-            .then(() => setRevision((value) => value + 1))
-            .catch((cause) => setError(cause instanceof Error ? cause.message : "Không xác nhận được thanh toán.")); } },
-        ])} />}
       {item.status === "no_show" && <ManagerAction label="Khôi phục lịch khách đã đến" icon="arrow-undo-outline" variant="primary"
         onPress={() => Alert.alert("Khôi phục lịch?", "Chỉ dùng khi khách thực sự đã đến và bị đánh dấu nhầm.", [
           { text: "Quay lại", style: "cancel" },

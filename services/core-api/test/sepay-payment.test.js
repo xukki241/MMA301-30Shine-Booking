@@ -68,3 +68,23 @@ test('cash confirmation endpoint requires manager and records payment', async (t
   assert.equal((await paid.json()).status, 'paid');
 });
 
+
+test("customer can finish own completed appointment with cash", async (t) => {
+  const secret = "x".repeat(40);
+  let current = { ...appointment };
+  const repository = { findById: async () => current, recordConfirmedPayment: async (_id, input) => {
+    current = { ...current, status: "paid", paymentAttempts: [input] }; return current;
+  } };
+  const base = await startHttp(t, createApp({ secret, bookingRepository: repository, payment: config,
+    verifyCustomer: async () => true, verifyStaff: async () => true }));
+  const token = jwt.sign({ role: "customer", authVersion: 0 }, secret, { subject: appointment.customerId, expiresIn: 60 });
+  const response = await fetch(base + "/appointments/" + id + "/pay-cash",
+    { method: "POST", headers: { Authorization: "Bearer " + token } });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).appointment.status, "paid");
+  assert.equal(current.paymentAttempts[0].provider, "cash");
+  const other = jwt.sign({ role: "customer", authVersion: 0 }, secret, { subject: "eeeeeeeeeeeeeeeeeeeeeeee", expiresIn: 60 });
+  const denied = await fetch(base + "/appointments/" + id + "/pay-cash",
+    { method: "POST", headers: { Authorization: "Bearer " + other } });
+  assert.equal(denied.status, 403);
+});
