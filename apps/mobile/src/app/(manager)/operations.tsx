@@ -74,7 +74,7 @@ export default function ManagerOperations() {
     const draft: Record<string, string> = {};
     const fields = kind === "branch" ? ["name", "address", "phone"] : kind === "service" ?
       ["name", "price", "durationMinutes", "description"] : kind === "stylist" ?
-      ["userId"] : ["date", "stylistId", "start", "end"];
+        ["userId"] : ["date", "stylistId", "start", "end"];
     for (const field of fields) draft[field] = String(value?.[field] ?? "");
     if (kind === "service") draft.durationMinutes ||= "45";
     if (kind === "shift") {
@@ -101,16 +101,20 @@ export default function ManagerOperations() {
     } else if (kind === "service") {
       const problem = validateServiceDraft({ name: d.name, price: Number(d.price), durationMinutes: Number(d.durationMinutes) });
       if (problem) { setError(problem); return; }
-      payload = { name: d.name.trim(), price: Number(d.price), durationMinutes: Number(d.durationMinutes),
-        description: d.description.trim(), isActive: d.isActive === "true" };
+      payload = {
+        name: d.name.trim(), price: Number(d.price), durationMinutes: Number(d.durationMinutes),
+        description: d.description.trim(), isActive: d.isActive === "true"
+      };
     } else if (kind === "stylist") {
       if (!editing.id && !candidates.some((item) => item.id === d.userId)) {
         setError("Hãy chọn tài khoản Stylist trong danh sách."); return;
       }
       payload = { ...(!editing.id ? { userId: d.userId } : { branchId: d.branchId }), isActive: d.isActive === "true" };
     } else {
-      payload = { branchId, stylistId: d.stylistId, date: d.date,
-        startAt: `${d.date}T${d.start}:00+07:00`, endAt: `${d.date}T${d.end}:00+07:00` };
+      payload = {
+        branchId, stylistId: d.stylistId, date: d.date,
+        startAt: `${d.date}T${d.start}:00+07:00`, endAt: `${d.date}T${d.end}:00+07:00`
+      };
       const problem = validateShiftDraft(payload as { branchId: string; stylistId: string; date: string; startAt: string; endAt: string });
       if (problem) { setError(problem); return; }
     }
@@ -129,25 +133,29 @@ export default function ManagerOperations() {
     if (!canSubmitMutation(connectivity)) { setError("Bạn đang ngoại tuyến. Kết nối mạng rồi thử lại."); return; }
     Alert.alert("Xác nhận xóa", `Xóa ${labels[kind].toLowerCase()} này?`, [
       { text: "Không", style: "cancel" },
-      { text: "Xóa", style: "destructive", onPress: () => { void (async () => {
-        setBusy(true); setError("");
-        try {
-          if (kind === "branch") await api.deleteBranch(item.id);
-          if (kind === "service") await api.deleteService(item.id);
-          if (kind === "stylist") await api.deleteStylist(item.id);
-          if (kind === "shift") await api.deleteShift(item.id);
-          setNotice("Đã xóa."); setRevision((value) => value + 1);
-        } catch (cause) { setError(operationError(cause, "Không xóa được.")); }
-        finally { setBusy(false); }
-      })(); } },
+      {
+        text: "Xóa", style: "destructive", onPress: () => {
+          void (async () => {
+            setBusy(true); setError("");
+            try {
+              if (kind === "branch") await api.deleteBranch(item.id);
+              if (kind === "service") await api.deleteService(item.id);
+              if (kind === "stylist") await api.deleteStylist(item.id);
+              if (kind === "shift") await api.deleteShift(item.id);
+              setNotice("Đã xóa."); setRevision((value) => value + 1);
+            } catch (cause) { setError(operationError(cause, "Không xóa được.")); }
+            finally { setBusy(false); }
+          })();
+        }
+      },
     ]);
   }
 
   const items: Item[] = kind === "branch" ? branches : kind === "service" ? services : kind === "stylist" ? stylists : shifts;
   const fields = kind === "branch" ? [["name", "Tên chi nhánh"], ["address", "Địa chỉ"], ["phone", "Số điện thoại"]] :
     kind === "service" ? [["name", "Tên dịch vụ"], ["price", "Giá (VND)"], ["durationMinutes", "Thời lượng (phút)"], ["description", "Mô tả"]] :
-    kind === "stylist" ? [] :
-    [];
+      kind === "stylist" ? [] :
+        [];
   return <Screen eyebrow="General Manager" title="Vận hành" description="Chi nhánh, dịch vụ, hồ sơ thợ và phân ca.">
     <View style={styles.tabs}>{(Object.keys(labels) as Kind[]).map((value) => <Action key={value}
       label={labels[value]} onPress={() => { setKind(value); setEditing(null); setError(""); }} selected={kind === value} />)}</View>
@@ -208,11 +216,11 @@ export default function ManagerOperations() {
     {!loading && items.length === 0 && <Card><CardText>Chưa có dữ liệu trong bộ lọc này.</CardText></Card>}
     {items.map((item) => <Card key={item.id}><CardTitle>{kind === "branch" ? (item as Branch).name :
       kind === "service" ? (item as Service).name : kind === "stylist" ? (item as Stylist).displayName :
-      `${(item as Shift).date} · ${localTime((item as Shift).startAt)}–${localTime((item as Shift).endAt)}`}</CardTitle>
+        `${(item as Shift).date} · ${localTime((item as Shift).startAt)}–${localTime((item as Shift).endAt)}`}</CardTitle>
       <CardText>{kind === "branch" ? (item as Branch).address : kind === "service" ?
         `${new Intl.NumberFormat("vi-VN").format((item as Service).price)} ₫ · ${(item as Service).durationMinutes} phút` :
         kind === "stylist" ? ((item as Stylist).isActive ? "Đang hoạt động tại chi nhánh" : "Tạm ngưng tại chi nhánh") :
-        `Thợ: ${stylists.find((stylist) => stylist.userId === (item as Shift).stylistId)?.displayName || (item as Shift).stylistId}`}</CardText>
+          `Thợ: ${stylists.find((stylist) => stylist.userId === (item as Shift).stylistId)?.displayName || (item as Shift).stylistId}`}</CardText>
       {kind === "stylist" && (item as Stylist).phone ? <CardText>SĐT: {(item as Stylist).phone}</CardText> : null}
       <View style={styles.row}><Action label="Sửa" icon="create-outline" onPress={() => open(item)} disabled={busy} />
         <Action label="Xóa" icon="trash-outline" danger onPress={() => remove(item)} disabled={busy} /></View></Card>)}
@@ -241,4 +249,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, alignItems: "center" },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginHorizontal: 16 },
   toolbar: { flexDirection: "row", justifyContent: "space-between", gap: 8, marginHorizontal: 16 },
-  field: { gap: 5, marginTop: 8 }, input: { borderWidth: 1, borderRadius: 10, minHeight: 44, paddingHorizontal: 12 } });
+  field: { gap: 5, marginTop: 8 }, input: { borderWidth: 1, borderRadius: 10, minHeight: 44, paddingHorizontal: 12 }
+});

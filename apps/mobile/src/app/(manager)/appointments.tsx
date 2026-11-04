@@ -10,8 +10,8 @@ import type { AppointmentStatus, Branch, ManagerAppointment, Stylist } from "@/m
 import { useManagerApi } from "@/manager/use-manager-api";
 
 const statuses: Array<[AppointmentStatus | "", string]> = [["", "Tất cả"], ["booked", "Đã đặt"],
-  ["checked_in", "Đã đến"], ["completed", "Đã hoàn thành"],
-  ["cancelled", "Khách hủy"], ["no_show", "Khách không đến"]];
+["checked_in", "Đã đến"], ["completed", "Đã hoàn thành"],
+["cancelled", "Khách hủy"], ["no_show", "Khách không đến"]];
 export default function ManagerAppointments() {
   const api = useManagerApi();
   const theme = useAppTheme();
@@ -28,8 +28,10 @@ export default function ManagerAppointments() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
-    return () => clearInterval(interval); }, []);
+  useEffect(() => {
+    const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
   const requestId = useRef(0);
 
   useFocusEffect(useCallback(() => {
@@ -41,8 +43,10 @@ export default function ManagerAppointments() {
       const selected = branchId ? nextBranches.filter((branch) => branch.id === branchId) : nextBranches;
       const [stylistGroups, page] = await Promise.all([
         Promise.all(selected.map((branch) => api.stylists(branch.id))),
-        api.appointments({ date: allDates ? "all" : date, branchId: branchId || undefined, stylistId: stylistId || undefined,
-          status: status || undefined, limit: 20 }),
+        api.appointments({
+          date: allDates ? "all" : date, branchId: branchId || undefined, stylistId: stylistId || undefined,
+          status: status || undefined, limit: 20
+        }),
       ]);
       if (active && requestId.current === current) {
         setBranches(nextBranches); setStylists(stylistGroups.flat()); setItems(page.items); setCursor(page.nextCursor);
@@ -57,8 +61,10 @@ export default function ManagerAppointments() {
     const current = requestId.current;
     setLoadingMore(true); setError("");
     try {
-      const page = await api.appointments({ date: allDates ? "all" : date, branchId: branchId || undefined,
-        stylistId: stylistId || undefined, status: status || undefined, limit: 20, cursor });
+      const page = await api.appointments({
+        date: allDates ? "all" : date, branchId: branchId || undefined,
+        stylistId: stylistId || undefined, status: status || undefined, limit: 20, cursor
+      });
       if (current === requestId.current) {
         setItems((before) => [...before, ...page.items.filter((item) => !before.some((old) => old.id === item.id))]);
         setCursor(page.nextCursor);
@@ -87,10 +93,10 @@ export default function ManagerAppointments() {
         <Text style={[styles.statusBadge, item.status === "booked"
           ? { color: "#1D4ED8", backgroundColor: "#DBEAFE" }
           : item.status === "completed" || item.status === "paid"
-          ? { color: "#166534", backgroundColor: "#DCFCE7" }
-          : item.status === "cancelled"
-          ? { color: "#B91C1C", backgroundColor: "#FEE2E2" }
-          : { color: theme.brand, backgroundColor: theme.brandMuted }]}>
+            ? { color: "#166534", backgroundColor: "#DCFCE7" }
+            : item.status === "cancelled"
+              ? { color: "#B91C1C", backgroundColor: "#FEE2E2" }
+              : { color: theme.brand, backgroundColor: theme.brandMuted }]}>
           {item.status === "paid" ? "Đã hoàn thành" : statuses.find(([value]) => value === item.status)?.[1]}</Text></View>
       <CardText>{displayTime(item.startTime)}</CardText>
       <CardText>{branches.find((branch) => branch.id === item.branchId)?.name || "Chi nhánh chưa cập nhật"}</CardText>

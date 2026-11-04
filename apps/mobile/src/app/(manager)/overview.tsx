@@ -9,8 +9,10 @@ import { ManagerDatePicker, ManagerSelect } from "@/manager/filters-ui";
 import type { Branch, Overview } from "@/manager/types";
 import { useManagerApi } from "@/manager/use-manager-api";
 
-const labels = { booked: "Đã đặt", checked_in: "Đã đến", completed: "Đã hoàn thành",
-  paid: "Đã thanh toán", cancelled: "Đã hủy", no_show: "Khách không đến" };
+const labels = {
+  booked: "Đã đặt", checked_in: "Đã đến", completed: "Đã hoàn thành",
+  paid: "Đã thanh toán", cancelled: "Đã hủy", no_show: "Khách không đến"
+};
 export default function ManagerOverview() {
   const api = useManagerApi();
   const theme = useAppTheme();
@@ -22,8 +24,10 @@ export default function ManagerOverview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
-    return () => clearInterval(interval); }, []);
+  useEffect(() => {
+    const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     let active = true;
