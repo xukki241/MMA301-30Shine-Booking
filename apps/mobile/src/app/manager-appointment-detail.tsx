@@ -20,8 +20,10 @@ export default function ManagerAppointmentDetail() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [revision, setRevision] = useState(0);
-  useEffect(() => { const interval = setInterval(() => setRevision((value) => value + 1), 30000);
-    return () => clearInterval(interval); }, []);
+  useEffect(() => {
+    const interval = setInterval(() => setRevision((value) => value + 1), 30000);
+    return () => clearInterval(interval);
+  }, []);
   useFocusEffect(useCallback(() => {
     let active = true;
     if (!id) return () => { active = false; };
@@ -35,9 +37,11 @@ export default function ManagerAppointmentDetail() {
       const branches: Branch[] = catalog[0].status === "fulfilled" ? catalog[0].value : [];
       const services: Service[] = catalog[1].status === "fulfilled" ? catalog[1].value : [];
       const stylists: Stylist[] = catalog[2].status === "fulfilled" ? catalog[2].value : [];
-      setNames({ branch: branches.find((entry) => entry.id === next.branchId)?.name || "",
+      setNames({
+        branch: branches.find((entry) => entry.id === next.branchId)?.name || "",
         service: services.find((entry) => entry.id === next.serviceId)?.name || "",
-        stylist: stylists.find((entry) => entry.userId === next.stylistId)?.displayName || "" });
+        stylist: stylists.find((entry) => entry.userId === next.stylistId)?.displayName || ""
+      });
     })
       .catch((cause) => { if (active) { setItem(null); setError(cause instanceof Error ? cause.message : "Không tải được lịch."); } })
       .finally(() => { if (active) setLoading(false); });
@@ -54,9 +58,11 @@ export default function ManagerAppointmentDetail() {
       <CardText>Số điện thoại: {item.customerPhone || "Không có"}</CardText>
       <CardText>Bắt đầu: {displayTime(item.startTime)}</CardText>
       <CardText>Kết thúc: {displayTime(item.endTime)}</CardText>
-      <CardText>Trạng thái: {({ booked: "Đã đặt", checked_in: "Đã đến · Đang chờ thợ",
+      <CardText>Trạng thái: {({
+        booked: "Đã đặt", checked_in: "Đã đến · Đang chờ thợ",
         completed: "Đã hoàn thành", paid: "Đã hoàn thành", cancelled: "Khách hủy",
-        no_show: "Khách không đến" } as const)[item.status]}</CardText>
+        no_show: "Khách không đến"
+      } as const)[item.status]}</CardText>
       <CardText>Chi nhánh: {names.branch || (item.branchId ? `Đã xóa (${item.branchId})` : "Không có")}</CardText>
       <CardText>Dịch vụ: {names.service || (item.serviceId ? `Đã xóa (${item.serviceId})` : "Không có")}</CardText>
       <CardText>Thợ: {names.stylist || `Đã xóa (${item.stylistId})`}</CardText>
@@ -64,9 +70,13 @@ export default function ManagerAppointmentDetail() {
       {item.status === "no_show" && <ManagerAction label="Khôi phục lịch khách đã đến" icon="arrow-undo-outline" variant="primary"
         onPress={() => Alert.alert("Khôi phục lịch?", "Chỉ dùng khi khách thực sự đã đến và bị đánh dấu nhầm.", [
           { text: "Quay lại", style: "cancel" },
-          { text: "Khôi phục", onPress: () => { void api.restoreNoShow(item.id)
-            .then(() => setRevision((value) => value + 1))
-            .catch((cause) => setError(cause instanceof Error ? cause.message : "Không khôi phục được lịch.")); } },
+          {
+            text: "Khôi phục", onPress: () => {
+              void api.restoreNoShow(item.id)
+                .then(() => setRevision((value) => value + 1))
+                .catch((cause) => setError(cause instanceof Error ? cause.message : "Không khôi phục được lịch."));
+            }
+          },
         ])} />}
     </Card>}
   </Screen>;
